@@ -116,16 +116,36 @@ export const supabaseAuth: AuthPort = {
   },
 
   async getSession(): Promise<AuthSession | null> {
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    // Use getUser() to validate session against the server
+    // This makes a network request and will fail if user is deleted
+    // Unlike getSession() which only reads cached data
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
-    if (error || !session) {
+    if (userError || !user) {
+      // Session is invalid (user deleted, token expired, etc.)
+      // Clear any stale local state
+      currentUser = null;
       return null;
     }
 
+    // User is valid, now get session for tokens
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      currentUser = null;
+      return null;
+    }
+
+    // Update current user
+    currentUser = {
+      id: user.id,
+      email: user.email ?? undefined,
+    };
+
     return {
       user: {
-        id: session.user.id,
-        email: session.user.email ?? undefined,
+        id: user.id,
+        email: user.email ?? undefined,
       },
       accessToken: session.access_token,
       expiresAt: session.expires_at,
