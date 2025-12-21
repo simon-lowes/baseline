@@ -1,5 +1,6 @@
 export interface PainEntry {
   id: string
+  user_id: string
   timestamp: number
   intensity: number
   locations: string[]

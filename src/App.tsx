@@ -1,7 +1,7 @@
-import { supabase } from '@/lib/supabase'
+import { db, auth } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, List, Calendar } from '@phosphor-icons/react'
+import { Plus, List, Calendar, SignOut } from '@phosphor-icons/react'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -20,18 +20,47 @@ import { PainEntry } from '@/types/pain-entry'
 import { PainEntryForm } from '@/components/PainEntryForm'
 import { PainEntryCard } from '@/components/PainEntryCard'
 import { EmptyState } from '@/components/EmptyState'
+import { AuthForm } from '@/components/AuthForm'
 import { filterEntriesByDateRange, filterEntriesByLocation } from '@/lib/pain-utils'
 import { BODY_LOCATIONS } from '@/types/pain-entry'
+import type { AuthUser } from '@/ports/AuthPort'
 
 function App() {
+  const [user, setUser] = useState<AuthUser | null>(auth.getUser())
+  const [authLoading, setAuthLoading] = useState(true)
   const [entries, setEntries] = useState<PainEntry[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Listen for auth state changes
   useEffect(() => {
+    // Check initial session
+    auth.getSession().then((session) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+
+    // Subscribe to auth changes
+    const { unsubscribe } = auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null)
+      if (event === 'SIGNED_OUT') {
+        setEntries([])
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  // Load entries when user is authenticated
+  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     const loadEntries = async () => {
-      const { data, error } = await supabase
-        .from('pain_entries')
-        .select('*')
-        .order('timestamp', { ascending: false })
+      const { data, error } = await db.select<PainEntry>('pain_entries', {
+        orderBy: { column: 'timestamp', ascending: false },
+      })
 
       if (error) {
         console.error(error)
@@ -45,7 +74,7 @@ function App() {
     }
 
     loadEntries()
-  }, [])
+  }, [user])
   const [showForm, setShowForm] = useState(false)
   const [dateFilter, setDateFilter] = useState<string | null>(null)
   const [locationFilter, setLocationFilter] = useState<string | null>(null)
@@ -57,13 +86,19 @@ function App() {
     notes: string
     triggers: string[]
   }) => {
+    if (!user) {
+      toast.error('You must be signed in to add entries')
+      return
+    }
+
     const newEntry: PainEntry = {
       id: `${Date.now()}-${Math.random()}`,
+      user_id: user.id,
       timestamp: Date.now(),
       ...data,
     }
 
-    const { error } = await supabase.from('pain_entries').insert([newEntry])
+    const { error } = await db.insert<PainEntry>('pain_entries', newEntry)
 
     if (error) {
       console.error(error)
@@ -77,10 +112,7 @@ function App() {
   }
 
   const handleDeleteEntry = async (id: string) => {
-    const { error } = await supabase
-      .from('pain_entries')
-      .delete()
-      .eq('id', id)
+    const { error } = await db.delete('pain_entries', { id })
 
     if (error) {
       console.error(error)
@@ -127,6 +159,34 @@ function App() {
 
   const entryCount = entries?.length ?? 0
 
+  const handleSignOut = async () => {
+    const { error } = await auth.signOut()
+    if (error) {
+      toast.error('Could not sign out')
+    } else {
+      toast.success('Signed out')
+    }
+  }
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Loading…
+      </div>
+    )
+  }
+
+  // Show auth form if not signed in
+  if (!user) {
+    return (
+      <>
+        <Toaster />
+        <AuthForm />
+      </>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
@@ -139,13 +199,24 @@ function App() {
     <div className="min-h-screen bg-background">
       <Toaster />
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-4xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-            Chronic Pain Diary
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Track and understand your pain patterns
-          </p>
+        <div className="container max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+              Chronic Pain Diary
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Track and understand your pain patterns
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="gap-2"
+          >
+            <SignOut size={18} />
+            Sign Out
+          </Button>
         </div>
       </header>
 
