@@ -46,6 +46,7 @@ export const supabaseAuth: AuthPort = {
       password: params.password,
       options: {
         data: params.metadata,
+        emailRedirectTo: window.location.origin,
       },
     });
 
@@ -53,7 +54,9 @@ export const supabaseAuth: AuthPort = {
       return { user: null, error: new Error(error.message) };
     }
 
-    if (!data.user) {
+    // Supabase returns a user even when email confirmation is required
+    // Check email_confirmed_at to determine if confirmation is needed
+    if (!data.user || !data.user.email_confirmed_at) {
       return { user: null, error: null }; // Email confirmation required
     }
 

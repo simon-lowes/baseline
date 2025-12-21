@@ -122,14 +122,10 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       return;
     }
 
-    if (user) {
-      toast.success('Account created! You can now sign in.');
-      onSuccess?.();
-    } else {
-      // Email confirmation required
-      setStage('signUpSuccess');
-      toast.success('Check your email to confirm your account');
-    }
+    // Email confirmation is always required
+    // Show the confirmation screen regardless of user object
+    setStage('signUpSuccess');
+    toast.success('Check your email to confirm your account');
   }
 
   async function handleSignUpWithMagicLink() {
