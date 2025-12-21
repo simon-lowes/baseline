@@ -34,11 +34,29 @@ function App() {
 
   // Listen for auth state changes
   useEffect(() => {
-    // Check initial session
-    auth.getSession().then((session) => {
-      setUser(session?.user ?? null)
-      setAuthLoading(false)
-    })
+    // Validate session against server on load
+    // This will fail if user was deleted, token expired, etc.
+    const validateAndInitAuth = async () => {
+      try {
+        const session = await auth.getSession()
+        
+        if (!session) {
+          // No valid session - ensure we're signed out cleanly
+          setUser(null)
+        } else {
+          setUser(session.user)
+        }
+      } catch (error) {
+        console.error('Auth validation failed:', error)
+        // Force sign out to clear any stale tokens
+        await auth.signOut()
+        setUser(null)
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+    
+    validateAndInitAuth()
 
     // Subscribe to auth changes
     const { unsubscribe } = auth.onAuthStateChange((event, session) => {
@@ -79,6 +97,23 @@ function App() {
 
       if (error) {
         console.error(error)
+        
+        // Check for auth-related errors (deleted user, invalid token, etc.)
+        const errorMsg = error.message?.toLowerCase() ?? ''
+        if (
+          errorMsg.includes('jwt') ||
+          errorMsg.includes('token') ||
+          errorMsg.includes('unauthorized') ||
+          errorMsg.includes('auth') ||
+          errorMsg.includes('permission') ||
+          errorMsg.includes('row-level security')
+        ) {
+          toast.error('Session expired. Please sign in again.')
+          await auth.signOut()
+          setUser(null)
+          return
+        }
+        
         toast.error('Could not load entries')
         setLoading(false)
         return
@@ -94,6 +129,27 @@ function App() {
   const [dateFilter, setDateFilter] = useState<string | null>(null)
   const [locationFilter, setLocationFilter] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Helper to check if an error is auth-related
+  const isAuthError = (error: Error | null): boolean => {
+    if (!error?.message) return false
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('jwt') ||
+      msg.includes('token') ||
+      msg.includes('unauthorized') ||
+      msg.includes('auth') ||
+      msg.includes('permission') ||
+      msg.includes('row-level security')
+    )
+  }
+
+  // Handle auth errors by signing out
+  const handleAuthError = async () => {
+    toast.error('Session expired. Please sign in again.')
+    await auth.signOut()
+    setUser(null)
+  }
 
   const handleAddEntry = async (data: {
     intensity: number
@@ -117,6 +173,10 @@ function App() {
 
     if (error) {
       console.error(error)
+      if (isAuthError(error)) {
+        await handleAuthError()
+        return
+      }
       toast.error('Could not save entry')
       return
     }
@@ -131,6 +191,10 @@ function App() {
 
     if (error) {
       console.error(error)
+      if (isAuthError(error)) {
+        await handleAuthError()
+        return
+      }
       toast.error('Could not delete entry')
       return
     }
