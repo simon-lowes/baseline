@@ -45,12 +45,21 @@ export interface UpdatePasswordParams {
   password: string;
 }
 
+export interface ResendParams {
+  type: 'signup';
+  email: string;
+  options?: {
+    emailRedirectTo?: string;
+  };
+}
+
 export interface AuthPort {
   signUp(params: SignUpParams): Promise<{ user: AuthUser | null; error: Error | null }>;
   signIn(params: SignInParams): Promise<{ user: AuthUser | null; error: Error | null }>;
   signInWithMagicLink(params: MagicLinkParams): Promise<{ error: Error | null }>;
   resetPassword(params: ResetPasswordParams): Promise<{ error: Error | null }>;
   updatePassword(params: UpdatePasswordParams): Promise<{ error: Error | null }>;
+  resend(params: ResendParams): Promise<{ error: Error | null }>;
   signOut(): Promise<{ error: Error | null }>;
   /**
    * Get the current session, validating against the server.

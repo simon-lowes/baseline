@@ -12,6 +12,7 @@ import type {
   MagicLinkParams,
   ResetPasswordParams,
   UpdatePasswordParams,
+  ResendParams,
   AuthStateChangeCallback,
 } from '@/ports/AuthPort';
 import { supabaseClient } from './supabaseClient';
@@ -161,6 +162,24 @@ export const supabaseAuth: AuthPort = {
   async updatePassword(params: UpdatePasswordParams) {
     const { error } = await supabaseClient.auth.updateUser({
       password: params.password,
+    });
+
+    if (error) {
+      return { error: new Error(error.message) };
+    }
+
+    return { error: null };
+  },
+
+  async resend(params: ResendParams) {
+    const { error } = await supabaseClient.auth.resend({
+      type: params.type,
+      email: params.email,
+      options: params.options ? {
+        emailRedirectTo: params.options.emailRedirectTo ?? window.location.origin,
+      } : {
+        emailRedirectTo: window.location.origin,
+      },
     });
 
     if (error) {
