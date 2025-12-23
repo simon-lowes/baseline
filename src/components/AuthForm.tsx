@@ -221,7 +221,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: AuthFormProps) 
         // Re-send signup confirmation using the proper resend API
         const { error } = await auth.resend({
           type: 'signup',
-          email: email,
+          email,
         });
         if (error) throw error;
       }

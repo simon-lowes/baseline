@@ -175,10 +175,8 @@ export const supabaseAuth: AuthPort = {
     const { error } = await supabaseClient.auth.resend({
       type: params.type,
       email: params.email,
-      options: params.options ? {
-        emailRedirectTo: params.options.emailRedirectTo ?? window.location.origin,
-      } : {
-        emailRedirectTo: window.location.origin,
+      options: {
+        emailRedirectTo: params.options?.emailRedirectTo ?? window.location.origin,
       },
     });
 
