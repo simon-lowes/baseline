@@ -46,8 +46,9 @@ export interface UpdatePasswordParams {
 }
 
 export interface ResendParams {
-  type: 'signup';
-  email: string;
+  type: 'signup' | 'email_change' | 'sms' | 'phone_change';
+  email?: string;
+  phone?: string;
   options?: {
     emailRedirectTo?: string;
   };
