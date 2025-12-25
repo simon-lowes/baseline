@@ -23,7 +23,7 @@ interface PainEntryCardProps {
   onEdit: (entry: PainEntry) => void
 }
 
-export function PainEntryCard({ entry, tracker, onDelete, onEdit }: PainEntryCardProps) {
+export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<PainEntryCardProps>) {
   const [showDetails, setShowDetails] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   

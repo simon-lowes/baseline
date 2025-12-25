@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { X, Check, Hash } from '@phosphor-icons/react'
-import type { Tracker } from '@/types/tracker'
-import type { TrackerPresetId } from '@/types/tracker'
+import type { Tracker, TrackerPresetId } from '@/types/tracker'
 import type { PainEntry } from '@/types/pain-entry'
 import { getTrackerConfig } from '@/types/tracker-config'
 
@@ -25,7 +24,7 @@ interface PainEntryFormProps {
   onCancel: () => void
 }
 
-export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: PainEntryFormProps) {
+export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readonly<PainEntryFormProps>) {
   const config = getTrackerConfig(tracker?.preset_id as TrackerPresetId | null, tracker?.generated_config)
   const isEditing = !!editEntry
   

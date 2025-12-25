@@ -413,14 +413,23 @@ const configMap: Record<TrackerPresetId, TrackerConfig> = {
 import type { GeneratedTrackerConfig, IntensityScale } from './generated-config';
 
 /**
+ * Get intensity labels based on scale type
+ */
+function getIntensityLabels(scale: IntensityScale): string[] {
+  if (scale === 'high_bad') {
+    return ['Normal', 'Mild', 'Moderate', 'Elevated', 'High'];
+  }
+  if (scale === 'low_bad') {
+    return ['Very Low', 'Low', 'Moderate', 'Good', 'Excellent'];
+  }
+  return ['Very Light', 'Light', 'Moderate', 'Intense', 'Maximum'];
+}
+
+/**
  * Build intensity label function based on scale type
  */
 function buildIntensityLabelFn(scale: IntensityScale): (value: number) => string {
-  const labels = scale === 'high_bad'
-    ? ['Normal', 'Mild', 'Moderate', 'Elevated', 'High']
-    : scale === 'low_bad'
-    ? ['Very Low', 'Low', 'Moderate', 'Good', 'Excellent']
-    : ['Very Light', 'Light', 'Moderate', 'Intense', 'Maximum'];
+  const labels = getIntensityLabels(scale);
   
   return (value: number) => {
     if (value <= 2) return labels[0];
@@ -432,33 +441,38 @@ function buildIntensityLabelFn(scale: IntensityScale): (value: number) => string
 }
 
 /**
+ * Get intensity color palette based on scale type
+ */
+function getIntensityColors(scale: IntensityScale): string[] {
+  if (scale === 'high_bad') {
+    // High is bad (like pain) - green to red
+    return ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+  }
+  if (scale === 'low_bad') {
+    // Low is bad (like mood) - red to green
+    return ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+  }
+  // Neutral - use purple gradient
+  return ['#6366f1', '#8b5cf6', '#a855f7', '#c026d3', '#db2777'];
+}
+
+/**
+ * Get color from palette based on value
+ */
+function getColorFromPalette(colors: string[], value: number): string {
+  if (value <= 2) return colors[0];
+  if (value <= 4) return colors[1];
+  if (value <= 6) return colors[2];
+  if (value <= 8) return colors[3];
+  return colors[4];
+}
+
+/**
  * Build intensity color function based on scale type
  */
 function buildIntensityColorFn(scale: IntensityScale): (value: number) => string {
-  return (value: number) => {
-    if (scale === 'high_bad') {
-      // High is bad (like pain) - green to red
-      if (value <= 2) return '#22c55e';
-      if (value <= 4) return '#84cc16';
-      if (value <= 6) return '#eab308';
-      if (value <= 8) return '#f97316';
-      return '#ef4444';
-    } else if (scale === 'low_bad') {
-      // Low is bad (like mood) - red to green
-      if (value <= 2) return '#ef4444';
-      if (value <= 4) return '#f97316';
-      if (value <= 6) return '#eab308';
-      if (value <= 8) return '#84cc16';
-      return '#22c55e';
-    } else {
-      // Neutral - use purple gradient
-      if (value <= 2) return '#6366f1';
-      if (value <= 4) return '#8b5cf6';
-      if (value <= 6) return '#a855f7';
-      if (value <= 8) return '#c026d3';
-      return '#db2777';
-    }
-  };
+  const colors = getIntensityColors(scale);
+  return (value: number) => getColorFromPalette(colors, value);
 }
 
 /**

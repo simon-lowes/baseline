@@ -32,7 +32,7 @@ export const localKv: KvPort = {
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(searchPrefix)) {
+      if (key?.startsWith(searchPrefix)) {
         // Remove the storage prefix to return the user-facing key
         keys.push(key.slice(STORAGE_PREFIX.length));
       }

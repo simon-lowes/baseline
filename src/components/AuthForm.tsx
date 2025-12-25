@@ -49,6 +49,19 @@ interface AuthFormProps {
   initialStage?: AuthStage;
 }
 
+/**
+ * Get resend button text based on state
+ */
+function getResendButtonText(resendCooldown: number, isLoading: boolean): string {
+  if (resendCooldown > 0) {
+    return `Resend in ${resendCooldown}s`;
+  }
+  if (isLoading) {
+    return 'Sending...';
+  }
+  return "Didn't receive it? Resend";
+}
+
 // Friendly error messages
 function getFriendlyError(error: Error): string {
   const msg = error.message.toLowerCase();
@@ -78,7 +91,7 @@ function getFriendlyError(error: Error): string {
   return 'Something went wrong. Please try again';
 }
 
-export function AuthForm({ onSuccess, initialStage = 'signIn' }: AuthFormProps) {
+export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFormProps>) {
   const [stage, setStage] = useState<AuthStage>(initialStage);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -559,12 +572,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: AuthFormProps) 
             disabled={isLoading || resendCooldown > 0}
             className="w-full"
           >
-            {resendCooldown > 0 
-              ? `Resend in ${resendCooldown}s`
-              : isLoading 
-                ? 'Sending...'
-                : "Didn't receive it? Resend"
-            }
+            {getResendButtonText(resendCooldown, isLoading)}
           </Button>
 
           <button

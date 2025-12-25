@@ -113,7 +113,7 @@ export const supabaseAuth: AuthPort = {
       password: params.password,
       options: {
         data: params.metadata,
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: globalThis.location.origin,
       },
     });
 
@@ -161,7 +161,7 @@ export const supabaseAuth: AuthPort = {
     const { error } = await supabaseClient.auth.signInWithOtp({
       email: params.email,
       options: {
-        emailRedirectTo: params.redirectTo ?? window.location.origin,
+        emailRedirectTo: params.redirectTo ?? globalThis.location.origin,
       },
     });
 
@@ -176,7 +176,7 @@ export const supabaseAuth: AuthPort = {
     const { error } = await supabaseClient.auth.resetPasswordForEmail(
       params.email,
       {
-        redirectTo: params.redirectTo ?? `${window.location.origin}/reset-password`,
+        redirectTo: params.redirectTo ?? `${globalThis.location.origin}/reset-password`,
       }
     );
 
