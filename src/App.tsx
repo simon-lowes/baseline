@@ -1,4 +1,4 @@
-import { db, auth } from '@/runtime/appRuntime'
+import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut } from '@phosphor-icons/react'
@@ -13,17 +13,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 
 import { PainEntry } from '@/types/pain-entry'
+import type { Tracker, TrackerPresetId } from '@/types/tracker'
 import { PainEntryForm } from '@/components/PainEntryForm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PainEntryCard } from '@/components/PainEntryCard'
 import { EmptyState } from '@/components/EmptyState'
 import { AuthForm } from '@/components/AuthForm'
+import { TrackerSelector } from '@/components/TrackerSelector'
 import { filterEntriesByDateRange, filterEntriesByLocation } from '@/lib/pain-utils'
 import { BODY_LOCATIONS } from '@/types/pain-entry'
+import { getTrackerConfig } from '@/types/tracker-config'
 import type { AuthUser } from '@/ports/AuthPort'
 
 function App() {
@@ -38,6 +47,8 @@ function App() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [updatingPassword, setUpdatingPassword] = useState(false)
+  const [currentTracker, setCurrentTracker] = useState<Tracker | null>(null)
+  const [aboutOpen, setAboutOpen] = useState(false)
 
   // Listen for auth state changes
   useEffect(() => {
@@ -47,17 +58,22 @@ function App() {
       try {
         console.log('[Auth] Starting server-side session validation...')
         
+        // Prevent hanging forever if the auth endpoint is slow/unreachable
+        const session = await Promise.race([
+          auth.getSession(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+        ])
+        
+        if (session === null) {
+          console.warn('[Auth] Session validation timed out or returned null')
+          setUser(null)
+          return
+        }
+        
         // Wait for the auth adapter's initial validation to complete
         // This makes a server request to verify the JWT is still valid
-        const session = await auth.getSession()
-        
-        if (!session) {
-          console.log('[Auth] No valid session - user not authenticated')
-          setUser(null)
-        } else {
-          console.log('[Auth] Session validated successfully:', session.user.email)
-          setUser(session.user)
-        }
+        console.log('[Auth] Session validated successfully:', session.user.email)
+        setUser(session.user)
       } catch (error) {
         console.error('[Auth] Session validation failed:', error)
         // Force sign out to clear any stale tokens from localStorage
@@ -102,15 +118,35 @@ function App() {
     return () => unsubscribe()
   }, [])
 
-  // Load entries when user is authenticated
+  // Load entries when user is authenticated and tracker is selected
   useEffect(() => {
     if (!user) {
       setLoading(false)
       return
     }
 
+    // Ensure user has a default tracker
+    const ensureTracker = async () => {
+      if (!currentTracker) {
+        const result = await trackerService.ensureDefaultTracker()
+        if (result.data) {
+          setCurrentTracker(result.data)
+        }
+      }
+    }
+    ensureTracker()
+  }, [user, currentTracker])
+
+  // Load entries when tracker changes
+  useEffect(() => {
+    if (!user || !currentTracker) {
+      return
+    }
+
     const loadEntries = async () => {
+      setLoading(true)
       const { data, error } = await db.select<PainEntry>('pain_entries', {
+        where: { tracker_id: currentTracker.id },
         orderBy: { column: 'timestamp', ascending: false },
       })
 
@@ -143,8 +179,9 @@ function App() {
     }
 
     loadEntries()
-  }, [user])
+  }, [user, currentTracker])
   const [showForm, setShowForm] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<PainEntry | null>(null)
   const [dateFilter, setDateFilter] = useState<string | null>(null)
   const [locationFilter, setLocationFilter] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -175,15 +212,22 @@ function App() {
     locations: string[]
     notes: string
     triggers: string[]
+    hashtags: string[]
   }) => {
     if (!user) {
       toast.error('You must be signed in to add entries')
       return
     }
 
+    if (!currentTracker) {
+      toast.error('Please select a tracker first')
+      return
+    }
+
     const newEntry: PainEntry = {
       id: `${Date.now()}-${Math.random()}`,
       user_id: user.id,
+      tracker_id: currentTracker.id,
       timestamp: Date.now(),
       ...data,
     }
@@ -202,7 +246,51 @@ function App() {
 
     setEntries(current => [newEntry, ...current])
     setShowForm(false)
-    toast.success('Pain entry saved')
+    toast.success('Entry saved')
+  }
+
+  const handleEditEntry = (entry: PainEntry) => {
+    setEditingEntry(entry)
+    setShowForm(true)
+  }
+
+  const handleUpdateEntry = async (data: {
+    intensity: number
+    locations: string[]
+    notes: string
+    triggers: string[]
+    hashtags: string[]
+  }) => {
+    if (!editingEntry) return
+
+    const updatedEntry: PainEntry = {
+      ...editingEntry,
+      ...data,
+    }
+
+    const { error } = await db.update<PainEntry>('pain_entries', {
+      id: editingEntry.id,
+      ...data,
+    })
+
+    if (error) {
+      console.error(error)
+      if (isAuthError(error)) {
+        await handleAuthError()
+        return
+      }
+      toast.error('Could not update entry')
+      return
+    }
+
+    setEntries(current =>
+      current.map(entry =>
+        entry.id === editingEntry.id ? updatedEntry : entry
+      )
+    )
+    setShowForm(false)
+    setEditingEntry(null)
+    toast.success('Entry updated')
   }
 
   const handleDeleteEntry = async (id: string) => {
@@ -243,6 +331,7 @@ function App() {
           entry.notes,
           entry.triggers.join(' '),
           entry.locations.join(' '),
+          (entry.hashtags ?? []).map(tag => `#${tag}`).join(' '),
           String(entry.intensity),
         ]
           .join(' ')
@@ -258,11 +347,18 @@ function App() {
   const entryCount = entries?.length ?? 0
 
   const handleSignOut = async () => {
-    const { error } = await auth.signOut()
-    if (error) {
-      toast.error('Could not sign out')
-    } else {
-      toast.success('Signed out')
+    console.log('[App] Sign out clicked');
+    try {
+      const { error } = await auth.signOut()
+      console.log('[App] Sign out result:', error?.message);
+      if (error) {
+        toast.error('Could not sign out')
+      } else {
+        toast.success('Signed out')
+      }
+    } catch (err) {
+      console.error('[App] Sign out exception:', err);
+      toast.error('Sign out failed');
     }
   }
 
@@ -311,7 +407,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        Loading your diary…
+        Loading your data…
       </div>
     )
   }
@@ -319,6 +415,39 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
+      
+      {/* About Dialog */}
+      <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Baseline</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <p className="text-base text-foreground">
+              Know your baseline, spot the changes.
+            </p>
+            <p>
+              Baseline helps you track anything that matters to your health and wellbeing. 
+              Whether it's chronic pain, mood, sleep, or custom trackers powered by AI — 
+              understanding your patterns is the first step to feeling better.
+            </p>
+            <div className="space-y-2">
+              <h3 className="font-medium text-foreground">Features</h3>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Track multiple health conditions with custom trackers</li>
+                <li>AI-powered context generation for personalized tracking</li>
+                <li>Visual insights with calendar and list views</li>
+                <li>Tag entries with locations, triggers, and hashtags</li>
+                <li>Private and secure — your data stays yours</li>
+              </ul>
+            </div>
+            <p className="text-xs pt-2 border-t">
+              Made with care for people managing chronic conditions. 💙
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -351,30 +480,61 @@ function App() {
       {emailConfirmed && (
         <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-3 text-center">
           <p className="text-sm text-green-700 dark:text-green-400">
-            ✅ Email confirmed! Welcome to Chronic Pain Diary.
+            ✅ Email confirmed! Welcome to Baseline.
           </p>
         </div>
       )}
       
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-              Chronic Pain Diary
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Track and understand your pain patterns
-            </p>
+        <div className="container max-w-4xl mx-auto px-6 py-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => setAboutOpen(true)}
+              className="text-left hover:opacity-80 transition-opacity group"
+            >
+              <div className="inline-flex items-start">
+                <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+                  Baseline
+                </h1>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span 
+                        className="-mt-0.5 ml-1 w-5 h-5 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold group-hover:bg-primary/20 group-hover:border-primary/60 transition-all cursor-pointer"
+                        aria-label="About Baseline"
+                      >
+                        i
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-[220px] text-xs">
+                      <p>Track health patterns with AI-powered insights. Click for more info.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-muted-foreground mt-1">
+                Know your baseline, spot the changes
+              </p>
+            </button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="gap-2"
+            >
+              <SignOut size={18} />
+              Sign Out
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="gap-2"
-          >
-            <SignOut size={18} />
-            Sign Out
-          </Button>
+          
+          {/* Tracker Selector */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Tracking:</span>
+            <TrackerSelector
+              currentTracker={currentTracker}
+              onTrackerChange={setCurrentTracker}
+            />
+          </div>
         </div>
       </header>
 
@@ -389,8 +549,13 @@ function App() {
               transition={{ duration: 0.2 }}
             >
               <PainEntryForm
-                onSubmit={handleAddEntry}
-                onCancel={() => setShowForm(false)}
+                tracker={currentTracker}
+                editEntry={editingEntry}
+                onSubmit={editingEntry ? handleUpdateEntry : handleAddEntry}
+                onCancel={() => {
+                  setShowForm(false)
+                  setEditingEntry(null)
+                }}
               />
             </motion.div>
           ) : (
@@ -407,7 +572,7 @@ function App() {
                 className="w-full sm:w-auto gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
               >
                 <Plus size={20} weight="bold" />
-                Log Pain Entry
+                {getTrackerConfig(currentTracker?.preset_id as TrackerPresetId | null, currentTracker?.generated_config).addButtonLabel}
               </Button>
             </motion.div>
           )}
@@ -439,14 +604,16 @@ function App() {
 
             <TabsContent value="all" className="space-y-4 mt-6">
               {filteredEntries.length === 0 ? (
-                <EmptyState />
+                <EmptyState tracker={currentTracker} />
               ) : (
                 <div className="space-y-4">
                   {filteredEntries.map(entry => (
                     <PainEntryCard
                       key={entry.id}
                       entry={entry}
+                      tracker={currentTracker}
                       onDelete={handleDeleteEntry}
+                      onEdit={handleEditEntry}
                     />
                   ))}
                 </div>
@@ -515,7 +682,9 @@ function App() {
                     <PainEntryCard
                       key={entry.id}
                       entry={entry}
+                      tracker={currentTracker}
                       onDelete={handleDeleteEntry}
+                      onEdit={handleEditEntry}
                     />
                   ))}
                 </div>
@@ -524,13 +693,13 @@ function App() {
           </Tabs>
         )}
 
-        {entryCount === 0 && !showForm && <EmptyState />}
+        {entryCount === 0 && !showForm && <EmptyState tracker={currentTracker} />}
       </main>
 
       <footer className="border-t mt-16">
         <div className="container max-w-4xl mx-auto px-6 py-6">
           <p className="text-sm text-muted-foreground text-center">
-            Your pain diary data is stored securely and privately.
+            Your data is stored securely and privately.
           </p>
         </div>
       </footer>

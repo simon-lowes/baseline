@@ -1,7 +1,8 @@
 {
-    "name": "spark-template",
+    "name": "baseline",
     "private": true,
-    "version": "0.0.0",
+    "version": "2.0.0",
+    "description": "Know your baseline, spot the changes. Track pain, mood, and any metric that matters.",
     "type": "module",
     "scripts": {
         "dev": "vite",
