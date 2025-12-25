@@ -27,7 +27,6 @@ Deno.serve(async (req: Request) => {
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     console.log('API key present:', !!GEMINI_API_KEY);
-    console.log('API key length:', GEMINI_API_KEY?.length);
     
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY not configured');
