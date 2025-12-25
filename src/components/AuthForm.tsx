@@ -167,14 +167,14 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         throw error;
       }
 
-      if (!user) {
+      if (user) {
+        toast.success('Account created!');
+        onSuccess?.();
+      } else {
         // Email confirmation required
         setEmailPurpose('signUpConfirmation');
         setStage('checkEmail');
         setResendCooldown(60);
-      } else {
-        toast.success('Account created!');
-        onSuccess?.();
       }
     } catch (error) {
       toast.error(getFriendlyError(error as Error));

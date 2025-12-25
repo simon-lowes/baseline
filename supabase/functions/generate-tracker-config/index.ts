@@ -111,7 +111,7 @@ Make it medically/scientifically informed but accessible to regular users.`;
     // Parse and validate JSON - strip any markdown if present
     let jsonText = content.trim();
     if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replaceAll(/```json?\n?/g, '').replace(/```$/g, '').trim();
+      jsonText = jsonText.replaceAll(/```json?\n?/g, '').replaceAll(/```$/g, '').trim();
     }
     
     const config = JSON.parse(jsonText);
