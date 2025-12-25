@@ -25,9 +25,35 @@ let initialValidationComplete = false;
 let initialValidationPromise: Promise<AuthUser | null> | null = null;
 
 /**
- * Validate session against Supabase server.
+ * Get session from local cache (fast, no network request).
+ * Use this for initial render, then validate in background.
+ */
+async function getSessionFromCache(): Promise<AuthUser | null> {
+  try {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    
+    if (error || !session?.user) {
+      currentUser = null;
+      return null;
+    }
+    
+    currentUser = {
+      id: session.user.id,
+      email: session.user.email ?? undefined,
+    };
+    
+    return currentUser;
+  } catch (error) {
+    console.error('Get session from cache failed:', error);
+    currentUser = null;
+    return null;
+  }
+}
+
+/**
+ * Validate session against Supabase server (slow, makes network request).
  * This is the ONLY way to know if a user is truly authenticated.
- * Never trust cached tokens without server validation.
+ * Call this in background after initial render.
  */
 async function validateSessionWithServer(): Promise<AuthUser | null> {
   try {
@@ -57,13 +83,13 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
   }
 }
 
-// Start validation immediately but don't block module loading
-initialValidationPromise = validateSessionWithServer().finally(() => {
+// Start with cached session immediately (fast, no network)
+// Don't block module loading with server validation
+initialValidationPromise = getSessionFromCache().finally(() => {
   initialValidationComplete = true;
 });
 
 // Keep user in sync with auth state changes
-// Only trust this AFTER we've done initial server validation
 supabaseClient.auth.onAuthStateChange(async (_event, session) => {
   // For SIGNED_OUT events, always clear immediately
   if (!session) {
@@ -71,10 +97,12 @@ supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     return;
   }
   
-  // For SIGNED_IN or TOKEN_REFRESHED, validate with server
-  // This prevents stale cached sessions from being trusted
+  // For SIGNED_IN or TOKEN_REFRESHED, update from session directly (fast)
   if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-    await validateSessionWithServer();
+    currentUser = {
+      id: session.user.id,
+      email: session.user.email ?? undefined,
+    };
   }
 });
 
@@ -192,14 +220,15 @@ export const supabaseAuth: AuthPort = {
   },
 
   async getSession(): Promise<AuthSession | null> {
-    // ALWAYS validate against server - never trust cache
-    const validatedUser = await validateSessionWithServer();
+    // Use cached session for fast initial load
+    // Server validation happens in background via onAuthStateChange
+    const cachedUser = await getSessionFromCache();
     
-    if (!validatedUser) {
+    if (!cachedUser) {
       return null;
     }
 
-    // User is valid, get session for tokens
+    // Get session for tokens
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
     if (sessionError || !session) {
@@ -208,7 +237,7 @@ export const supabaseAuth: AuthPort = {
     }
 
     return {
-      user: validatedUser,
+      user: cachedUser,
       accessToken: session.access_token,
       expiresAt: session.expires_at,
     };

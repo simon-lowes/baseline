@@ -11,10 +11,12 @@ import { localKv } from '@/adapters/local/localKv';
 import { noopAuth } from '@/adapters/noop/noopAuth';
 import { supabaseDb } from '@/adapters/supabase/supabaseDb';
 import { supabaseAuth } from '@/adapters/supabase/supabaseAuth';
+import { supabaseTracker } from '@/adapters/supabase/supabaseTracker';
 
 import type { KvPort } from '@/ports/KvPort';
 import type { AuthPort } from '@/ports/AuthPort';
 import type { DbPort } from '@/ports/DbPort';
+import type { TrackerPort } from '@/ports/TrackerPort';
 
 // =============================================================================
 // Environment Detection
@@ -64,6 +66,12 @@ export const auth: AuthPort = hasSupabaseEnv ? supabaseAuth : noopAuth;
  * Uses Supabase if env vars present
  */
 export const db: DbPort = supabaseDb;
+
+/**
+ * Tracker Service
+ * Manages user trackers (multiple tracking types per user)
+ */
+export const tracker: TrackerPort = supabaseTracker;
 
 // =============================================================================
 // Diagnostics Helpers

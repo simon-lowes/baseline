@@ -32,6 +32,10 @@ Phase 1 requirements:
 5. Migrate existing pain_entries to belong to a default "Chronic Pain" tracker
 6. Update the UI to show a tracker selector/switcher
 7. Keep all existing pain diary functionality working
+8. Integrate **shadcn/ui** for the design system
+   - Install and configure Tailwind CSS + shadcn/ui
+   - Replace core UI elements with shadcn components (Button, Input, Card, Dialog)
+   - Ensure consistent theming and accessibility
 
 Database schema changes needed:
 - New `trackers` table
@@ -42,7 +46,7 @@ Please provide:
 1. The database migration SQL
 2. Updated TypeScript types
 3. Changes to the Supabase adapter
-4. UI component changes for tracker switching
+4. Setup steps for shadcn/ui and the updated UI component for tracker switching using shadcn components
 ```
 
 ---

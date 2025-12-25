@@ -1,11 +1,13 @@
 export interface PainEntry {
   id: string
   user_id: string
+  tracker_id: string
   timestamp: number
   intensity: number
   locations: string[]
   notes: string
   triggers: string[]
+  hashtags: string[]
 }
 
 export type BodyLocation = 
