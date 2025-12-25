@@ -1,7 +1,7 @@
 # Spark Migration Audit Report
 
 **Generated:** 21 December 2025  
-**Project:** chronic-pain-diary  
+**Project:** Baseline  
 **Status:** Ready for migration
 
 ---
