@@ -18,6 +18,7 @@ import { Toaster } from '@/components/ui/sonner'
 
 import { PainEntry } from '@/types/pain-entry'
 import { PainEntryForm } from '@/components/PainEntryForm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PainEntryCard } from '@/components/PainEntryCard'
 import { EmptyState } from '@/components/EmptyState'
 import { AuthForm } from '@/components/AuthForm'
@@ -33,6 +34,10 @@ function App() {
   const [entries, setEntries] = useState<PainEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [emailConfirmed, setEmailConfirmed] = useState(false)
+  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [updatingPassword, setUpdatingPassword] = useState(false)
 
   // Listen for auth state changes
   useEffect(() => {
@@ -85,7 +90,10 @@ function App() {
         }
       }
       
-      if (event === 'SIGNED_OUT') {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Show reset password dialog when Supabase triggers recovery event
+        setPasswordRecoveryOpen(true)
+      } else if (event === 'SIGNED_OUT') {
         setEntries([])
         setEmailConfirmed(false)
       }
@@ -258,6 +266,28 @@ function App() {
     }
   }
 
+  const handlePasswordUpdate = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+    setUpdatingPassword(true)
+    const { error } = await auth.updatePassword({ password: newPassword })
+    setUpdatingPassword(false)
+    if (error) {
+      toast.error(error.message || 'Could not update password')
+      return
+    }
+    toast.success('Password updated successfully')
+    setPasswordRecoveryOpen(false)
+    setNewPassword('')
+    setConfirmPassword('')
+  }
+
   // Show loading while validating auth with server
   if (authLoading) {
     return (
@@ -289,6 +319,33 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
+      <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => setPasswordRecoveryOpen(false)}>Cancel</Button>
+              <Button onClick={handlePasswordUpdate} disabled={updatingPassword}>
+                {updatingPassword ? 'Updating…' : 'Update password'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Email confirmed banner */}
       {emailConfirmed && (

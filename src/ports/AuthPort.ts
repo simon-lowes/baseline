@@ -27,7 +27,7 @@ export interface SignInParams {
 }
 
 export type AuthStateChangeCallback = (
-  event: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED',
+  event: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'PASSWORD_RECOVERY',
   session: AuthSession | null
 ) => void;
 
