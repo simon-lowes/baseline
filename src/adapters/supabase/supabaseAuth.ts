@@ -230,7 +230,7 @@ export const supabaseAuth: AuthPort = {
   onAuthStateChange(callback: AuthStateChangeCallback) {
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       (event, session) => {
-        let mappedEvent: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED';
+        let mappedEvent: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'PASSWORD_RECOVERY';
 
         switch (event) {
           case 'SIGNED_IN':
@@ -242,6 +242,9 @@ export const supabaseAuth: AuthPort = {
             break;
           case 'TOKEN_REFRESHED':
             mappedEvent = 'TOKEN_REFRESHED';
+            break;
+          case 'PASSWORD_RECOVERY':
+            mappedEvent = 'PASSWORD_RECOVERY';
             break;
           default:
             // Ignore other events
