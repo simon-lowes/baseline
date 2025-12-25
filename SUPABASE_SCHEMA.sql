@@ -122,13 +122,3 @@ CREATE TRIGGER update_profiles_updated_at
 CREATE TRIGGER update_pain_entries_updated_at
   BEFORE UPDATE ON pain_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- =============================================================================
--- MIGRATION NOTE
--- =============================================================================
--- If you have existing pain_entries without user_id, you'll need to either:
--- 1. Delete them: DELETE FROM pain_entries WHERE user_id IS NULL;
--- 2. Assign to a user: UPDATE pain_entries SET user_id = 'your-user-uuid' WHERE user_id IS NULL;
--- 
--- The user_id column is NOT NULL, so existing rows without it will cause issues.
--- =============================================================================

@@ -10,6 +10,34 @@ import type { DictionaryResult, DictionaryCacheEntry } from '@/types/generated-c
 const DICTIONARY_API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 
 /**
+ * Extract up to maxCount examples from dictionary API response meanings
+ */
+function extractExamples(meanings: { definitions?: { example?: string }[] }[], maxCount: number): string[] {
+  const examples: string[] = [];
+  for (const meaning of meanings) {
+    for (const def of meaning.definitions ?? []) {
+      if (def.example && examples.length < maxCount) {
+        examples.push(def.example);
+      }
+    }
+  }
+  return examples;
+}
+
+/**
+ * Extract all synonyms from dictionary API response meanings
+ */
+function extractSynonyms(meanings: { synonyms?: string[] }[]): string[] {
+  const synonyms: string[] = [];
+  for (const meaning of meanings) {
+    if (Array.isArray(meaning.synonyms)) {
+      synonyms.push(...meaning.synonyms);
+    }
+  }
+  return synonyms;
+}
+
+/**
  * Fetch word definition, checking cache first
  */
 export async function lookupWord(word: string): Promise<DictionaryResult | null> {
@@ -52,23 +80,10 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
     const firstMeaning = entry.meanings?.[0];
     const firstDefinition = firstMeaning?.definitions?.[0];
     
-    // Collect examples from all definitions
-    const examples: string[] = [];
-    for (const meaning of entry.meanings ?? []) {
-      for (const def of meaning.definitions ?? []) {
-        if (def.example && examples.length < 3) {
-          examples.push(def.example);
-        }
-      }
-    }
-    
-    // Collect synonyms
-    const synonyms: string[] = [];
-    for (const meaning of entry.meanings ?? []) {
-      if (Array.isArray(meaning.synonyms)) {
-        synonyms.push(...meaning.synonyms);
-      }
-    }
+    // Collect examples and synonyms using helper functions
+    const meanings = entry.meanings ?? [];
+    const examples = extractExamples(meanings, 3);
+    const synonyms = extractSynonyms(meanings);
     
     const result: DictionaryResult = {
       word: entry.word,

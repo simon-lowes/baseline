@@ -8,7 +8,7 @@ interface EmptyStateProps {
   tracker?: Tracker | null;
 }
 
-export function EmptyState({ tracker }: EmptyStateProps) {
+export function EmptyState({ tracker }: Readonly<EmptyStateProps>) {
   const config = getTrackerConfig(tracker?.preset_id, tracker?.generated_config);
   
   // For custom trackers, personalize the title with the tracker name
@@ -41,8 +41,8 @@ export function EmptyState({ tracker }: EmptyStateProps) {
           </div>
 
           <div className="pt-4 space-y-3 text-sm text-muted-foreground text-left bg-muted/50 rounded-lg p-4">
-            {config.emptyStateBullets.map((bullet, index) => (
-              <div key={index} className="flex items-start gap-2">
+            {config.emptyStateBullets.map((bullet) => (
+              <div key={bullet} className="flex items-start gap-2">
                 <Sparkle size={16} className="text-accent mt-0.5 flex-shrink-0" weight="fill" />
                 <p>{bullet}</p>
               </div>

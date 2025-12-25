@@ -79,8 +79,8 @@ function App() {
         // Force sign out to clear any stale tokens from localStorage
         try {
           await auth.signOut()
-        } catch (e) {
-          // Ignore signOut errors
+        } catch (signOutError) {
+          console.warn('[Auth] SignOut during cleanup failed:', signOutError)
         }
         setUser(null)
       } finally {
@@ -97,12 +97,12 @@ function App() {
       // Handle email confirmation - user just verified their email
       if (event === 'SIGNED_IN' && session?.user) {
         // Check if this is from an email confirmation (URL has access_token hash)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const hashParams = new URLSearchParams(globalThis.location.hash.substring(1))
         if (hashParams.get('access_token') || hashParams.get('type') === 'signup') {
           setEmailConfirmed(true)
           toast.success('Email confirmed! You are now signed in.')
           // Clean up the URL
-          window.history.replaceState(null, '', window.location.pathname)
+          globalThis.history.replaceState(null, '', globalThis.location.pathname)
         }
       }
       

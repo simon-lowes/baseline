@@ -53,11 +53,39 @@ interface TrackerSelectorProps {
   className?: string;
 }
 
+type GenerationStep = 'input' | 'generating' | 'needs-description' | 'error';
+
+/**
+ * Get dialog title based on generation step
+ */
+function getDialogTitle(step: GenerationStep): string {
+  if (step === 'needs-description') {
+    return 'Describe Your Tracker';
+  }
+  if (step === 'error') {
+    return 'Generation Issue';
+  }
+  return 'Create New Tracker';
+}
+
+/**
+ * Get dialog description based on generation step
+ */
+function getDialogDescription(step: GenerationStep, trackerName: string): string {
+  if (step === 'needs-description') {
+    return `We couldn't find a definition for "${trackerName}". For the best experience, please describe what you want to track.`;
+  }
+  if (step === 'error') {
+    return 'There was an issue generating the configuration. You can try again, provide a description, or use a generic setup.';
+  }
+  return "Track anything that matters to you. We'll use AI to set up contextual labels and suggestions.";
+}
+
 export function TrackerSelector({ 
   currentTracker, 
   onTrackerChange, 
   className 
-}: TrackerSelectorProps) {
+}: Readonly<TrackerSelectorProps>) {
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -65,7 +93,7 @@ export function TrackerSelector({
   const [creating, setCreating] = useState(false);
   
   // AI generation states
-  const [generationStep, setGenerationStep] = useState<'input' | 'generating' | 'needs-description' | 'error'>('input');
+  const [generationStep, setGenerationStep] = useState<GenerationStep>('input');
   const [generationStatus, setGenerationStatus] = useState('');
   const [userDescription, setUserDescription] = useState('');
   const [generationError, setGenerationError] = useState('');
@@ -366,18 +394,10 @@ export function TrackerSelector({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {generationStep === 'needs-description' 
-                ? 'Describe Your Tracker'
-                : generationStep === 'error'
-                ? 'Generation Issue'
-                : 'Create New Tracker'}
+              {getDialogTitle(generationStep)}
             </DialogTitle>
             <DialogDescription>
-              {generationStep === 'needs-description' 
-                ? `We couldn't find a definition for "${newTrackerName}". For the best experience, please describe what you want to track.`
-                : generationStep === 'error'
-                ? 'There was an issue generating the configuration. You can try again, provide a description, or use a generic setup.'
-                : 'Track anything that matters to you. We\'ll use AI to set up contextual labels and suggestions.'}
+              {getDialogDescription(generationStep, newTrackerName)}
             </DialogDescription>
           </DialogHeader>
           
