@@ -15,7 +15,7 @@ import type { GeneratedTrackerConfig, IntensityScale } from './generated-config'
 /**
  * Build intensity label function based on intensity scale
  */
-function createIntensityLabelFn(
+export function createIntensityLabelFn(
   labels: [string, string, string, string, string]
 ): (value: number) => string {
   return (value: number) => {
@@ -30,7 +30,7 @@ function createIntensityLabelFn(
 /**
  * Build intensity color function based on color palette
  */
-function createIntensityColorFn(
+export function createIntensityColorFn(
   colors: [string, string, string, string, string]
 ): (value: number) => string {
   return (value: number) => {
