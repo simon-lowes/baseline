@@ -6,7 +6,7 @@
  * Includes AI-powered context generation for custom trackers.
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Plus, ChevronDown, Check, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -79,6 +79,265 @@ function getDialogDescription(step: GenerationStep, trackerName: string): string
     return 'There was an issue generating the configuration. You can try again, provide a description, or use a generic setup.';
   }
   return "Track anything that matters to you. We'll use AI to set up contextual labels and suggestions.";
+}
+
+interface DialogFooterButtonsProps {
+  generationStep: GenerationStep;
+  creating: boolean;
+  userDescription: string;
+  newTrackerName: string;
+  handleCreateWithDescription: () => void;
+  handleCreateTracker: () => void;
+  handleCreateGeneric: () => void;
+  resetCreateDialog: () => void;
+}
+
+/**
+ * Render the appropriate dialog footer buttons based on generation step
+ */
+function DialogFooterButtons({
+  generationStep,
+  creating,
+  userDescription,
+  newTrackerName,
+  handleCreateWithDescription,
+  handleCreateTracker,
+  handleCreateGeneric,
+  resetCreateDialog,
+}: Readonly<DialogFooterButtonsProps>): React.ReactNode {
+  if (generationStep === 'generating') {
+    return null;
+  }
+
+  if (generationStep === 'needs-description') {
+    return (
+      <>
+        <Button 
+          variant="outline" 
+          onClick={handleCreateGeneric}
+          disabled={creating}
+        >
+          Use Generic Setup
+        </Button>
+        <Button 
+          onClick={handleCreateWithDescription} 
+          disabled={creating || !userDescription.trim()}
+        >
+          {creating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Generate with AI
+            </>
+          )}
+        </Button>
+      </>
+    );
+  }
+
+  if (generationStep === 'error') {
+    const handleRetry = userDescription.trim() ? handleCreateWithDescription : handleCreateTracker;
+    return (
+      <>
+        <Button 
+          variant="outline" 
+          onClick={handleCreateGeneric}
+          disabled={creating}
+        >
+          Use Generic Setup
+        </Button>
+        <Button 
+          onClick={handleRetry} 
+          disabled={creating}
+        >
+          {creating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Trying Again...
+            </>
+          ) : (
+            'Try Again'
+          )}
+        </Button>
+      </>
+    );
+  }
+
+  // Default: 'input' step
+  return (
+    <>
+      <Button variant="outline" onClick={resetCreateDialog}>
+        Cancel
+      </Button>
+      <Button onClick={handleCreateTracker} disabled={creating || !newTrackerName.trim()}>
+        {creating ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          <>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Create with AI
+          </>
+        )}
+      </Button>
+    </>
+  );
+}
+
+interface DialogContentAreaProps {
+  generationStep: GenerationStep;
+  generationStatus: string;
+  generationError: string;
+  newTrackerName: string;
+  userDescription: string;
+  setUserDescription: (value: string) => void;
+  setNewTrackerName: (value: string) => void;
+  creating: boolean;
+  handleCreateTracker: () => void;
+  trackers: Tracker[];
+  setCreating: (value: boolean) => void;
+  setTrackers: React.Dispatch<React.SetStateAction<Tracker[]>>;
+  onTrackerChange: (tracker: Tracker) => void;
+  resetCreateDialog: () => void;
+}
+
+/**
+ * Render the dialog content area based on generation step
+ */
+function DialogContentArea({
+  generationStep,
+  generationStatus,
+  generationError,
+  newTrackerName,
+  userDescription,
+  setUserDescription,
+  setNewTrackerName,
+  creating,
+  handleCreateTracker,
+  trackers,
+  setCreating,
+  setTrackers,
+  onTrackerChange,
+  resetCreateDialog,
+}: Readonly<DialogContentAreaProps>): React.ReactNode {
+  if (generationStep === 'generating') {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-sm text-muted-foreground">{generationStatus}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generationStep === 'needs-description') {
+    return (
+      <div className="grid gap-4 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="tracker-description">
+            What is "{newTrackerName}"?
+          </Label>
+          <Textarea
+            id="tracker-description"
+            placeholder="e.g., Tracking my blood pressure readings to monitor cardiovascular health..."
+            value={userDescription}
+            onChange={(e) => setUserDescription(e.target.value)}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            This helps us generate relevant categories, triggers, and suggestions for your tracker.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generationStep === 'error') {
+    return (
+      <div className="grid gap-4 py-4">
+        <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
+          <p className="text-sm text-destructive">{generationError}</p>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="tracker-description-error">
+            Provide a description (recommended)
+          </Label>
+          <Textarea
+            id="tracker-description-error"
+            placeholder="Describe what you want to track..."
+            value={userDescription}
+            onChange={(e) => setUserDescription(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Default: 'input' step
+  return (
+    <div className="grid gap-4 py-4">
+      <div className="grid gap-2">
+        <Label htmlFor="tracker-name">Tracker Name</Label>
+        <Input
+          id="tracker-name"
+          placeholder="e.g., Hypertension, Allergies, Gratitude"
+          value={newTrackerName}
+          onChange={(e) => setNewTrackerName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !creating) {
+              handleCreateTracker();
+            }
+          }}
+        />
+      </div>
+      
+      {/* Quick preset suggestions */}
+      <div className="grid gap-2">
+        <Label className="text-xs text-muted-foreground">Or use a preset:</Label>
+        <div className="flex flex-wrap gap-2">
+          {TRACKER_PRESETS.filter(p => 
+            !trackers.some(t => t.preset_id === p.id)
+          ).slice(0, 4).map((preset) => (
+            <Button
+              key={preset.id}
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setCreating(true);
+                const result = await trackerService.createTracker({
+                  name: preset.name,
+                  type: 'preset',
+                  preset_id: preset.id,
+                  icon: preset.icon,
+                  color: preset.color,
+                });
+                if (result.data) {
+                  toast.success(`Created "${preset.name}" tracker`);
+                  setTrackers(prev => [...prev, result.data!]);
+                  onTrackerChange(result.data);
+                  resetCreateDialog();
+                }
+                setCreating(false);
+              }}
+              disabled={creating}
+              style={{ borderColor: preset.color }}
+            >
+              {preset.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function TrackerSelector({ 
@@ -401,186 +660,45 @@ export function TrackerSelector({
             </DialogDescription>
           </DialogHeader>
           
-          {generationStep === 'generating' ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <p className="text-sm text-muted-foreground">{generationStatus}</p>
-              </div>
-            </div>
-          ) : generationStep === 'needs-description' ? (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tracker-description">
-                  What is "{newTrackerName}"?
-                </Label>
-                <Textarea
-                  id="tracker-description"
-                  placeholder="e.g., Tracking my blood pressure readings to monitor cardiovascular health..."
-                  value={userDescription}
-                  onChange={(e) => setUserDescription(e.target.value)}
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground">
-                  This helps us generate relevant categories, triggers, and suggestions for your tracker.
-                </p>
-              </div>
-            </div>
-          ) : generationStep === 'error' ? (
-            <div className="grid gap-4 py-4">
-              <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                <p className="text-sm text-destructive">{generationError}</p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="tracker-description-error">
-                  Provide a description (recommended)
-                </Label>
-                <Textarea
-                  id="tracker-description-error"
-                  placeholder="Describe what you want to track..."
-                  value={userDescription}
-                  onChange={(e) => setUserDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tracker-name">Tracker Name</Label>
-                <Input
-                  id="tracker-name"
-                  placeholder="e.g., Hypertension, Allergies, Gratitude"
-                  value={newTrackerName}
-                  onChange={(e) => setNewTrackerName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !creating) {
-                      handleCreateTracker();
-                    }
-                  }}
-                />
-              </div>
-              
-              {/* Quick preset suggestions */}
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">Or use a preset:</Label>
-                <div className="flex flex-wrap gap-2">
-                  {TRACKER_PRESETS.filter(p => 
-                    !trackers.some(t => t.preset_id === p.id)
-                  ).slice(0, 4).map((preset) => (
-                    <Button
-                      key={preset.id}
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        setCreating(true);
-                        const result = await trackerService.createTracker({
-                          name: preset.name,
-                          type: 'preset',
-                          preset_id: preset.id,
-                          icon: preset.icon,
-                          color: preset.color,
-                        });
-                        if (result.data) {
-                          toast.success(`Created "${preset.name}" tracker`);
-                          setTrackers(prev => [...prev, result.data!]);
-                          onTrackerChange(result.data);
-                          resetCreateDialog();
-                        }
-                        setCreating(false);
-                      }}
-                      disabled={creating}
-                      style={{ borderColor: preset.color }}
-                    >
-                      {preset.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          <DialogContentArea
+            generationStep={generationStep}
+            generationStatus={generationStatus}
+            generationError={generationError}
+            newTrackerName={newTrackerName}
+            userDescription={userDescription}
+            setUserDescription={setUserDescription}
+            setNewTrackerName={setNewTrackerName}
+            creating={creating}
+            handleCreateTracker={handleCreateTracker}
+            trackers={trackers}
+            setCreating={setCreating}
+            setTrackers={setTrackers}
+            onTrackerChange={onTrackerChange}
+            resetCreateDialog={resetCreateDialog}
+          />
           
           <DialogFooter>
-            {generationStep === 'needs-description' ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={handleCreateGeneric}
-                  disabled={creating}
-                >
-                  Use Generic Setup
-                </Button>
-                <Button 
-                  onClick={handleCreateWithDescription} 
-                  disabled={creating || !userDescription.trim()}
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate with AI
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : generationStep === 'error' ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={handleCreateGeneric}
-                  disabled={creating}
-                >
-                  Use Generic Setup
-                </Button>
-                <Button 
-                  onClick={userDescription.trim() ? handleCreateWithDescription : handleCreateTracker} 
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Trying Again...
-                    </>
-                  ) : (
-                    'Try Again'
-                  )}
-                </Button>
-              </>
-            ) : generationStep === 'generating' ? null : (
-              <>
-                <Button variant="outline" onClick={resetCreateDialog}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateTracker} disabled={creating || !newTrackerName.trim()}>
-                  {creating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Create with AI
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
+            <DialogFooterButtons
+              generationStep={generationStep}
+              creating={creating}
+              userDescription={userDescription}
+              newTrackerName={newTrackerName}
+              handleCreateWithDescription={handleCreateWithDescription}
+              handleCreateTracker={handleCreateTracker}
+              handleCreateGeneric={handleCreateGeneric}
+              resetCreateDialog={resetCreateDialog}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Tracker Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          setDeleteDialogOpen(false);
-          setTrackerToDelete(null);
+        if (open) {
+          return;
         }
+        setDeleteDialogOpen(false);
+        setTrackerToDelete(null);
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>

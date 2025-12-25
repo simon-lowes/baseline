@@ -35,6 +35,45 @@ import { BODY_LOCATIONS } from '@/types/pain-entry'
 import { getTrackerConfig } from '@/types/tracker-config'
 import type { AuthUser } from '@/ports/AuthPort'
 
+/**
+ * Validates session against Supabase server before trusting any state.
+ * This catches: deleted users, expired tokens, revoked sessions, etc.
+ */
+async function validateAndInitAuth(
+  setUser: (user: AuthUser | null) => void,
+  setAuthLoading: (loading: boolean) => void
+): Promise<void> {
+  try {
+    console.log('[Auth] Starting server-side session validation...')
+    
+    // Prevent hanging forever if the auth endpoint is slow/unreachable
+    const session = await Promise.race([
+      auth.getSession(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ])
+    
+    if (session === null) {
+      console.warn('[Auth] Session validation timed out or returned null')
+      setUser(null)
+      return
+    }
+    
+    console.log('[Auth] Session validated successfully:', session.user.email)
+    setUser(session.user)
+  } catch (error) {
+    console.error('[Auth] Session validation failed:', error)
+    // Force sign out to clear any stale tokens from localStorage
+    try {
+      await auth.signOut()
+    } catch (signOutError) {
+      console.warn('[Auth] SignOut during cleanup failed:', signOutError)
+    }
+    setUser(null)
+  } finally {
+    setAuthLoading(false)
+  }
+}
+
 function App() {
   // CRITICAL: Start with null user, not cached value
   // Only trust user state AFTER server validation completes
@@ -52,43 +91,7 @@ function App() {
 
   // Listen for auth state changes
   useEffect(() => {
-    // CRITICAL: Validate session against Supabase server before trusting any state
-    // This catches: deleted users, expired tokens, revoked sessions, etc.
-    const validateAndInitAuth = async () => {
-      try {
-        console.log('[Auth] Starting server-side session validation...')
-        
-        // Prevent hanging forever if the auth endpoint is slow/unreachable
-        const session = await Promise.race([
-          auth.getSession(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-        ])
-        
-        if (session === null) {
-          console.warn('[Auth] Session validation timed out or returned null')
-          setUser(null)
-          return
-        }
-        
-        // Wait for the auth adapter's initial validation to complete
-        // This makes a server request to verify the JWT is still valid
-        console.log('[Auth] Session validated successfully:', session.user.email)
-        setUser(session.user)
-      } catch (error) {
-        console.error('[Auth] Session validation failed:', error)
-        // Force sign out to clear any stale tokens from localStorage
-        try {
-          await auth.signOut()
-        } catch (signOutError) {
-          console.warn('[Auth] SignOut during cleanup failed:', signOutError)
-        }
-        setUser(null)
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-    
-    validateAndInitAuth()
+    void validateAndInitAuth(setUser, setAuthLoading)
 
     // Subscribe to auth changes
     const { unsubscribe } = auth.onAuthStateChange((event, session) => {

@@ -85,12 +85,17 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
 
 // Start with cached session immediately (fast, no network)
 // Don't block module loading with server validation
-initialValidationPromise = getSessionFromCache().finally(() => {
-  initialValidationComplete = true;
-});
+// Using IIFE with top-level await pattern for ES2022 compliance
+void (async () => {
+  try {
+    await getSessionFromCache();
+  } finally {
+    initialValidationComplete = true;
+  }
+})();
 
 // Keep user in sync with auth state changes
-supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+supabaseClient.auth.onAuthStateChange((_event, session) => {
   // For SIGNED_OUT events, always clear immediately
   if (!session) {
     currentUser = null;
@@ -123,7 +128,7 @@ export const supabaseAuth: AuthPort = {
 
     // Supabase returns a user even when email confirmation is required
     // Check email_confirmed_at to determine if confirmation is needed
-    if (!data.user || !data.user.email_confirmed_at) {
+    if (!data.user?.email_confirmed_at) {
       return { user: null, error: null }; // Email confirmation required
     }
 
