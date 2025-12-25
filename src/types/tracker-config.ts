@@ -6,6 +6,54 @@
  */
 
 import type { TrackerPresetId } from './tracker';
+import type { GeneratedTrackerConfig, IntensityScale } from './generated-config';
+
+// =============================================================================
+// Shared Helper Functions (DRY - Don't Repeat Yourself)
+// =============================================================================
+
+/**
+ * Build intensity label function based on intensity scale
+ */
+function createIntensityLabelFn(
+  labels: [string, string, string, string, string]
+): (value: number) => string {
+  return (value: number) => {
+    if (value <= 2) return labels[0];
+    if (value <= 4) return labels[1];
+    if (value <= 6) return labels[2];
+    if (value <= 8) return labels[3];
+    return labels[4];
+  };
+}
+
+/**
+ * Build intensity color function based on color palette
+ */
+function createIntensityColorFn(
+  colors: [string, string, string, string, string]
+): (value: number) => string {
+  return (value: number) => {
+    if (value <= 2) return colors[0];
+    if (value <= 4) return colors[1];
+    if (value <= 6) return colors[2];
+    if (value <= 8) return colors[3];
+    return colors[4];
+  };
+}
+
+// Common color palettes
+const HIGH_BAD_COLORS: [string, string, string, string, string] = [
+  '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'
+]; // green to red (high = bad)
+
+const LOW_BAD_COLORS: [string, string, string, string, string] = [
+  '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'
+]; // red to green (low = bad)
+
+// =============================================================================
+// TrackerConfig Interface
+// =============================================================================
 
 export interface TrackerConfig {
   // Form labels
@@ -80,20 +128,8 @@ const chronicPainConfig: TrackerConfig = {
     'Stress', 'Weather', 'Physical Activity', 'Sleep Issues', 'Diet',
     'Medication Change', 'Prolonged Sitting', 'Cold', 'Heat',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Minimal';
-    if (value <= 4) return 'Mild';
-    if (value <= 6) return 'Moderate';
-    if (value <= 8) return 'Severe';
-    return 'Extreme';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#22c55e'; // green
-    if (value <= 4) return '#84cc16'; // lime
-    if (value <= 6) return '#eab308'; // yellow
-    if (value <= 8) return '#f97316'; // orange
-    return '#ef4444'; // red
-  },
+  getIntensityLabel: createIntensityLabelFn(['Minimal', 'Mild', 'Moderate', 'Severe', 'Extreme']),
+  getIntensityColor: createIntensityColorFn(HIGH_BAD_COLORS),
 };
 
 // Mood & Mental Health configuration
@@ -132,20 +168,8 @@ const moodConfig: TrackerConfig = {
     'Work', 'Relationships', 'Sleep', 'Exercise', 'Social Media',
     'Isolation', 'Therapy', 'Meditation', 'Weather', 'News',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Very Low';
-    if (value <= 4) return 'Low';
-    if (value <= 6) return 'Okay';
-    if (value <= 8) return 'Good';
-    return 'Excellent';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#ef4444'; // red (low mood = concerning)
-    if (value <= 4) return '#f97316'; // orange
-    if (value <= 6) return '#eab308'; // yellow
-    if (value <= 8) return '#84cc16'; // lime
-    return '#22c55e'; // green (high mood = good)
-  },
+  getIntensityLabel: createIntensityLabelFn(['Very Low', 'Low', 'Okay', 'Good', 'Excellent']),
+  getIntensityColor: createIntensityColorFn(LOW_BAD_COLORS),
 };
 
 // Sleep configuration
@@ -183,20 +207,8 @@ const sleepConfig: TrackerConfig = {
     'Caffeine', 'Screen Time', 'Stress', 'Exercise', 'Late Meal',
     'Alcohol', 'Medication', 'Noise', 'Temperature', 'Anxiety',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Terrible';
-    if (value <= 4) return 'Poor';
-    if (value <= 6) return 'Fair';
-    if (value <= 8) return 'Good';
-    return 'Perfect';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#ef4444';
-    if (value <= 4) return '#f97316';
-    if (value <= 6) return '#eab308';
-    if (value <= 8) return '#84cc16';
-    return '#22c55e';
-  },
+  getIntensityLabel: createIntensityLabelFn(['Terrible', 'Poor', 'Fair', 'Good', 'Perfect']),
+  getIntensityColor: createIntensityColorFn(LOW_BAD_COLORS),
 };
 
 // Menstrual Cycle configuration
@@ -235,20 +247,8 @@ const menstrualConfig: TrackerConfig = {
     'Stress', 'Diet', 'Exercise', 'Sleep', 'Hydration',
     'Medication', 'Hormones', 'Travel', 'Weather',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Minimal';
-    if (value <= 4) return 'Mild';
-    if (value <= 6) return 'Moderate';
-    if (value <= 8) return 'Severe';
-    return 'Extreme';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#22c55e';
-    if (value <= 4) return '#84cc16';
-    if (value <= 6) return '#eab308';
-    if (value <= 8) return '#f97316';
-    return '#ef4444';
-  },
+  getIntensityLabel: createIntensityLabelFn(['Minimal', 'Mild', 'Moderate', 'Severe', 'Extreme']),
+  getIntensityColor: createIntensityColorFn(HIGH_BAD_COLORS),
 };
 
 // Medication configuration
@@ -286,20 +286,8 @@ const medicationConfig: TrackerConfig = {
     'Nausea', 'Drowsiness', 'Headache', 'Dizziness', 'Appetite Change',
     'Mood Change', 'Skin Reaction', 'None', 'Other',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'No Effect';
-    if (value <= 4) return 'Slight';
-    if (value <= 6) return 'Moderate';
-    if (value <= 8) return 'Good';
-    return 'Very Effective';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#ef4444';
-    if (value <= 4) return '#f97316';
-    if (value <= 6) return '#eab308';
-    if (value <= 8) return '#84cc16';
-    return '#22c55e';
-  },
+  getIntensityLabel: createIntensityLabelFn(['No Effect', 'Slight', 'Moderate', 'Good', 'Very Effective']),
+  getIntensityColor: createIntensityColorFn(LOW_BAD_COLORS),
 };
 
 // Exercise configuration
@@ -339,21 +327,8 @@ const exerciseConfig: TrackerConfig = {
     'Energized', 'Tired', 'Sore', 'Accomplished', 'Struggled',
     'Personal Best', 'Recovery Day', 'Outdoor', 'Gym', 'Home',
   ],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Very Light';
-    if (value <= 4) return 'Light';
-    if (value <= 6) return 'Moderate';
-    if (value <= 8) return 'Hard';
-    return 'Maximum';
-  },
-  getIntensityColor: (value: number) => {
-    // For exercise, higher intensity is shown with warmer colors (effort)
-    if (value <= 2) return '#22c55e';
-    if (value <= 4) return '#84cc16';
-    if (value <= 6) return '#eab308';
-    if (value <= 8) return '#f97316';
-    return '#ef4444';
-  },
+  getIntensityLabel: createIntensityLabelFn(['Very Light', 'Light', 'Moderate', 'Hard', 'Maximum']),
+  getIntensityColor: createIntensityColorFn(HIGH_BAD_COLORS), // higher = warmer colors for effort
 };
 
 // Default/custom tracker configuration
@@ -384,20 +359,8 @@ const defaultConfig: TrackerConfig = {
     { value: 'neutral', label: 'Neutral' },
   ],
   triggers: ['Note', 'Important', 'Follow-up', 'Recurring'],
-  getIntensityLabel: (value: number) => {
-    if (value <= 2) return 'Very Low';
-    if (value <= 4) return 'Low';
-    if (value <= 6) return 'Medium';
-    if (value <= 8) return 'High';
-    return 'Very High';
-  },
-  getIntensityColor: (value: number) => {
-    if (value <= 2) return '#6366f1';
-    if (value <= 4) return '#8b5cf6';
-    if (value <= 6) return '#a855f7';
-    if (value <= 8) return '#c026d3';
-    return '#db2777';
-  },
+  getIntensityLabel: createIntensityLabelFn(['Very Low', 'Low', 'Medium', 'High', 'Very High']),
+  getIntensityColor: createIntensityColorFn(['#6366f1', '#8b5cf6', '#a855f7', '#c026d3', '#db2777']), // purple gradient
 };
 
 // Map preset IDs to their configurations
