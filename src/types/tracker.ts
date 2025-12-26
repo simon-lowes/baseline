@@ -40,6 +40,12 @@ export interface Tracker {
   generated_config?: GeneratedTrackerConfig | null;
   /** User-provided description when dictionary lookup fails */
   user_description?: string | null;
+  /** AI-generated image URL for tracker icon */
+  image_url?: string | null;
+  /** Timestamp when image was generated */
+  image_generated_at?: string | null;
+  /** Model used to generate the image */
+  image_model_name?: string | null;
 }
 
 /**
