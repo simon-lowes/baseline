@@ -28,6 +28,7 @@ dist-ssr
 # Ignore all environment variants and Supabase CLI env
 .env.*
 supabase/.env
+supabase/.temp/
 **/agent-eval-report*
 packages
 pids
