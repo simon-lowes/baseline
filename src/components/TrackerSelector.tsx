@@ -455,6 +455,19 @@ export function TrackerSelector({
         setTrackers(prev => [...prev, result.data!]);
         onTrackerChange(result.data);
         resetCreateDialog();
+        
+        // Generate image asynchronously (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(trackerName, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for tracker: ${trackerName}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch (error) {
       console.error('Create tracker error:', error);
@@ -501,6 +514,19 @@ export function TrackerSelector({
         setTrackers(prev => [...prev, result.data!]);
         onTrackerChange(result.data);
         resetCreateDialog();
+        
+        // Generate image asynchronously (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(newTrackerName.trim(), result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for tracker: ${newTrackerName.trim()}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch (error) {
       console.error('Create tracker error:', error);
@@ -530,6 +556,19 @@ export function TrackerSelector({
       setTrackers(prev => [...prev, result.data!]);
       onTrackerChange(result.data);
       resetCreateDialog();
+      
+      // Generate image asynchronously (don't block UI)
+      try {
+        const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+        const imageResult = await generateTrackerImage(trackerName, result.data.id);
+        if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+          await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+          console.log(`Image generated for tracker: ${trackerName}`);
+        }
+      } catch (error) {
+        console.warn('Failed to generate tracker image:', error);
+        // Don't show error to user - image generation is non-critical
+      }
     }
     
     setCreating(false);

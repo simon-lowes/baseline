@@ -5,7 +5,7 @@
  * Displays tracker cards with entry counts and quick access.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Activity, Plus, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,38 @@ export function Dashboard({
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Touch visibility state for delete icons on mobile
+  const [touchActive, setTouchActive] = useState(false);
+  const touchFadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const TOUCH_FADE_DELAY = 3000; // 3 seconds before icons fade out
+  
+  // Handle touch events to show delete icons on mobile
+  const handleTouchStart = useCallback(() => {
+    // Clear any pending fade-out
+    if (touchFadeTimeoutRef.current) {
+      clearTimeout(touchFadeTimeoutRef.current);
+      touchFadeTimeoutRef.current = null;
+    }
+    setTouchActive(true);
+  }, []);
+  
+  const handleTouchEnd = useCallback(() => {
+    // Set delayed fade-out when touch ends
+    touchFadeTimeoutRef.current = setTimeout(() => {
+      setTouchActive(false);
+      touchFadeTimeoutRef.current = null;
+    }, TOUCH_FADE_DELAY);
+  }, []);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (touchFadeTimeoutRef.current) {
+        clearTimeout(touchFadeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load entry counts for each tracker
   useEffect(() => {
@@ -182,6 +214,19 @@ export function Dashboard({
         setCreateDialogOpen(false);
         setCustomName('');
         onTrackerCreated(result.data);
+
+        // Generate image asynchronously (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(name, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for tracker: ${name}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch {
       toast.error('Something went wrong');
@@ -232,7 +277,12 @@ export function Dashboard({
         </div>
 
         {/* Tracker cards grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div 
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+        >
           {trackers.map((tracker) => {
             const trackerStats = stats[tracker.id];
             const isLoading = loadingStats && !trackerStats;
@@ -282,10 +332,14 @@ export function Dashboard({
                       )}
                     </div>
                     
-                    {/* Delete button */}
+                    {/* Delete button - visible on hover (desktop) or touch (mobile) */}
                     <button
                       onClick={(e) => openDeleteDialog(e, tracker)}
-                      className="p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 focus:opacity-100 ${
+                        touchActive 
+                          ? 'opacity-100' 
+                          : 'opacity-0 group-hover:opacity-100'
+                      }`}
                       aria-label={`Delete ${tracker.name}`}
                     >
                       <Trash2 className="w-4 h-4" />

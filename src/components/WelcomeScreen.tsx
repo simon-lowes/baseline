@@ -50,6 +50,19 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
       if (result.data) {
         toast.success(`${preset.name} tracker created!`);
         onTrackerCreated(result.data);
+        
+        // Generate image asynchronously for preset trackers (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(preset.name, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for preset tracker: ${preset.name}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch (err) {
       console.error('Failed to create preset tracker:', err);
@@ -100,6 +113,19 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
       if (result.data) {
         toast.success(`${name} tracker created!`);
         onTrackerCreated(result.data);
+        
+        // Generate image asynchronously for custom trackers (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(name, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for custom tracker: ${name}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch (err) {
       console.error('Failed to create custom tracker:', err);
