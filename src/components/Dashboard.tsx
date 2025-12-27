@@ -294,17 +294,32 @@ export function Dashboard({
                 onClick={() => onTrackerSelect(tracker)}
               >
                 <CardContent className="p-4 space-y-3">
-                  {/* Icon and name */}
+                  {/* Icon/Image and name */}
                   <div className="flex items-start gap-3">
-                    <div 
-                      className="p-2 rounded-lg transition-colors"
-                      style={{ backgroundColor: `${tracker.color}15` }}
-                    >
-                      <Activity 
-                        className="w-5 h-5" 
-                        style={{ color: tracker.color }} 
-                      />
-                    </div>
+                    {tracker.image_url ? (
+                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
+                        <img 
+                          src={tracker.image_url} 
+                          alt={`${tracker.name} icon`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fall back to Activity icon if image fails to load
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = `<div class="p-2 rounded-lg" style="background-color: ${tracker.color}15"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${tracker.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg></div>`;
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div 
+                        className="p-2 rounded-lg transition-colors"
+                        style={{ backgroundColor: `${tracker.color}15` }}
+                      >
+                        <Activity 
+                          className="w-5 h-5" 
+                          style={{ color: tracker.color }} 
+                        />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
                         {tracker.name}
