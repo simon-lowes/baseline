@@ -67,8 +67,8 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
             }]
           }],
           generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
             temperature: 0.3, // Lower temperature for more consistent style
-            maxOutputTokens: 1024,
           },
         }),
       }
@@ -84,11 +84,22 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
 
     const data = await response.json();
     console.log('Gemini image response candidates:', data.candidates?.length);
+    console.log('Gemini response structure:', JSON.stringify(data, null, 2).substring(0, 500));
     
-    const imageData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    // Find the first part that contains image data (inlineData with image mimeType)
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    let imageData = null;
+    
+    for (const part of parts) {
+      if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+        imageData = part.inlineData;
+        break;
+      }
+    }
     
     if (!imageData || !imageData.data) {
-      throw new Error('No image data in Gemini response');
+      console.error('Response parts:', JSON.stringify(parts, null, 2).substring(0, 1000));
+      throw new Error('No image data in Gemini response - parts: ' + parts.length);
     }
 
     console.log('Image data received, mime type:', imageData.mimeType);

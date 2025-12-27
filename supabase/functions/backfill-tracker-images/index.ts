@@ -75,8 +75,8 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
             }]
           }],
           generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
             temperature: 0.3,
-            maxOutputTokens: 1024,
           },
         }),
       }
@@ -89,7 +89,17 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
     }
 
     const data = await response.json();
-    const imageData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    
+    // Find the first part that contains image data
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    let imageData = null;
+    
+    for (const part of parts) {
+      if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+        imageData = part.inlineData;
+        break;
+      }
+    }
     
     if (!imageData || !imageData.data) {
       return { success: false, error: 'No image data returned' };
