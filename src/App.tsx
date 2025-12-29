@@ -431,6 +431,7 @@ function App() {
   }, [])
 
   const handleTrackerCreated = useCallback((tracker: Tracker) => {
+    console.log('[App] handleTrackerCreated called for', tracker.name, tracker.id);
     setTrackers(prev => [...prev, tracker])
     setCurrentTracker(tracker)
     setCurrentView('tracker')
