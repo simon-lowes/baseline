@@ -166,6 +166,19 @@ export function Dashboard({
         toast.success(`${preset.name} tracker created!`);
         setCreateDialogOpen(false);
         onTrackerCreated(result.data);
+
+        // Generate image asynchronously for preset trackers (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(preset.name, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for preset tracker: ${preset.name}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate preset tracker image:', error);
+          // Don't show error to user - image generation is non-critical
+        }
       }
     } catch {
       toast.error('Something went wrong');
