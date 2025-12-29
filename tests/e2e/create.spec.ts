@@ -23,10 +23,18 @@ async function openDashboardCreateDialog(page) {
 }
 
 test.describe('Tracker creation (basic)', () => {
-  test('Create a non-ambiguous custom tracker (e2e mode)', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    // Attach listeners for debugging and ensure app is ready
+    page.on('console', (m) => console.log('[PAGE]', m.text()));
+    page.on('pageerror', (err) => console.log('[PAGE_ERROR]', err.message));
+    page.on('response', (res) => console.log('[RESP]', res.status(), res.url()));
+    page.on('requestfailed', (req) => console.log('[REQ_FAIL]', req.url(), req.failure()?.errorText));
+
     await page.goto(`${BASE}?e2e=true`);
     await page.waitForFunction(() => document.readyState === 'complete' && !!(window as any).__openCreateDialog, {}, { timeout: 60000 });
+  });
 
+  test('Create a non-ambiguous custom tracker (e2e mode)', async ({ page }) => {
     await openDashboardCreateDialog(page);
 
     const input = page.getByPlaceholder('e.g., Migraines, Diet, Gratitude...');
@@ -37,7 +45,9 @@ test.describe('Tracker creation (basic)', () => {
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    // Should appear in tracker list
+    // Creation returned successfully (server-side) — if UI navigated to tracker view it may not show in tracker list immediately.
+    // Navigate back to dashboard to ensure the new tracker appears in the list.
+    await page.goto(`${BASE}?e2e=true`);
     await expect(page.getByRole('heading', { name: 'Pushups' })).toBeVisible({ timeout: 5000 });
   });
 
