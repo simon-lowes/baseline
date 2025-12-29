@@ -130,6 +130,8 @@ function App() {
     return () => unsubscribe()
   }, [])
 
+
+
   // Load all trackers when user is authenticated
   useEffect(() => {
     if (!user) {
@@ -431,10 +433,29 @@ function App() {
   }, [])
 
   const handleTrackerCreated = useCallback((tracker: Tracker) => {
+    console.log('[App] handleTrackerCreated called for', tracker.name, tracker.id);
     setTrackers(prev => [...prev, tracker])
     setCurrentTracker(tracker)
     setCurrentView('tracker')
   }, [])
+
+  // Listen for manual dev tracker creation events and update UI accordingly
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (e: Event) => {
+      try {
+        const custom = e as CustomEvent;
+        if (custom?.detail) {
+          handleTrackerCreated(custom.detail as any);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+
+    window.addEventListener('__dev:trackerCreated', handler as EventListener);
+    return () => window.removeEventListener('__dev:trackerCreated', handler as EventListener);
+  }, [handleTrackerCreated]);
 
   const handleTrackerDeleted = useCallback((trackerId: string) => {
     setTrackers(prev => prev.filter(t => t.id !== trackerId))

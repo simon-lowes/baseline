@@ -84,11 +84,18 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
 }
 
 // Start with cached session immediately (fast, no network)
-// Don't block module loading with server validation
+// Then kick off server validation and expose the promise so callers can await it
 // Using IIFE with top-level await pattern for ES2022 compliance
 void (async () => {
   try {
+    // Fast path: populate cached session synchronously
     await getSessionFromCache();
+
+    // Start server-side validation and keep the promise for anyone who wants to await it
+    initialValidationPromise = validateSessionWithServer();
+
+    // Wait for server validation to complete in the background (don't block module load)
+    await initialValidationPromise;
   } finally {
     initialValidationComplete = true;
   }
@@ -253,12 +260,11 @@ export const supabaseAuth: AuthPort = {
    * Call this before rendering authenticated UI.
    */
   async waitForInitialValidation(): Promise<AuthUser | null> {
-    // Always await the initial validation promise if it exists
-    // This ensures we wait for server validation to complete
-    if (initialValidationPromise !== null) {
-      return await initialValidationPromise;
+    // Ensure server-side validation is kicked off and return its result.
+    if (initialValidationPromise === null) {
+      initialValidationPromise = validateSessionWithServer();
     }
-    return currentUser;
+    return await initialValidationPromise;
   },
 
   onAuthStateChange(callback: AuthStateChangeCallback) {

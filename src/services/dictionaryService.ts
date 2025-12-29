@@ -118,20 +118,26 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
     };
     
     // 3. Cache the result (fire and forget)
-    supabaseClient
-      .from('dictionary_cache')
-      .insert({
-        word: normalizedWord,
-        definition: result.definition,
-        part_of_speech: result.partOfSpeech,
-        examples: result.examples,
-        synonyms: result.synonyms,
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.warn('Failed to cache dictionary result:', error);
-        }
-      });
+    // Only attempt caching if Supabase env is configured (avoid RLS/401 errors in dev)
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      supabaseClient
+        .from('dictionary_cache')
+        .insert({
+          word: normalizedWord,
+          definition: result.definition,
+          part_of_speech: result.partOfSpeech,
+          examples: result.examples,
+          synonyms: result.synonyms,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Failed to cache dictionary result:', error);
+          }
+        });
+    } else {
+      // Dev environment - skip caching to avoid RLS errors
+      // This keeps local runs quiet and avoids unnecessary network errors
+    }
     
     return result;
   } catch (error) {

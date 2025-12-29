@@ -61,8 +61,35 @@ export const kv: KvPort = localKv;
  * Authentication
  * Uses Supabase if env vars present, otherwise no-op
  */
-// Expose auth implementation. In E2E or DEV mode we allow overriding via ?e2e=true to use noopAuth (bypass real auth)
-let _auth: AuthPort = hasSupabaseEnv ? supabaseAuth : noopAuth;
+// Expose auth implementation. In local development (no Supabase env) provide a lightweight dev auth
+// so the app can be used without configuring Supabase. For E2E we still allow ?e2e=true to use the special testAuth.
+let _auth: AuthPort;
+if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true'))) {
+  console.log('[appRuntime] DEV mode detected - using devAuth');
+  const devUser = { id: 'dev-user', email: 'dev@example.com' };
+  _auth = {
+    ...noopAuth,
+    async getSession() {
+      return { user: devUser, accessToken: 'dev-token', expiresAt: Math.floor(Date.now() / 1000) + 3600 } as any;
+    },
+    getUser() {
+      return devUser as any;
+    },
+    onAuthStateChange(callback) {
+      // Immediately invoke callback as SIGNED_IN for deterministic dev state
+      callback('SIGNED_IN', { user: devUser } as any);
+      return { unsubscribe: () => {} };
+    },
+    async waitForInitialValidation() {
+      return devUser as any;
+    }
+  } as AuthPort;
+} else {
+  // Use real supabase auth in environments with proper env vars
+  _auth = hasSupabaseEnv ? supabaseAuth : noopAuth;
+}
+
+// E2E override (explicit via ?e2e=true) - take precedence
 if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
   console.log('[appRuntime] E2E mode detected - using testAuth');
   // Provide a lightweight test auth that reports a signed-in test user so E2E flows can exercise authenticated UI
@@ -80,6 +107,9 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
       callback('SIGNED_IN', { user: testUser } as any);
       return { unsubscribe: () => {} };
     },
+    async waitForInitialValidation() {
+      return testUser as any;
+    }
   } as AuthPort;
 }
 export const auth: AuthPort = _auth;
@@ -150,27 +180,149 @@ export const db: DbPort = _db;
  */
 let _tracker: TrackerPort = supabaseTracker;
 
-// In E2E mode, provide a lightweight in-memory tracker implementation so tests can run without external DB
-if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
-  console.log('[appRuntime] E2E mode detected - using in-memory test tracker');
-  const e2eStore: Tracker[] = [];
-  // Seed a default tracker so the Dashboard view appears (avoid WelcomeScreen in E2E preview)
-  const nowIso = new Date().toISOString();
-  e2eStore.push({
-    id: uuidv4(),
-    user_id: 'e2e-user',
-    name: 'Default Tracker',
-    type: 'custom',
-    icon: 'activity',
-    color: '#6366f1',
-    is_default: true,
-    preset_id: null,
-    created_at: nowIso,
-    updated_at: nowIso,
-  } as Tracker);
+// DEV mode: in-memory tracker for local development (no Supabase env)
+if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true'))) {
+  console.log('[appRuntime] DEV mode detected - using in-memory dev tracker');
+  const DEV_KEY = '__baseline_dev_trackers';
+  let devStore: Tracker[] = [];
+  try {
+    const raw = window.localStorage.getItem(DEV_KEY);
+    if (raw) devStore = JSON.parse(raw) as Tracker[];
+  } catch {}
+
+  if (devStore.length === 0) {
+    const nowIso = new Date().toISOString();
+    devStore.push({
+      id: `dev-${Date.now()}`,
+      user_id: 'dev-user',
+      name: 'Default Tracker',
+      type: 'custom',
+      icon: 'activity',
+      color: '#6366f1',
+      is_default: true,
+      preset_id: null,
+      created_at: nowIso,
+      updated_at: nowIso,
+    } as Tracker);
+    try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch {}
+  }
+  const saveDev = () => { try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch {} };
 
   _tracker = {
     async getTrackers() {
+      console.log('[devStore] getTrackers -> count:', devStore.length);
+      return { data: [...devStore], error: null };
+    },
+    async getTracker(id: string) {
+      const found = devStore.find(t => t.id === id) || null;
+      return { data: found ?? null, error: null };
+    },
+    async getDefaultTracker() {
+      const found = devStore.find(t => t.is_default) || (devStore.length ? devStore[0] : null);
+      return { data: found ?? null, error: null };
+    },
+    async createTracker(input) {
+      const id = `dev-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+      const newTracker: Tracker = {
+        id,
+        user_id: 'dev-user',
+        name: input.name,
+        type: (input as any).type || 'custom',
+        icon: (input as any).icon || 'activity',
+        color: (input as any).color || '#6366f1',
+        is_default: (input as any).is_default ?? false,
+        preset_id: (input as any).preset_id || null,
+        generated_config: (input as any).generated_config || null,
+        confirmed_interpretation: (input as any).confirmed_interpretation || null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      } as Tracker;
+      devStore.push(newTracker);
+      try { saveDev(); } catch {}
+      console.log('[devStore] createTracker -> id:', newTracker.id, 'name:', newTracker.name, 'count:', devStore.length);
+      return { data: newTracker, error: null };
+    },
+
+    async updateTracker(id, input) {
+      const idx = devStore.findIndex(t => t.id === id);
+      if (idx === -1) return { data: null, error: new Error('Not found') };
+      devStore[idx] = { ...devStore[idx], ...(input as any) };
+      try { saveDev(); } catch {}
+      return { data: devStore[idx], error: null };
+    },
+    async deleteTracker(id) {
+      const idx = devStore.findIndex(t => t.id === id);
+      if (idx === -1) return { data: null, error: new Error('Not found') };
+      devStore.splice(idx, 1);
+      try { saveDev(); } catch {}
+      return { data: null, error: null };
+    },
+    async setDefaultTracker(id: string) {
+      devStore.forEach(t => (t.is_default = t.id === id));
+      const found = devStore.find(t => t.id === id) || null;
+      return { data: found, error: null };
+    },
+    async ensureDefaultTracker() {
+      if (devStore.length === 0) {
+        const nowIso = new Date().toISOString();
+        const newTracker = {
+          id: `tracker-${Date.now()}`,
+          user_id: 'dev-user',
+          name: 'Default Tracker',
+          type: 'custom',
+          icon: 'activity',
+          color: '#6366f1',
+          is_default: true,
+          preset_id: null,
+          created_at: nowIso,
+          updated_at: nowIso,
+        } as unknown as Tracker;
+        devStore.push(newTracker);
+        return { data: newTracker, error: null };
+      }
+      return { data: devStore[0], error: null };
+    },
+  };
+}
+
+// In E2E mode, provide a lightweight in-memory tracker implementation so tests can run without external DB
+if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+  console.log('[appRuntime] E2E mode detected - using in-memory test tracker');
+  // Persist E2E store across page reloads using localStorage so tests can navigate without losing state
+  const E2E_KEY = '__baseline_e2e_trackers';
+  let e2eStore: Tracker[] = [];
+  try {
+    const raw = window.localStorage.getItem(E2E_KEY);
+    if (raw) {
+      e2eStore = JSON.parse(raw) as Tracker[];
+    }
+  } catch (err) {
+    // ignore parse errors and fall back to seeding
+  }
+
+  // Seed a default tracker if empty
+  if (e2eStore.length === 0) {
+    const nowIso = new Date().toISOString();
+    e2eStore.push({
+      id: uuidv4(),
+      user_id: 'e2e-user',
+      name: 'Default Tracker',
+      type: 'custom',
+      icon: 'activity',
+      color: '#6366f1',
+      is_default: true,
+      preset_id: null,
+      created_at: nowIso,
+      updated_at: nowIso,
+    } as Tracker);
+    try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch {};
+  }
+  const saveE2E = () => { try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch {} };
+
+  _tracker = {
+    async getTrackers() {
+      console.log('[e2eStore] getTrackers -> count:', e2eStore.length);
       return { data: [...e2eStore], error: null };
     },
     async getTracker(id: string) {
@@ -199,22 +351,28 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
         updated_at: nowIso,
       } as Tracker;
       e2eStore.push(newTracker);
+      try { saveE2E(); } catch {}
+      console.log('[e2eStore] createTracker -> id:', newTracker.id, 'name:', newTracker.name, 'count:', e2eStore.length);
       return { data: newTracker, error: null };
     },
+
     async updateTracker(id, input) {
       const idx = e2eStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       e2eStore[idx] = { ...e2eStore[idx], ...(input as any) };
+      try { saveE2E(); } catch {}
       return { data: e2eStore[idx], error: null };
     },
     async deleteTracker(id) {
       const idx = e2eStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       e2eStore.splice(idx, 1);
+      try { saveE2E(); } catch {}
       return { data: null, error: null };
     },
     async setDefaultTracker(id: string) {
       e2eStore.forEach(t => (t.is_default = t.id === id));
+      try { saveE2E(); } catch {}
       const found = e2eStore.find(t => t.id === id) || null;
       return { data: found, error: null };
     },
@@ -242,6 +400,24 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
 }
 
 export const tracker: TrackerPort = _tracker;
+
+// Expose a small dev helper when running in dev mode so tests can create trackers directly
+if (typeof window !== 'undefined' && window.location.search.includes('dev=true')) {
+  try {
+    (window as any).__dev = (window as any).__dev || {};
+    (window as any).__dev.createTracker = async (input: any) => {
+      const res = await _tracker.createTracker(input);
+      try {
+        if (res && res.data) {
+          window.dispatchEvent(new CustomEvent('__dev:trackerCreated', { detail: res.data }));
+        }
+      } catch (e) {}
+      return res;
+    };
+  } catch (e) {
+    // ignore
+  }
+}
 
 // =============================================================================
 // Diagnostics Helpers
