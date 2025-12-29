@@ -141,7 +141,7 @@ export const supabaseAuth: AuthPort = {
     } catch (err) {
       console.error('[ensureDefaultTracker] invocation failed:', err);
     }
-  }
+  },
 
   async signUp(params: SignUpParams) {
     const { data, error } = await supabaseClient.auth.signUp({
@@ -171,7 +171,7 @@ export const supabaseAuth: AuthPort = {
     // If we have an active session and access token, ensure default tracker exists
     const accessToken = (data.session as any)?.access_token;
     if (accessToken) {
-      void ensureDefaultTracker(accessToken);
+      void supabaseAuth.ensureDefaultTracker(accessToken);
     }
 
     return { user, error: null };
@@ -199,12 +199,11 @@ export const supabaseAuth: AuthPort = {
     // Ensure default tracker exists for this user (run in background)
     const accessToken = (data.session as any)?.access_token;
     if (accessToken) {
-      void ensureDefaultTracker(accessToken);
+      void supabaseAuth.ensureDefaultTracker(accessToken);
     }
 
     return { user, error: null };
   },
-
 
   async signInWithMagicLink(params: MagicLinkParams) {
     const { error } = await supabaseClient.auth.signInWithOtp({
@@ -360,4 +359,30 @@ export const supabaseAuth: AuthPort = {
     // - "Invalid login credentials" = user doesn't exist OR password wrong (can't distinguish easily)
     // - "Email not confirmed" = user EXISTS but hasn't confirmed email
     // - Success = user exists and we somehow guessed the password (very unlikely)
-  }
+    try {
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password: '__invalid_password__',
+      });
+
+      if (!error) {
+        // Unexpected success implies the account exists (and password matched, extremely unlikely)
+        return { exists: true, error: null };
+      }
+
+      const message = error.message?.toLowerCase() ?? '';
+      if (message.includes('email not confirmed')) {
+        return { exists: true, error: null };
+      }
+
+      if (message.includes('invalid login credentials')) {
+        // Could be wrong password or missing user; report as "unknown"
+        return { exists: false, error: null };
+      }
+
+      return { exists: false, error: new Error(error.message) };
+    } catch (err) {
+      return { exists: false, error: err instanceof Error ? err : new Error('Unknown error') };
+    }
+  },
+};
