@@ -19,9 +19,9 @@ test.describe('Ambiguity & Disambiguation Flow', () => {
             } else {
               // set pending flag so Dashboard can pick it up on mount
               (window as any).__pendingOpenCreateDialog = true;
-              try { window.dispatchEvent(new CustomEvent('e2e-open-create-dialog')); } catch (e) {}
+              try { window.dispatchEvent(new CustomEvent('e2e-open-create-dialog')); } catch {}
             }
-          } catch (e) {
+          } catch {
             // ignore
           }
         });
@@ -31,7 +31,7 @@ test.describe('Ambiguity & Disambiguation Flow', () => {
         // If dialog opened, we're done
         const visible = await page.getByText('Create New Tracker').isVisible().catch(() => false);
         if (visible) return;
-      } catch (e) {
+      } catch {
         // ignore and retry
         await page.waitForTimeout(200);
       }
@@ -45,92 +45,8 @@ test.describe('Ambiguity & Disambiguation Flow', () => {
   }
 
   // Helper to ensure the create dialog's input is ready; retries opening the dialog if needed
-  async function ensureCreateDialogReady(page) {
-    // Ensure Dashboard main area is present first and stable
-    // Wait for DOM to be stable: 'New Tracker' and test helper must be present for a short stable window
-    for (let a = 0; a < 12; a++) {
-      try {
-        await page.getByText('New Tracker').waitFor({ timeout: 3000 });
-        const helperPresent = await page.evaluate(() => !!(window as any).__openCreateDialog).catch(() => false);
-        if (helperPresent) {
-          // Small stability check: ensure they persist for a short period
-          await page.waitForTimeout(300);
-          const stillThere = !!(await page.getByText('New Tracker').count()) && (await page.evaluate(() => !!(window as any).__openCreateDialog).catch(() => false));
-          if (stillThere) break;
-        }
-      } catch (err) {
-        // Not ready yet - try a light reload every few attempts
-        if (a % 3 === 0) {
-          await page.reload();
-          await page.waitForTimeout(600);
-        } else {
-          await page.waitForTimeout(400);
-        }
-      }
-    }
-
-    for (let i = 0; i < 14; i++) {
-      try {
-        // If the input is visible, we're ready
-        await page.getByPlaceholder('e.g., Migraines, Diet, Gratitude...').waitFor({ timeout: 1200 });
-        return;
-      } catch (err) {
-        // If page closed unexpectedly, try to reopen the app and continue
-        try {
-          if (page.isClosed && page.isClosed()) {
-            await page.goto(`${BASE}?e2e=true`);
-            await page.waitForTimeout(500);
-            continue;
-          }
-        } catch (_e) {
-          // ignore
-        }
-
-        // Wait for the test helper to be installed, otherwise reload to recover
-        let hasHelper = false;
-        try {
-          hasHelper = await page.evaluate(() => !!(window as any).__openCreateDialog);
-        } catch (_err) {
-          // If evaluate fails, attempt to reload and continue
-          await page.goto(`${BASE}?e2e=true`);
-          await page.waitForTimeout(400);
-          continue;
-        }
-
-        if (!hasHelper) {
-          if (i % 4 === 0) {
-            // Try a light reload to get client mounted
-            await page.reload();
-            await page.waitForTimeout(400);
-          } else {
-            await page.waitForTimeout(300);
-          }
-        }
-
-        // Try to open (or re-open) via test helper if present
-        try {
-          await page.evaluate(() => (window as any).__openCreateDialog && (window as any).__openCreateDialog());
-        } catch (_) {
-          // ignore
-        }
-
-        await page.waitForTimeout(300);
-
-        // If we're halfway through, do a full reload to try and restore stable state
-        if (i === 10) {
-          await page.reload();
-          await page.waitForTimeout(600);
-        }
-      }
-    }
-
-    const html = await page.content();
-    console.log('[E2E DEBUG] Create dialog not ready - snapshot:\n', html.substring(0, 2000));
-    try {
-      console.log('[E2E DEBUG] Recent requests:\n', JSON.stringify((globalThis as any).__e2e_requests.slice(-40), null, 2));
-    } catch (e) { /* ignore */ }
-    throw new Error('Create dialog not ready');
-  }
+  // NOTE: Previously a more complex helper existed; current tests use a simpler open+wait approach.
+  // Kept minimal to reduce maintenance and avoid intermittent hydration races.
 
   test.beforeEach(async ({ page }) => {
     // Use auth bypass mode for E2E tests (noopAuth)
@@ -154,12 +70,12 @@ test.describe('Ambiguity & Disambiguation Flow', () => {
       await page.waitForFunction(() => document.readyState === 'complete' && !!(window as any).__openCreateDialog, {}, { timeout: 60000 });
       // Still ensure 'New Tracker' is visible (allow for slower hydration in preview builds)
       await page.getByText('New Tracker').waitFor({ timeout: 60000 });
-    } catch (err) {
+    } catch (_err) {
       // Dump page HTML to help debugging intermittent renders
       const html = await page.content();
       console.log('[E2E DEBUG] Page HTML snapshot:\n', html.substring(0, 2000));
       console.log('[E2E DEBUG] Recent requests:\n', JSON.stringify((globalThis as any).__e2e_requests.slice(-40), null, 2));
-      throw err;
+      throw _err;
     }
   });
 
