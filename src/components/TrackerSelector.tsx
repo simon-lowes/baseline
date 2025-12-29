@@ -332,6 +332,18 @@ function DialogContentArea({
                   setTrackers(prev => [...prev, result.data!]);
                   onTrackerChange(result.data);
                   resetCreateDialog();
+
+                  // Generate image asynchronously for preset trackers (don't block UI)
+                  try {
+                    const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+                    const imageResult = await generateTrackerImage(preset.name, result.data.id);
+                    if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+                      await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+                      console.log(`Image generated for preset tracker: ${preset.name}`);
+                    }
+                  } catch (error) {
+                    console.warn('Failed to generate preset tracker image:', error);
+                  }
                 }
                 setCreating(false);
               }}
