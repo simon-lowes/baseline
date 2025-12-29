@@ -18,6 +18,7 @@ import type { AuthPort } from '@/ports/AuthPort';
 import type { DbPort } from '@/ports/DbPort';
 import type { TrackerPort } from '@/ports/TrackerPort';
 import type { Tracker } from '@/types/tracker';
+import { v4 as uuidv4 } from 'uuid';
 
 // =============================================================================
 // Environment Detection
@@ -154,14 +155,18 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
   console.log('[appRuntime] E2E mode detected - using in-memory test tracker');
   const e2eStore: Tracker[] = [];
   // Seed a default tracker so the Dashboard view appears (avoid WelcomeScreen in E2E preview)
+  const nowIso = new Date().toISOString();
   e2eStore.push({
-    id: `tracker-${Date.now()}`,
+    id: uuidv4(),
     user_id: 'e2e-user',
     name: 'Default Tracker',
+    type: 'custom',
     icon: 'activity',
     color: '#6366f1',
     is_default: true,
     preset_id: null,
+    created_at: nowIso,
+    updated_at: nowIso,
   } as Tracker);
 
   _tracker = {
@@ -177,17 +182,21 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
       return { data: found ?? null, error: null };
     },
     async createTracker(input) {
-      const id = `tracker-${Date.now()}`;
+      const id = uuidv4();
+      const nowIso = new Date().toISOString();
       const newTracker: Tracker = {
         id,
         user_id: 'e2e-user',
         name: input.name,
+        type: (input as any).type || 'custom',
         icon: (input as any).icon || 'activity',
         color: (input as any).color || '#6366f1',
         is_default: (input as any).is_default ?? false,
         preset_id: (input as any).preset_id || null,
         generated_config: (input as any).generated_config || null,
         confirmed_interpretation: (input as any).confirmed_interpretation || null,
+        created_at: nowIso,
+        updated_at: nowIso,
       } as Tracker;
       e2eStore.push(newTracker);
       return { data: newTracker, error: null };
@@ -211,14 +220,18 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
     },
     async ensureDefaultTracker() {
       if (e2eStore.length === 0) {
+        const nowIso = new Date().toISOString();
         const newTracker = {
           id: `tracker-${Date.now()}`,
           user_id: 'e2e-user',
           name: 'Default Tracker',
+          type: 'custom',
           icon: 'activity',
           color: '#6366f1',
           is_default: true,
           preset_id: null,
+          created_at: nowIso,
+          updated_at: nowIso,
         } as unknown as Tracker;
         e2eStore.push(newTracker);
         return { data: newTracker, error: null };

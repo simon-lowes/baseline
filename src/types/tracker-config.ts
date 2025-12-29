@@ -89,6 +89,9 @@ export interface TrackerConfig {
   locations: { value: string; label: string }[];
   triggers: string[];
   
+  // Optional suggested hashtags for tracker-specific quick-adds
+  suggestedHashtags?: string[];
+
   // Intensity helpers
   getIntensityLabel: (value: number) => string;
   getIntensityColor: (value: number) => string;
@@ -379,8 +382,6 @@ const configMap: Record<TrackerPresetId, TrackerConfig> = {
   exercise: exerciseConfig,
 };
 
-import type { GeneratedTrackerConfig, IntensityScale } from './generated-config';
-
 /**
  * Get intensity labels based on scale type
  */
@@ -468,6 +469,7 @@ export function buildConfigFromGenerated(generated: GeneratedTrackerConfig): Tra
     triggers: generated.triggers,
     getIntensityLabel: buildIntensityLabelFn(generated.intensityScale),
     getIntensityColor: buildIntensityColorFn(generated.intensityScale),
+    suggestedHashtags: (generated as any).suggestedHashtags || undefined,
   };
 }
 
