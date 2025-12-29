@@ -225,13 +225,16 @@ export function Dashboard({
   async function handleCustomSubmit(e: React.FormEvent) {
     e.preventDefault();
     const name = customName.trim();
+    console.log('[Dashboard] handleCustomSubmit called with name:', name);
     if (!name) return;
 
     setCreating(true);
 
     // FIRST: check for ambiguity and present disambiguation UI if needed
     try {
+      console.log('[Dashboard] Calling checkAmbiguity for', name);
       const ambiguity = await checkAmbiguity(name);
+      console.log('[Dashboard] checkAmbiguity returned:', ambiguity);
       if (ambiguity.isAmbiguous && ambiguity.interpretations.length > 0) {
         setDisambiguations(ambiguity.interpretations);
         setDisambiguationSelected(null);
@@ -249,11 +252,14 @@ export function Dashboard({
     try {
       let generatedConfig: GeneratedTrackerConfig | null = null;
       try {
+        console.log('[Dashboard] Calling generateTrackerConfig for', name);
         const result = await generateTrackerConfig(name);
+        console.log('[Dashboard] generateTrackerConfig returned:', result);
         if (result.success && result.config) {
           generatedConfig = result.config;
         }
-      } catch {
+      } catch (err) {
+        console.warn('[Dashboard] generateTrackerConfig failed, falling back to generic', err);
         // Fall back to generic
       }
       
@@ -261,6 +267,7 @@ export function Dashboard({
         generatedConfig = getGenericConfig(name);
       }
 
+      console.log('[Dashboard] Calling trackerService.createTracker for', name);
       const result = await trackerService.createTracker({
         name,
         type: 'custom',
@@ -269,6 +276,8 @@ export function Dashboard({
         is_default: false,
         generated_config: generatedConfig,
       });
+
+      console.log('[Dashboard] createTracker result:', result);
 
       if (result.error) {
         toast.error('Failed to create tracker');
