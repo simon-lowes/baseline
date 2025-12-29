@@ -89,9 +89,9 @@ plugins: [
 
 **Data flows:**
 
-- `src/App.tsx` → `supabase.from("pain_entries").select()` for loading
-- `src/App.tsx` → `supabase.from("pain_entries").insert()` for saving
-- `src/App.tsx` → `supabase.from("pain_entries").delete()` for removing
+- `src/App.tsx` → `supabase.from("tracker_entries").select()` for loading
+- `src/App.tsx` → `supabase.from("tracker_entries").insert()` for saving
+- `src/App.tsx` → `supabase.from("tracker_entries").delete()` for removing
 
 **No active `spark.kv` usage found in source code.**
 

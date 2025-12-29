@@ -173,7 +173,7 @@ function App() {
 
     const loadEntries = async () => {
       setLoading(true)
-      const { data, error } = await db.select<PainEntry>('pain_entries', {
+      const { data, error } = await db.select<PainEntry>('tracker_entries', {
         where: { tracker_id: currentTracker.id },
         orderBy: { column: 'timestamp', ascending: false },
       })
@@ -260,7 +260,7 @@ function App() {
       ...data,
     }
 
-    const { error } = await db.insert<PainEntry>('pain_entries', newEntry)
+    const { error } = await db.insert<PainEntry>('tracker_entries', newEntry)
 
     if (error) {
       console.error(error)
@@ -296,7 +296,7 @@ function App() {
       ...data,
     }
 
-    const { error } = await db.update<PainEntry>('pain_entries', {
+    const { error } = await db.update<PainEntry>('tracker_entries', {
       id: editingEntry.id,
       ...data,
     })
@@ -322,7 +322,7 @@ function App() {
   }
 
   const handleDeleteEntry = async (id: string) => {
-    const { error } = await db.delete('pain_entries', { id })
+    const { error } = await db.delete('tracker_entries', { id })
 
     if (error) {
       console.error(error)

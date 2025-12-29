@@ -107,7 +107,7 @@ export function Dashboard({
       await Promise.all(
         trackers.map(async (tracker) => {
           try {
-            const { data } = await db.select<PainEntry>('pain_entries', {
+            const { data } = await db.select<PainEntry>('tracker_entries', {
               where: { tracker_id: tracker.id },
               orderBy: { column: 'timestamp', ascending: false },
             });

@@ -39,7 +39,7 @@ CREATE TRIGGER on_auth_user_created
 -- =============================================================================
 -- Main application data - each entry belongs to a user
 
-CREATE TABLE IF NOT EXISTS pain_entries (
+CREATE TABLE IF NOT EXISTS tracker_entries (
   id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   timestamp BIGINT NOT NULL,
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS pain_entries (
 );
 
 -- Index for fast user-scoped queries
-CREATE INDEX IF NOT EXISTS pain_entries_user_id_idx ON pain_entries(user_id);
-CREATE INDEX IF NOT EXISTS pain_entries_timestamp_idx ON pain_entries(timestamp DESC);
+CREATE INDEX IF NOT EXISTS tracker_entries_user_id_idx ON tracker_entries(user_id);
+CREATE INDEX IF NOT EXISTS tracker_entries_timestamp_idx ON tracker_entries(timestamp DESC);
 
 -- =============================================================================
 -- 3. ROW LEVEL SECURITY (RLS)
@@ -62,7 +62,7 @@ CREATE INDEX IF NOT EXISTS pain_entries_timestamp_idx ON pain_entries(timestamp 
 
 -- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pain_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tracker_entries ENABLE ROW LEVEL SECURITY;
 
 -- -----------------------------------------------------------------------------
 -- PROFILES POLICIES
@@ -84,22 +84,22 @@ CREATE POLICY "Users can update own profile"
 
 -- Users can read their own entries
 CREATE POLICY "Users can read own pain entries"
-  ON pain_entries FOR SELECT
+  ON tracker_entries FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Users can insert their own entries
 CREATE POLICY "Users can insert own pain entries"
-  ON pain_entries FOR INSERT
+  ON tracker_entries FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own entries
 CREATE POLICY "Users can update own pain entries"
-  ON pain_entries FOR UPDATE
+  ON tracker_entries FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- Users can delete their own entries
 CREATE POLICY "Users can delete own pain entries"
-  ON pain_entries FOR DELETE
+  ON tracker_entries FOR DELETE
   USING (auth.uid() = user_id);
 
 -- =============================================================================
@@ -119,6 +119,6 @@ CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_pain_entries_updated_at
-  BEFORE UPDATE ON pain_entries
+CREATE TRIGGER update_tracker_entries_updated_at
+  BEFORE UPDATE ON tracker_entries
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

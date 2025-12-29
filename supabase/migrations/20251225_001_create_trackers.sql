@@ -1,4 +1,4 @@
--- Migration: Create trackers table and link pain_entries
+-- Migration: Create trackers table and link tracker_entries
 -- Phase 1: Foundation Refactor for Baseline
 
 -- =============================================================================
@@ -39,9 +39,9 @@ CREATE POLICY "Users can delete own trackers" ON trackers
   FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================================================
--- 3. Add tracker_id to pain_entries
+-- 3. Add tracker_id to tracker_entries
 -- =============================================================================
-ALTER TABLE pain_entries 
+ALTER TABLE tracker_entries 
   ADD COLUMN IF NOT EXISTS tracker_id UUID REFERENCES trackers(id) ON DELETE CASCADE;
 
 -- =============================================================================
@@ -88,7 +88,7 @@ BEGIN
   END IF;
   
   -- Migrate all entries without a tracker_id to the default tracker
-  UPDATE pain_entries 
+  UPDATE tracker_entries 
   SET tracker_id = v_tracker_id 
   WHERE user_id = p_user_id AND tracker_id IS NULL;
   
@@ -101,7 +101,7 @@ DO $$
 DECLARE
   r RECORD;
 BEGIN
-  FOR r IN SELECT DISTINCT user_id FROM pain_entries WHERE tracker_id IS NULL
+  FOR r IN SELECT DISTINCT user_id FROM tracker_entries WHERE tracker_id IS NULL
   LOOP
     PERFORM migrate_user_to_trackers(r.user_id);
   END LOOP;
@@ -135,7 +135,7 @@ END $$;
 -- 6. Add index for performance
 -- =============================================================================
 CREATE INDEX IF NOT EXISTS idx_trackers_user_id ON trackers(user_id);
-CREATE INDEX IF NOT EXISTS idx_pain_entries_tracker_id ON pain_entries(tracker_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_entries_tracker_id ON tracker_entries(tracker_id);
 
 -- =============================================================================
 -- 7. Add updated_at trigger for trackers
