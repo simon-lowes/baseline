@@ -61,6 +61,7 @@
   - [ ] Create new pain entry
   - [ ] Delete pain entry
   - [ ] Verify all icons display correctly
+  - [ ] Apply DB migration `20260101_001_add_ambiguous_terms_and_guard.sql` to add ambiguous terms and confirmed_interpretation to trackers. This adds a DB-level guard preventing creation of ambiguous-named trackers without confirmation.
 
 ---
 

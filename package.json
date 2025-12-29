@@ -5,11 +5,12 @@
     "description": "Know your baseline, spot the changes. Track pain, mood, and any metric that matters.",
     "type": "module",
     "scripts": {
-        "dev": "vite",
+        "dev": "vite --port 5173",
         "kill": "fuser -k 5000/tcp",
         "build": "tsc -b --noCheck && vite build",
         "lint": "eslint .",
         "test": "vitest run",
+    "test:e2e": "playwright test --project=chromium" ,
         "test:watch": "vitest",
         "optimize": "vite optimize",
         "preview": "vite preview"
@@ -78,6 +79,7 @@
         "zod": "^4.1.13"
     },
     "devDependencies": {
+        "@playwright/test": "^1.38.0",
         "@eslint/js": "^9.39.2",
         "@tailwindcss/postcss": "^4.1.18",
         "@types/react": "^19.0.10",

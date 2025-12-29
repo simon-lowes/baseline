@@ -14,6 +14,18 @@
 
 <body>
     <div id="root"></div>
+    <!-- E2E: provide a lightweight helper for opening create dialog before the app mounts -->
+    <script>
+      try {
+        if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+          window.__openCreateDialog = function() {
+            try { window.__pendingOpenCreateDialog = true; window.dispatchEvent(new CustomEvent('e2e-open-create-dialog')); } catch (e) { /* ignore */ }
+          };
+        }
+      } catch (e) {
+        // no-op
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
 </body>
 
