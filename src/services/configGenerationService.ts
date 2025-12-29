@@ -7,6 +7,7 @@
 
 import { lookupWord } from './dictionaryService';
 import { supabaseClient } from '@/adapters/supabase/supabaseClient';
+import { debug, info, warn, error as logError } from '@/lib/logger';
 import type { GeneratedTrackerConfig, AmbiguityCheckResult, TrackerInterpretation } from '@/types/generated-config';
 
 export interface ConfigGenerationResult {
@@ -199,12 +200,12 @@ function findClosestMatch(input: string, maxDistance: number = 2): { word: strin
 export function getLocalAmbiguityFallback(trackerName: string): AmbiguityCheckResult & { suggestedCorrection?: string } {
   const normalized = trackerName.toLowerCase().trim();
   
-  console.log('[getLocalAmbiguityFallback] Checking:', normalized);
+  debug('[getLocalAmbiguityFallback] Checking:', normalized);
   
   // First check for exact match
   const exactMatch = KNOWN_AMBIGUOUS_TERMS[normalized];
   if (exactMatch && exactMatch.length > 0) {
-    console.log('[getLocalAmbiguityFallback] ✅ EXACT MATCH found:', normalized, 'with', exactMatch.length, 'options');
+    debug('[getLocalAmbiguityFallback] ✅ EXACT MATCH found:', normalized, 'with', exactMatch.length, 'options');
     return {
       isAmbiguous: true,
       reason: `"${trackerName}" has multiple common meanings - please select which one you mean`,
@@ -216,7 +217,7 @@ export function getLocalAmbiguityFallback(trackerName: string): AmbiguityCheckRe
   const closestMatch = findClosestMatch(normalized);
   if (closestMatch && closestMatch.distance > 0 && closestMatch.distance <= 2) {
     const correctedInterpretations = KNOWN_AMBIGUOUS_TERMS[closestMatch.word];
-    console.log('[getLocalAmbiguityFallback] 🔤 TYPO DETECTED:', normalized, '→', closestMatch.word, '(distance:', closestMatch.distance, ')');
+    debug('[getLocalAmbiguityFallback] 🔤 TYPO DETECTED:', normalized, '→', closestMatch.word, '(distance:', closestMatch.distance, ')');
     
     // Return as ambiguous with the corrected word's interpretations
     return {
@@ -227,7 +228,7 @@ export function getLocalAmbiguityFallback(trackerName: string): AmbiguityCheckRe
     };
   }
   
-  console.log('[getLocalAmbiguityFallback] ❌ Not found in local list');
+  debug('[getLocalAmbiguityFallback] ❌ Not found in local list');
   return { isAmbiguous: false, reason: '', interpretations: [] };
 }
 
@@ -242,8 +243,7 @@ export function getLocalAmbiguityFallback(trackerName: string): AmbiguityCheckRe
  * @returns Ambiguity check result with interpretation options if ambiguous
  */
 export async function checkAmbiguity(trackerName: string): Promise<AmbiguityCheckResult> {
-  console.log('[checkAmbiguity] ========== STARTING ==========');
-  console.log('[checkAmbiguity] Tracker name:', trackerName);
+  debug('[checkAmbiguity] ========== STARTING ==========', trackerName);
   
   // FIRST: Check our local fallback list - this ALWAYS works
   const localResult = getLocalAmbiguityFallback(trackerName);
@@ -251,11 +251,11 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
   if (localResult.isAmbiguous) {
     // If it's in our curated local list, use that immediately
     // This is the most reliable - no network calls needed
-    console.log('[checkAmbiguity] ✅ FOUND IN LOCAL LIST - returning immediately with', localResult.interpretations.length, 'options');
+    debug('[checkAmbiguity] ✅ FOUND IN LOCAL LIST - returning immediately with', localResult.interpretations.length, 'options');
     return localResult;
   }
   
-  console.log('[checkAmbiguity] Not in local list, trying AI...');
+  debug('[checkAmbiguity] Not in local list, trying AI...');
   
   // Try the AI service for terms not in our local list
   try {
@@ -264,24 +264,24 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
     try {
       const dictResult = await lookupWord(trackerName);
       allDefinitions = dictResult?.allDefinitions;
-      console.log('[checkAmbiguity] Dictionary found', allDefinitions?.length ?? 0, 'definitions');
+      debug('[checkAmbiguity] Dictionary found', allDefinitions?.length ?? 0, 'definitions');
     } catch (dictError) {
       console.warn('[checkAmbiguity] Dictionary lookup failed (continuing):', dictError);
     }
     
     // Call edge function to check ambiguity
-    console.log('[checkAmbiguity] Calling check-ambiguity edge function...');
+    debug('[checkAmbiguity] Calling check-ambiguity edge function...');
     const { data, error } = await supabaseClient.functions.invoke('check-ambiguity', {
       body: { trackerName, allDefinitions },
     });
     
     if (error) {
-      console.error('[checkAmbiguity] Edge function error:', error);
+      logError('[checkAmbiguity] Edge function error:', error);
       // AI failed, but term isn't in local list - proceed without disambiguation
       return { isAmbiguous: false, reason: `AI check failed: ${error.message || error}`, interpretations: [] };
     }
     
-    console.log('[checkAmbiguity] Edge function returned:', JSON.stringify(data));
+    debug('[checkAmbiguity] Edge function returned:', JSON.stringify(data));
     
     const result: AmbiguityCheckResult = {
       isAmbiguous: data?.isAmbiguous ?? false,
@@ -290,9 +290,9 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
     };
     
     if (result.isAmbiguous) {
-      console.log('[checkAmbiguity] ✅ AI says AMBIGUOUS with', result.interpretations.length, 'options');
+      debug('[checkAmbiguity] ✅ AI says AMBIGUOUS with', result.interpretations.length, 'options');
     } else {
-      console.log('[checkAmbiguity] AI says NOT ambiguous');
+      debug('[checkAmbiguity] AI says NOT ambiguous');
     }
     
     return result;
