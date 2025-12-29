@@ -9,6 +9,8 @@ import { lookupWord } from './dictionaryService';
 import { supabaseClient } from '@/adapters/supabase/supabaseClient';
 import { debug, info, warn, error as logError } from '@/lib/logger';
 import type { GeneratedTrackerConfig, AmbiguityCheckResult, TrackerInterpretation } from '@/types/generated-config';
+import { fetchWikipediaContext } from './wikiService';
+import { fetchDatamuseRelated } from './datamuseService';
 
 export interface ConfigGenerationResult {
   success: boolean;
@@ -338,6 +340,9 @@ export async function generateTrackerConfig(
     let allDefinitions: string[] | undefined;
     let synonyms: string[] | undefined;
     let dictionaryFound = false;
+    let wikiSummary: string | undefined;
+    let wikiCategories: string[] | undefined;
+    let relatedTerms: string[] | undefined;
 
     try {
       const dictResult = await lookupWord(trackerName);
@@ -349,6 +354,27 @@ export async function generateTrackerConfig(
       }
     } catch (dictErr) {
       console.warn('[generateTrackerConfig] Dictionary lookup failed, continuing with AI only:', dictErr);
+    }
+
+    // Wikipedia summary + categories (free, no auth)
+    try {
+      const wiki = await fetchWikipediaContext(trackerName);
+      if (wiki) {
+        wikiSummary = wiki.summary;
+        wikiCategories = wiki.categories;
+      }
+    } catch (wikiErr) {
+      console.warn('[generateTrackerConfig] Wikipedia lookup failed (non-blocking):', wikiErr);
+    }
+
+    // Datamuse related terms to enrich tags/hashtags
+    try {
+      const related = await fetchDatamuseRelated(trackerName, 12);
+      if (related?.terms?.length) {
+        relatedTerms = related.terms;
+      }
+    } catch (dmErr) {
+      console.warn('[generateTrackerConfig] Datamuse lookup failed (non-blocking):', dmErr);
     }
 
     // If we have no dictionary context and no user description, ask for a description instead of guessing blindly
@@ -369,6 +395,9 @@ export async function generateTrackerConfig(
         allDefinitions, // Pass all definitions for better context
         userDescription,
         selectedInterpretation, // Pass user's disambiguation choice
+        wikiSummary,
+        wikiCategories,
+        relatedTerms,
       },
     });
     
@@ -398,8 +427,14 @@ export async function generateTrackerConfig(
       if (definition) {
         fallback.emptyStateDescription = definition;
       }
+      if (wikiSummary) {
+        fallback.emptyStateDescription = wikiSummary;
+      }
       if (synonyms && synonyms.length > 0) {
         fallback.suggestedHashtags = synonyms.slice(0, 5).map((s) => `#${s.replace(/\s+/g, '_')}`);
+      }
+      if (!fallback.suggestedHashtags?.length && relatedTerms && relatedTerms.length > 0) {
+        fallback.suggestedHashtags = relatedTerms.slice(0, 5).map((s) => `#${s.replace(/\s+/g, '_')}`);
       }
       return { success: true, config: fallback };
     }
