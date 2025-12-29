@@ -17,12 +17,11 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
     
-    const { trackerName, definition, userDescription } = body;
+    const { trackerName, definition, allDefinitions, userDescription } = body;
     
-    const contextSource = definition || userDescription;
-    if (!trackerName || !contextSource) {
-      console.log('Missing required fields');
-      throw new Error('trackerName and either definition or userDescription required');
+    if (!trackerName) {
+      console.log('Missing tracker name');
+      throw new Error('trackerName is required');
     }
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -32,11 +31,30 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
     
+    // Build context section based on what we have
+    let contextSection = '';
+    if (userDescription) {
+      contextSection = `User's description: "${userDescription}"`;
+    } else if (allDefinitions && allDefinitions.length > 0) {
+      contextSection = `Dictionary definitions:\n${allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}`;
+    } else if (definition) {
+      contextSection = `Dictionary definition: "${definition}"`;
+    } else {
+      contextSection = `No dictionary definition was found. Use your knowledge of "${trackerName}" to understand what the user likely wants to track.`;
+    }
+    
     const prompt = `You are helping configure a health/wellness tracking app. The user wants to create a custom tracker called "${trackerName}".
 
-${definition ? `Dictionary definition: "${definition}"` : `User's description: "${userDescription}"`}
+${contextSection}
 
-Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}".
+IMPORTANT: If multiple definitions are provided, choose the one most relevant to health, wellness, or activity tracking. If the definitions don't clearly relate to something trackable, use your own knowledge of "${trackerName}" to determine the most sensible tracking context.
+
+For example:
+- "Curling" → the winter sport (track sessions, performance, practice)
+- "Running" → the exercise activity (track runs, distance, pace)
+- "Depression" → mental health condition (track mood, episodes, symptoms)
+
+Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
 
 Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
 {
