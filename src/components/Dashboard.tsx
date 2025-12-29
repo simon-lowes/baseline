@@ -426,40 +426,41 @@ export function Dashboard({
               setCreating(true);
 
               try {
-                  // Ensure session is validated with the server before creating (prevents silent RLS failures)
-                  try {
-                    const validatedUser = await auth.waitForInitialValidation();
-                    if (!validatedUser) {
-                      console.error('[Dashboard] Session validation failed before disambiguation create');
-                      toast.error('Session validation failed. Please sign in again.');
-                      setCreating(false);
-                      return;
-                    }
-                  } catch (err) {
-                    console.error('[Dashboard] waitForInitialValidation error:', err);
-                    toast.error('Unable to validate session. Please sign in again.');
-                    setCreating(false);
+                // Ensure session is validated with the server before creating (prevents silent RLS failures)
+                try {
+                  const validatedUser = await auth.waitForInitialValidation();
+                  if (!validatedUser) {
+                    console.error('[Dashboard] Session validation failed before disambiguation create');
+                    toast.error('Session validation failed. Please sign in again.');
                     return;
                   }
+                } catch (err) {
+                  console.error('[Dashboard] waitForInitialValidation error:', err);
+                  toast.error('Unable to validate session. Please sign in again.');
+                  return;
+                }
 
-                  const interpretationString = disambiguationSelected.value === 'other'
-                    ? undefined
-                    : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
-                  const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
+                const interpretationString = disambiguationSelected.value === 'other'
+                  ? undefined
+                  : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
+                const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
 
-                  const genResult = await generateTrackerConfig(customName, description, interpretationString);
-                  let finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
+                const genResult = await generateTrackerConfig(customName, description, interpretationString);
+                const finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
 
-                  const result = await trackerService.createTracker({
-                    name: customName,
-                    type: 'custom',
-                    icon: 'activity',
-                    color: '#6366f1',
-                    is_default: false,
-                    generated_config: finalConfig,
-                    confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
-                  });
-                  setCreating(false);
+                const result = await trackerService.createTracker({
+                  name: customName,
+                  type: 'custom',
+                  icon: 'activity',
+                  color: '#6366f1',
+                  is_default: false,
+                  generated_config: finalConfig,
+                  confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
+                  user_description: description,
+                });
+
+                if (result.error) {
+                  toast.error(result.error.message || 'Failed to create tracker');
                   return;
                 }
 
@@ -482,9 +483,9 @@ export function Dashboard({
               } catch (err) {
                 console.error('Disambiguation creation failed', err);
                 toast.error('Failed to create tracker');
+              } finally {
+                setCreating(false);
               }
-
-              setCreating(false);
             }}
             disabled={creating || !disambiguationSelected || (disambiguationSelected?.value === 'other' && !disambiguationUserDescription.trim())}
           >
