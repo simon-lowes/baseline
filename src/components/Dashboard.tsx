@@ -30,10 +30,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Tracker, TrackerPresetId } from '@/types/tracker';
 import { TRACKER_PRESETS } from '@/types/tracker';
-import type { GeneratedTrackerConfig } from '@/types/generated-config';
+import type { GeneratedTrackerConfig, TrackerInterpretation } from '@/types/generated-config';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import type { PainEntry } from '@/types/pain-entry';
 import { db, tracker as trackerService } from '@/runtime/appRuntime';
-import { generateTrackerConfig, getGenericConfig } from '@/services/configGenerationService';
+import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/services/configGenerationService';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -63,6 +65,13 @@ export function Dashboard({
   const [creatingPreset, setCreatingPreset] = useState<TrackerPresetId | null>(null);
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Disambiguation modal state for quick-create flow
+  const [disambiguateOpen, setDisambiguateOpen] = useState(false);
+  const [disambiguations, setDisambiguations] = useState<TrackerInterpretation[]>([]);
+  const [disambiguationSelected, setDisambiguationSelected] = useState<TrackerInterpretation | null>(null);
+  const [disambiguationUserDescription, setDisambiguationUserDescription] = useState('');
+  const [disambiguationReason, setDisambiguationReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   
   // Touch visibility state for delete icons on mobile
@@ -96,6 +105,31 @@ export function Dashboard({
       }
     };
   }, []);
+
+  // Test-only: expose a function to open the create dialog when running E2E locally
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+      const handler = () => setCreateDialogOpen(true);
+
+      // If an earlier script set the pending flag before the app mounted, honour that now
+      try {
+        if ((window as any).__pendingOpenCreateDialog) {
+          setCreateDialogOpen(true);
+          try { delete (window as any).__pendingOpenCreateDialog; } catch {};
+        }
+      } catch {}
+
+      // Allow both direct helper invocation and a dispatched event for pre-mount helper
+      (window as any).__openCreateDialog = handler;
+      window.addEventListener('e2e-open-create-dialog', handler as EventListener);
+
+      return () => {
+        try { delete (window as any).__openCreateDialog; } catch {};
+        try { window.removeEventListener('e2e-open-create-dialog', handler as EventListener); } catch {};
+      };
+    }
+    return;
+  }, [setCreateDialogOpen]);
 
   // Load entry counts for each tracker
   useEffect(() => {
@@ -193,6 +227,24 @@ export function Dashboard({
     if (!name) return;
 
     setCreating(true);
+
+    // FIRST: check for ambiguity and present disambiguation UI if needed
+    try {
+      const ambiguity = await checkAmbiguity(name);
+      if (ambiguity.isAmbiguous && ambiguity.interpretations.length > 0) {
+        setDisambiguations(ambiguity.interpretations);
+        setDisambiguationSelected(null);
+        setDisambiguationUserDescription('');
+        setDisambiguationReason(ambiguity.reason || '');
+        setDisambiguateOpen(true);
+        setCreating(false);
+        // Bail out - user must confirm the interpretation
+        return;
+      }
+    } catch (err) {
+      console.warn('Ambiguity check failed (continuing):', err);
+    }
+
     try {
       let generatedConfig: GeneratedTrackerConfig | null = null;
       try {
@@ -452,6 +504,144 @@ export function Dashboard({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateDialogOpen(false)}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disambiguation Dialog (shown when quick-create detects ambiguity) */}
+      <Dialog open={disambiguateOpen} onOpenChange={(open) => {
+        if (!open) {
+          setDisambiguateOpen(false);
+          setDisambiguationSelected(null);
+          setDisambiguations([]);
+          setDisambiguationUserDescription('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clarify Your Tracker</DialogTitle>
+            <DialogDescription>
+              {disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3 py-4">
+            {disambiguations.map((interpretation) => (
+              <button
+                key={interpretation.value}
+                type="button"
+                onClick={() => setDisambiguationSelected(interpretation)}
+                className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === interpretation.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
+              >
+                <span className="font-medium">{interpretation.label}</span>
+                <span className="text-sm text-muted-foreground">{interpretation.description}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setDisambiguationSelected({ value: 'other', label: 'Something else', description: '' })}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === 'other' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
+            >
+              <span className="font-medium">Something else</span>
+              <span className="text-sm text-muted-foreground">I'll describe what I want to track</span>
+            </button>
+
+            {disambiguationSelected?.value === 'other' && (
+              <div className="mt-2">
+                <Label htmlFor="disambiguation-description">Describe what "{customName}" means to you...</Label>
+                <Textarea
+                  id="disambiguation-description"
+                  placeholder={`Describe what "${customName}" means to you...`}
+                  value={disambiguationUserDescription}
+                  onChange={(e) => setDisambiguationUserDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDisambiguateOpen(false); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!disambiguationSelected) {
+                  toast.error('Please select an interpretation');
+                  return;
+                }
+
+                // If user selected 'other', ensure description provided
+                if (disambiguationSelected.value === 'other' && !disambiguationUserDescription.trim()) {
+                  toast.error('Please provide a description');
+                  return;
+                }
+
+                setCreating(true);
+
+                try {
+                  const interpretationString = disambiguationSelected.value === 'other'
+                    ? undefined
+                    : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
+                  const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
+
+                  const genResult = await generateTrackerConfig(customName, description, interpretationString);
+                  let finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
+
+                  const result = await trackerService.createTracker({
+                    name: customName,
+                    type: 'custom',
+                    icon: 'activity',
+                    color: '#6366f1',
+                    is_default: false,
+                    generated_config: finalConfig,
+                    confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
+                  });
+
+                  if (result.error) {
+                    toast.error('Failed to create tracker');
+                    setCreating(false);
+                    return;
+                  }
+
+                  if (result.data) {
+                    toast.success(`${customName} tracker created!`);
+                    setDisambiguateOpen(false);
+                    setCreateDialogOpen(false);
+                    setCustomName('');
+                    onTrackerCreated(result.data);
+                    // async image generation
+                    try {
+                      const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+                      const imageResult = await generateTrackerImage(customName, result.data.id);
+                      if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+                        await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+                      }
+                    } catch (err) {
+                      console.warn('Failed to generate tracker image:', err);
+                    }
+                  }
+                } catch (err) {
+                  console.error('Disambiguation creation failed', err);
+                  toast.error('Failed to create tracker');
+                }
+
+                setCreating(false);
+              }}
+              disabled={creating || !disambiguationSelected || (disambiguationSelected?.value === 'other' && !disambiguationUserDescription.trim())}
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Create Tracker
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

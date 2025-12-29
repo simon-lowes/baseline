@@ -50,12 +50,15 @@ Deno.serve(async (req: Request) => {
 
 ${contextSection}
 
-IMPORTANT: If multiple definitions are provided, choose the one most relevant to health, wellness, or activity tracking. If the definitions don't clearly relate to something trackable, use your own knowledge of "${trackerName}" to determine the most sensible tracking context.
-
-For example:
-- "Curling" → the winter sport (track sessions, performance, practice)
-- "Running" → the exercise activity (track runs, distance, pace)
-- "Depression" → mental health condition (track mood, episodes, symptoms)
+CRITICAL INTERPRETATION RULES:
+1. If a selectedInterpretation is provided above, use ONLY that interpretation - ignore all other definitions.
+2. Otherwise, choose the interpretation most relevant to health, wellness, or activity tracking that a PERSON would do.
+3. IGNORE dictionary definitions about baseball, cricket, or other sports terminology that uses the word differently (e.g., "fly out" in baseball is NOT what someone means by "Flying" tracker).
+4. For ambiguous terms, prefer the most common health/wellness interpretation:
+   - "Flying" → travel by air, flying sports (hang gliding, paragliding), or fear of flying - NOT baseball
+   - "Running" → the exercise activity
+   - "Curling" → the winter sport (if athletic) or possibly hair care
+   - "Depression" → mental health condition
 
 Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
 
@@ -95,10 +98,10 @@ For intensityScale:
 
 Make it medically/scientifically informed but accessible to regular users.`;
 
-    // Call Google Gemini API using gemini-2.0-flash-001 model
-    console.log('Calling Gemini API for tracker:', trackerName);
+    // Call Google Gemini API using gemini-3-flash-preview model
+    console.log('Calling Gemini API (gemini-3-flash-preview) for tracker:', trackerName);
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,6 +110,10 @@ Make it medically/scientifically informed but accessible to regular users.`;
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 2048,
+            // Disable thinking mode to get clean JSON output
+            thinkingConfig: {
+              thinkingBudget: 0
+            },
           },
         }),
       }
