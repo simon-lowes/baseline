@@ -18,7 +18,7 @@ Use this checklist to keep the project secure and aligned with best practices.
 
 ## Database Security
 
-- Row Level Security (RLS): Enabled and enforced (FORCE RLS) on `public.pain_entries` and `public.profiles` (25 Dec 2025)
+- Row Level Security (RLS): Enabled and enforced (FORCE RLS) on `public.tracker_entries` and `public.profiles` (25 Dec 2025)
 - Policies: Least-privilege, users can only access rows where `user_id = auth.uid()`
 - RPC functions: Avoid generic `execute_sql`; restrict RPCs to specific tasks and secure with policies
 - Public schemas: Avoid anonymous write access; review Extensions/Functions permissions
@@ -45,7 +45,7 @@ Use this checklist to keep the project secure and aligned with best practices.
 ## Performance Advisors (from Supabase)
 
 - Unused indexes (INFO):
-  - `public.pain_entries`: previously `pain_entries_timestamp_idx`, `pain_entries_user_id_idx` (removed on 25 Dec 2025)
+  - `public.tracker_entries`: previously `tracker_entries_timestamp_idx`, `tracker_entries_user_id_idx` (removed on 25 Dec 2025)
   - Rationale: reduce write overhead and storage since they were unused.
   - Reference: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
 - Auth DB connections (INFO):

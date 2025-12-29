@@ -29,7 +29,7 @@ Phase 1 requirements:
 2. Refactor the data model to support multiple "tracker types" per user
 3. Create a new `trackers` table where each user can have multiple trackers
 4. Each tracker has: id, user_id, name, type (preset or custom), icon, color, created_at
-5. Migrate existing pain_entries to belong to a default "Chronic Pain" tracker
+5. Migrate existing tracker_entries to belong to a default "Chronic Pain" tracker
 6. Update the UI to show a tracker selector/switcher
 7. Keep all existing pain diary functionality working
 8. Integrate **shadcn/ui** for the design system
