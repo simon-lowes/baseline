@@ -106,9 +106,38 @@ export const supabaseTracker: TrackerPort = {
         return { data: null, error: new Error(`Tracker name "${input.name}" is ambiguous and requires a confirmed interpretation before creation`) };
       }
 
-      const { data, error } = await supabaseClient
-        .from('trackers')
-        .insert({
+      const payload = {
+        user_id: user.id,
+        name: input.name,
+        type: input.type ?? 'custom',
+        preset_id: input.preset_id ?? null,
+        icon: input.icon ?? 'activity',
+        color: input.color ?? '#6366f1',
+        is_default: input.is_default ?? false,
+        generated_config: input.generated_config ?? null,
+        user_description: input.user_description ?? null,
+        confirmed_interpretation: input.confirmed_interpretation ?? null,
+      };
+
+      const attemptInsert = async (body: Record<string, unknown>) => {
+        return supabaseClient.from('trackers').insert(body).select().single();
+      };
+
+      let { data, error } = await attemptInsert(payload);
+
+      // If the Supabase schema cache is stale or columns are missing (e.g., confirmed_interpretation not present yet),
+      // retry with a minimal payload to avoid blocking tracker creation for end users.
+      const msg = error?.message?.toLowerCase() ?? '';
+      const looksLikeSchemaCacheIssue =
+        msg.includes('schema cache') ||
+        msg.includes('confirmed_interpretation') ||
+        msg.includes('generated_config') ||
+        msg.includes('user_description') ||
+        msg.includes('column');
+
+      if (error && looksLikeSchemaCacheIssue) {
+        console.warn('[supabaseTracker] Schema mismatch detected, retrying with minimal payload:', error.message);
+        const fallbackPayload = {
           user_id: user.id,
           name: input.name,
           type: input.type ?? 'custom',
@@ -116,12 +145,9 @@ export const supabaseTracker: TrackerPort = {
           icon: input.icon ?? 'activity',
           color: input.color ?? '#6366f1',
           is_default: input.is_default ?? false,
-          generated_config: input.generated_config ?? null,
-          user_description: input.user_description ?? null,
-          confirmed_interpretation: input.confirmed_interpretation ?? null,
-        })
-        .select()
-        .single();
+        };
+        ({ data, error } = await attemptInsert(fallbackPayload));
+      }
 
       if (error) {
         return { data: null, error: new Error(error.message) };
