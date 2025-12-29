@@ -296,9 +296,12 @@ function App() {
       ...data,
     }
 
-    const { error } = await db.update<PainEntry>('tracker_entries', {
-      id: editingEntry.id,
-      ...data,
+    const { error } = await db.update<PainEntry>('tracker_entries', { id: editingEntry.id }, {
+      intensity: data.intensity,
+      locations: data.locations,
+      notes: data.notes,
+      triggers: data.triggers,
+      hashtags: data.hashtags,
     })
 
     if (error) {
