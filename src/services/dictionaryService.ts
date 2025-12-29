@@ -38,6 +38,26 @@ function extractSynonyms(meanings: { synonyms?: string[] }[]): string[] {
 }
 
 /**
+ * Extract ALL definitions from all meanings (up to maxCount)
+ * Returns definitions with their part of speech for context
+ */
+function extractAllDefinitions(
+  meanings: { partOfSpeech?: string; definitions?: { definition?: string }[] }[],
+  maxCount: number
+): string[] {
+  const definitions: string[] = [];
+  for (const meaning of meanings) {
+    const pos = meaning.partOfSpeech ?? 'unknown';
+    for (const def of meaning.definitions ?? []) {
+      if (def.definition && definitions.length < maxCount) {
+        definitions.push(`(${pos}) ${def.definition}`);
+      }
+    }
+  }
+  return definitions;
+}
+
+/**
  * Fetch word definition, checking cache first
  */
 export async function lookupWord(word: string): Promise<DictionaryResult | null> {
@@ -76,18 +96,22 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
     const data = await response.json();
     const entry = data[0];
     
-    // Extract relevant info from first meaning
-    const firstMeaning = entry.meanings?.[0];
+    // Extract ALL definitions from ALL meanings (up to 5) for better context
+    const meanings = entry.meanings ?? [];
+    const allDefinitions = extractAllDefinitions(meanings, 5);
+    
+    // Also keep first definition for backwards compatibility
+    const firstMeaning = meanings[0];
     const firstDefinition = firstMeaning?.definitions?.[0];
     
     // Collect examples and synonyms using helper functions
-    const meanings = entry.meanings ?? [];
     const examples = extractExamples(meanings, 3);
     const synonyms = extractSynonyms(meanings);
     
     const result: DictionaryResult = {
       word: entry.word,
       definition: firstDefinition?.definition ?? '',
+      allDefinitions, // New field with all definitions for Gemini
       partOfSpeech: firstMeaning?.partOfSpeech,
       examples,
       synonyms: synonyms.slice(0, 10),

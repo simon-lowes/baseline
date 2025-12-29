@@ -29,23 +29,25 @@ export async function generateTrackerConfig(
 ): Promise<ConfigGenerationResult> {
   try {
     let definition: string | undefined;
+    let allDefinitions: string[] | undefined;
     
     // Try dictionary lookup first (unless user provided description)
     if (!userDescription) {
       const dictResult = await lookupWord(trackerName);
       if (dictResult) {
         definition = dictResult.definition;
-      } else {
-        // Word not found - need user description
-        return { success: false, needsDescription: true };
+        allDefinitions = dictResult.allDefinitions;
       }
+      // If dictionary fails, we'll let Gemini use its own knowledge (no needsDescription)
     }
     
     // Call edge function to generate config
+    // Gemini will use dictionary definitions if available, or its own knowledge otherwise
     const { data, error } = await supabaseClient.functions.invoke('generate-tracker-config', {
       body: {
         trackerName,
         definition,
+        allDefinitions, // Pass all definitions for better context
         userDescription,
       },
     });

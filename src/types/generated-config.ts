@@ -57,6 +57,8 @@ export interface GeneratedTrackerConfig {
 export interface DictionaryResult {
   word: string;
   definition: string;
+  /** All definitions from all meanings, with part of speech prefix */
+  allDefinitions?: string[];
   partOfSpeech?: string;
   examples: string[];
   synonyms: string[];
