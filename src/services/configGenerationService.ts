@@ -257,6 +257,12 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
   
   debug('[checkAmbiguity] Not in local list, trying AI...');
   
+  // In E2E mode, avoid calling external AI service for deterministic tests
+  if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+    debug('[checkAmbiguity] E2E mode detected - skipping AI ambiguity check (deterministic)');
+    return { isAmbiguous: false, reason: '', interpretations: [] };
+  }
+
   // Try the AI service for terms not in our local list
   try {
     // Get dictionary definitions for context
@@ -320,6 +326,12 @@ export async function generateTrackerConfig(
   userDescription?: string,
   selectedInterpretation?: string
 ): Promise<ConfigGenerationResult> {
+  // In E2E mode, avoid calling external AI services for deterministic, fast tests
+  if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+    debug('[generateTrackerConfig] E2E mode detected - skipping AI generation (deterministic)');
+    return { success: false };
+  }
+
   try {
     let definition: string | undefined;
     let allDefinitions: string[] | undefined;
