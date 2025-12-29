@@ -7,7 +7,7 @@
 
 import { lookupWord } from './dictionaryService';
 import { supabaseClient } from '@/adapters/supabase/supabaseClient';
-import type { GeneratedTrackerConfig } from '@/types/generated-config';
+import type { GeneratedTrackerConfig, AmbiguityCheckResult } from '@/types/generated-config';
 
 export interface ConfigGenerationResult {
   success: boolean;
@@ -17,22 +17,62 @@ export interface ConfigGenerationResult {
 }
 
 /**
+ * Check if a tracker name is ambiguous and needs user clarification
+ * 
+ * @param trackerName - The name of the tracker to check
+ * @returns Ambiguity check result with interpretation options if ambiguous
+ */
+export async function checkAmbiguity(trackerName: string): Promise<AmbiguityCheckResult> {
+  try {
+    // First get dictionary definitions for context
+    const dictResult = await lookupWord(trackerName);
+    const allDefinitions = dictResult?.allDefinitions;
+    
+    // Call edge function to check ambiguity
+    const { data, error } = await supabaseClient.functions.invoke('check-ambiguity', {
+      body: {
+        trackerName,
+        allDefinitions,
+      },
+    });
+    
+    if (error) {
+      console.error('Ambiguity check edge function error:', error);
+      // On error, return not ambiguous to allow normal flow
+      return { isAmbiguous: false, reason: 'Error checking', interpretations: [] };
+    }
+    
+    return {
+      isAmbiguous: data?.isAmbiguous ?? false,
+      reason: data?.reason ?? '',
+      interpretations: data?.interpretations ?? [],
+    };
+  } catch (error) {
+    console.error('Ambiguity check failed:', error);
+    // On error, return not ambiguous to allow normal flow
+    return { isAmbiguous: false, reason: 'Error checking', interpretations: [] };
+  }
+}
+
+/**
  * Generate configuration for a custom tracker
  * 
  * @param trackerName - The name of the tracker (e.g., "Hypertension")
  * @param userDescription - Optional user-provided description (used when dictionary lookup fails)
+ * @param selectedInterpretation - Optional user-selected interpretation for ambiguous terms
  * @returns The generation result with config or status
  */
 export async function generateTrackerConfig(
   trackerName: string,
-  userDescription?: string
+  userDescription?: string,
+  selectedInterpretation?: string
 ): Promise<ConfigGenerationResult> {
   try {
     let definition: string | undefined;
     let allDefinitions: string[] | undefined;
     
-    // Try dictionary lookup first (unless user provided description)
-    if (!userDescription) {
+    // Try dictionary lookup first (unless user provided description or selected interpretation)
+    if (!userDescription && !selectedInterpretation) {
       const dictResult = await lookupWord(trackerName);
       if (dictResult) {
         definition = dictResult.definition;
@@ -49,6 +89,7 @@ export async function generateTrackerConfig(
         definition,
         allDefinitions, // Pass all definitions for better context
         userDescription,
+        selectedInterpretation, // Pass user's disambiguation choice
       },
     });
     

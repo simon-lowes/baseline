@@ -75,3 +75,21 @@ export interface DictionaryCacheEntry {
   synonyms?: string[];
   fetched_at?: string;
 }
+
+/**
+ * An interpretation option for ambiguous tracker names
+ */
+export interface TrackerInterpretation {
+  value: string;      // lowercase-hyphenated identifier (e.g., 'ice-hockey')
+  label: string;      // short display label (e.g., 'Ice Hockey')
+  description: string; // one sentence explaining what would be tracked
+}
+
+/**
+ * Result from ambiguity check
+ */
+export interface AmbiguityCheckResult {
+  isAmbiguous: boolean;
+  reason: string;
+  interpretations: TrackerInterpretation[];
+}

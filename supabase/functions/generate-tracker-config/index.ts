@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
     
-    const { trackerName, definition, allDefinitions, userDescription } = body;
+    const { trackerName, definition, allDefinitions, userDescription, selectedInterpretation } = body;
     
     if (!trackerName) {
       console.log('Missing tracker name');
@@ -31,9 +31,12 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
     
-    // Build context section based on what we have
+    // Build context section based on what we have (priority order)
     let contextSection = '';
-    if (userDescription) {
+    if (selectedInterpretation) {
+      // User explicitly selected an interpretation - use it directly
+      contextSection = `The user has clarified that "${trackerName}" specifically refers to: ${selectedInterpretation}. Generate a configuration tailored to this specific interpretation.`;
+    } else if (userDescription) {
       contextSection = `User's description: "${userDescription}"`;
     } else if (allDefinitions && allDefinitions.length > 0) {
       contextSection = `Dictionary definitions:\n${allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}`;

@@ -49,8 +49,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { tracker as trackerService } from '@/runtime/appRuntime';
 import type { Tracker } from '@/types/tracker';
+import type { TrackerInterpretation } from '@/types/generated-config';
 import { TRACKER_PRESETS } from '@/types/tracker';
-import { generateTrackerConfig, getGenericConfig } from '@/services/configGenerationService';
+import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/services/configGenerationService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -60,12 +61,18 @@ interface TrackerSelectorProps {
   className?: string;
 }
 
-type GenerationStep = 'input' | 'generating' | 'needs-description' | 'error';
+type GenerationStep = 'input' | 'checking' | 'disambiguate' | 'generating' | 'needs-description' | 'error';
 
 /**
  * Get dialog title based on generation step
  */
 function getDialogTitle(step: GenerationStep): string {
+  if (step === 'checking') {
+    return 'Analyzing Tracker';
+  }
+  if (step === 'disambiguate') {
+    return 'Clarify Your Tracker';
+  }
   if (step === 'needs-description') {
     return 'Describe Your Tracker';
   }
@@ -79,6 +86,12 @@ function getDialogTitle(step: GenerationStep): string {
  * Get dialog description based on generation step
  */
 function getDialogDescription(step: GenerationStep, trackerName: string): string {
+  if (step === 'checking') {
+    return 'Checking if we need more information...';
+  }
+  if (step === 'disambiguate') {
+    return `"${trackerName}" could mean different things. Please select what you want to track:`;
+  }
   if (step === 'needs-description') {
     return `We couldn't find a definition for "${trackerName}". For the best experience, please describe what you want to track.`;
   }
@@ -93,8 +106,10 @@ interface DialogFooterButtonsProps {
   creating: boolean;
   userDescription: string;
   newTrackerName: string;
+  selectedInterpretation: TrackerInterpretation | null;
   handleCreateWithDescription: () => void;
   handleCreateTracker: () => void;
+  handleCreateWithInterpretation: () => void;
   handleCreateGeneric: () => void;
   resetCreateDialog: () => void;
 }
@@ -107,13 +122,45 @@ function DialogFooterButtons({
   creating,
   userDescription,
   newTrackerName,
+  selectedInterpretation,
   handleCreateWithDescription,
   handleCreateTracker,
+  handleCreateWithInterpretation,
   handleCreateGeneric,
   resetCreateDialog,
 }: Readonly<DialogFooterButtonsProps>): React.ReactNode {
-  if (generationStep === 'generating') {
+  if (generationStep === 'generating' || generationStep === 'checking') {
     return null;
+  }
+
+  if (generationStep === 'disambiguate') {
+    return (
+      <>
+        <Button 
+          variant="outline" 
+          onClick={resetCreateDialog}
+          disabled={creating}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleCreateWithInterpretation} 
+          disabled={creating || !selectedInterpretation}
+        >
+          {creating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Create Tracker
+            </>
+          )}
+        </Button>
+      </>
+    );
   }
 
   if (generationStep === 'needs-description') {
@@ -203,6 +250,9 @@ interface DialogContentAreaProps {
   generationError: string;
   newTrackerName: string;
   userDescription: string;
+  interpretations: TrackerInterpretation[];
+  selectedInterpretation: TrackerInterpretation | null;
+  setSelectedInterpretation: (value: TrackerInterpretation | null) => void;
   setUserDescription: (value: string) => void;
   setNewTrackerName: (value: string) => void;
   creating: boolean;
@@ -223,6 +273,9 @@ function DialogContentArea({
   generationError,
   newTrackerName,
   userDescription,
+  interpretations,
+  selectedInterpretation,
+  setSelectedInterpretation,
   setUserDescription,
   setNewTrackerName,
   creating,
@@ -233,7 +286,7 @@ function DialogContentArea({
   onTrackerChange,
   resetCreateDialog,
 }: Readonly<DialogContentAreaProps>): React.ReactNode {
-  if (generationStep === 'generating') {
+  if (generationStep === 'generating' || generationStep === 'checking') {
     return (
       <div className="flex flex-col items-center justify-center py-8 gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -241,6 +294,52 @@ function DialogContentArea({
           <Sparkles className="h-4 w-4 text-primary" />
           <p className="text-sm text-muted-foreground">{generationStatus}</p>
         </div>
+      </div>
+    );
+  }
+
+  if (generationStep === 'disambiguate') {
+    return (
+      <div className="grid gap-3 py-4">
+        {interpretations.map((interpretation) => (
+          <button
+            key={interpretation.value}
+            type="button"
+            onClick={() => setSelectedInterpretation(interpretation)}
+            className={cn(
+              "flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors",
+              selectedInterpretation?.value === interpretation.value
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-muted/50"
+            )}
+          >
+            <span className="font-medium">{interpretation.label}</span>
+            <span className="text-sm text-muted-foreground">{interpretation.description}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setSelectedInterpretation({ value: 'other', label: 'Something else', description: '' })}
+          className={cn(
+            "flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors",
+            selectedInterpretation?.value === 'other'
+              ? "border-primary bg-primary/5"
+              : "border-border hover:bg-muted/50"
+          )}
+        >
+          <span className="font-medium">Something else</span>
+          <span className="text-sm text-muted-foreground">I'll describe what I want to track</span>
+        </button>
+        {selectedInterpretation?.value === 'other' && (
+          <div className="mt-2">
+            <Textarea
+              placeholder={`Describe what "${newTrackerName}" means to you...`}
+              value={userDescription}
+              onChange={(e) => setUserDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -377,6 +476,10 @@ export function TrackerSelector({
   const [userDescription, setUserDescription] = useState('');
   const [generationError, setGenerationError] = useState('');
   
+  // Disambiguation states
+  const [interpretations, setInterpretations] = useState<TrackerInterpretation[]>([]);
+  const [selectedInterpretation, setSelectedInterpretation] = useState<TrackerInterpretation | null>(null);
+  
   // Delete tracker states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteDrawerOpen, setDeleteDrawerOpen] = useState(false);
@@ -428,11 +531,27 @@ export function TrackerSelector({
 
     const trackerName = newTrackerName.trim();
     setCreating(true);
-    setGenerationStep('generating');
-    setGenerationStatus('Looking up definition...');
+    setGenerationStep('checking');
+    setGenerationStatus('Checking if we need more information...');
 
     try {
-      // Step 1: Try to generate config
+      // Step 1: Check for ambiguity
+      const ambiguityResult = await checkAmbiguity(trackerName);
+      
+      if (ambiguityResult.isAmbiguous && ambiguityResult.interpretations.length > 0) {
+        // Term is ambiguous - ask user to choose
+        setInterpretations(ambiguityResult.interpretations);
+        setSelectedInterpretation(null);
+        setGenerationStep('disambiguate');
+        setCreating(false);
+        return;
+      }
+      
+      // Not ambiguous - proceed with generation
+      setGenerationStep('generating');
+      setGenerationStatus('Looking up definition...');
+      
+      // Step 2: Try to generate config
       const genResult = await generateTrackerConfig(trackerName, userDescription || undefined);
       
       if (genResult.needsDescription) {
@@ -549,6 +668,74 @@ export function TrackerSelector({
     setCreating(false);
   }
 
+  async function handleCreateWithInterpretation() {
+    if (!selectedInterpretation) {
+      toast.error('Please select an interpretation');
+      return;
+    }
+    
+    const trackerName = newTrackerName.trim();
+    setCreating(true);
+    setGenerationStep('generating');
+    setGenerationStatus('Generating contextual configuration...');
+    
+    try {
+      // If user selected "other", use their description
+      // Otherwise, use the selected interpretation
+      const interpretation = selectedInterpretation.value === 'other' 
+        ? undefined 
+        : `${selectedInterpretation.label}: ${selectedInterpretation.description}`;
+      const description = selectedInterpretation.value === 'other' 
+        ? userDescription.trim() || undefined
+        : undefined;
+      
+      const genResult = await generateTrackerConfig(trackerName, description, interpretation);
+      
+      if (!genResult.success) {
+        setGenerationStep('error');
+        setGenerationError(genResult.error || 'Failed to generate configuration');
+        setCreating(false);
+        return;
+      }
+      
+      setGenerationStatus('Creating tracker...');
+      
+      const result = await trackerService.createTracker({
+        name: trackerName,
+        type: 'custom',
+        generated_config: genResult.config,
+        user_description: description,
+      });
+
+      if (result.error) {
+        toast.error(`Failed to create tracker: ${result.error.message}`);
+      } else if (result.data) {
+        toast.success(`Created "${result.data.name}" tracker with AI-powered context`);
+        setTrackers(prev => [...prev, result.data!]);
+        onTrackerChange(result.data);
+        resetCreateDialog();
+        
+        // Generate image asynchronously (don't block UI)
+        try {
+          const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+          const imageResult = await generateTrackerImage(trackerName, result.data.id);
+          if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+            await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+            console.log(`Image generated for tracker: ${trackerName}`);
+          }
+        } catch (error) {
+          console.warn('Failed to generate tracker image:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Create tracker error:', error);
+      setGenerationStep('error');
+      setGenerationError(error instanceof Error ? error.message : 'Unknown error');
+    }
+    
+    setCreating(false);
+  }
+
   async function handleCreateGeneric() {
     setCreating(true);
     
@@ -593,6 +780,8 @@ export function TrackerSelector({
     setGenerationStep('input');
     setGenerationStatus('');
     setGenerationError('');
+    setInterpretations([]);
+    setSelectedInterpretation(null);
   }
 
   async function handleDeleteTracker() {
@@ -764,6 +953,9 @@ export function TrackerSelector({
             generationError={generationError}
             newTrackerName={newTrackerName}
             userDescription={userDescription}
+            interpretations={interpretations}
+            selectedInterpretation={selectedInterpretation}
+            setSelectedInterpretation={setSelectedInterpretation}
             setUserDescription={setUserDescription}
             setNewTrackerName={setNewTrackerName}
             creating={creating}
@@ -781,8 +973,10 @@ export function TrackerSelector({
               creating={creating}
               userDescription={userDescription}
               newTrackerName={newTrackerName}
+              selectedInterpretation={selectedInterpretation}
               handleCreateWithDescription={handleCreateWithDescription}
               handleCreateTracker={handleCreateTracker}
+              handleCreateWithInterpretation={handleCreateWithInterpretation}
               handleCreateGeneric={handleCreateGeneric}
               resetCreateDialog={resetCreateDialog}
             />
