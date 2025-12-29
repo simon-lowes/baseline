@@ -54,6 +54,7 @@ import { TRACKER_PRESETS } from '@/types/tracker';
 import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/services/configGenerationService';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { debug } from '@/lib/logger';
 
 interface TrackerSelectorProps {
   currentTracker: Tracker | null;
@@ -494,7 +495,7 @@ export function TrackerSelector({
   async function loadTrackers() {
     setLoading(true);
     try {
-      console.log('[TrackerSelector] Loading trackers...');
+      debug('[TrackerSelector] Loading trackers...');
       // Add timeout to prevent infinite loading
       const result = await Promise.race([
         trackerService.getTrackers(),
@@ -503,10 +504,10 @@ export function TrackerSelector({
         ),
       ]);
       
-      console.log('[TrackerSelector] Result:', result);
+      debug('[TrackerSelector] Result:', result);
       
       if (result.data) {
-        console.log('[TrackerSelector] Loaded', result.data.length, 'trackers');
+        debug('[TrackerSelector] Loaded', result.data.length, 'trackers');
         setTrackers(result.data);
         
         // If no current tracker selected, select the default
@@ -524,11 +525,11 @@ export function TrackerSelector({
   }
 
   async function handleCreateTracker() {
-    console.log('');
-    console.log('╔════════════════════════════════════════════════════════════╗');
-    console.log('║  [handleCreateTracker] STARTING NEW TRACKER CREATION       ║');
-    console.log('╚════════════════════════════════════════════════════════════╝');
-    console.log('[handleCreateTracker] Tracker name:', newTrackerName);
+    debug('');
+    debug('╔════════════════════════════════════════════════════════════╗');
+    debug('║  [handleCreateTracker] STARTING NEW TRACKER CREATION       ║');
+    debug('╚════════════════════════════════════════════════════════════╝');
+    debug('[handleCreateTracker] Tracker name:', newTrackerName);
     
     if (!newTrackerName.trim()) {
       toast.error('Please enter a tracker name');
@@ -536,37 +537,37 @@ export function TrackerSelector({
     }
 
     const trackerName = newTrackerName.trim();
-    console.log('[handleCreateTracker] Trimmed name:', trackerName);
-    console.log('[handleCreateTracker] Setting creating=true, step=checking');
+    debug('[handleCreateTracker] Trimmed name:', trackerName);
+    debug('[handleCreateTracker] Setting creating=true, step=checking');
     setCreating(true);
     setGenerationStep('checking');
     setGenerationStatus('Checking if we need more information...');
 
     try {
-      console.log('[handleCreateTracker] Calling checkAmbiguity...');
+      debug('[handleCreateTracker] Calling checkAmbiguity...');
       // Step 1: Check for ambiguity
       const ambiguityResult = await checkAmbiguity(trackerName);
-      console.log('[handleCreateTracker] ✅ checkAmbiguity returned');
-      console.log('[handleCreateTracker] isAmbiguous:', ambiguityResult.isAmbiguous);
-      console.log('[handleCreateTracker] interpretations count:', ambiguityResult.interpretations.length);
-      console.log('[handleCreateTracker] reason:', ambiguityResult.reason);
+      debug('[handleCreateTracker] ✅ checkAmbiguity returned');
+      debug('[handleCreateTracker] isAmbiguous:', ambiguityResult.isAmbiguous);
+      debug('[handleCreateTracker] interpretations count:', ambiguityResult.interpretations.length);
+      debug('[handleCreateTracker] reason:', ambiguityResult.reason);
       
       if (ambiguityResult.isAmbiguous && ambiguityResult.interpretations.length > 0) {
         // Term is ambiguous - ask user to choose
-        console.log('[handleCreateTracker] 🔀 AMBIGUOUS DETECTED - Setting up disambiguation UI');
-        console.log('[handleCreateTracker] interpretations:', JSON.stringify(ambiguityResult.interpretations, null, 2));
+        debug('[handleCreateTracker] 🔀 AMBIGUOUS DETECTED - Setting up disambiguation UI');
+        debug('[handleCreateTracker] interpretations:', JSON.stringify(ambiguityResult.interpretations, null, 2));
         setInterpretations(ambiguityResult.interpretations);
         setSelectedInterpretation(null);
-        console.log('[handleCreateTracker] Setting generationStep to "disambiguate"');
+        debug('[handleCreateTracker] Setting generationStep to "disambiguate"');
         setGenerationStep('disambiguate');
-        console.log('[handleCreateTracker] Setting creating=false');
+        debug('[handleCreateTracker] Setting creating=false');
         setCreating(false);
-        console.log('[handleCreateTracker] Exiting - user should now see disambiguation UI');
+        debug('[handleCreateTracker] Exiting - user should now see disambiguation UI');
         toast.info(`"${trackerName}" has multiple meanings - please select which one you want to track`);
         return;
       }
       
-      console.log('[handleCreateTracker] Term is NOT ambiguous, proceeding with generation');
+      debug('[handleCreateTracker] Term is NOT ambiguous, proceeding with generation');
       // Not ambiguous - proceed with generation
       setGenerationStep('generating');
       setGenerationStatus('Looking up definition...');
@@ -635,7 +636,7 @@ export function TrackerSelector({
           const imageResult = await generateTrackerImage(trackerName, result.data.id);
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
-            console.log(`Image generated for tracker: ${trackerName}`);
+            debug(`Image generated for tracker: ${trackerName}`);
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
@@ -701,7 +702,7 @@ export function TrackerSelector({
           const imageResult = await generateTrackerImage(newTrackerName.trim(), result.data.id);
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
-            console.log(`Image generated for tracker: ${newTrackerName.trim()}`);
+            debug(`Image generated for tracker: ${newTrackerName.trim()}`);
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
@@ -718,11 +719,11 @@ export function TrackerSelector({
   }
 
   async function handleCreateWithInterpretation() {
-    console.log('');
-    console.log('╔════════════════════════════════════════════════════════════╗');
-    console.log('║  [handleCreateWithInterpretation] USER SELECTED CHOICE     ║');
-    console.log('╚════════════════════════════════════════════════════════════╝');
-    console.log('[handleCreateWithInterpretation] selectedInterpretation:', selectedInterpretation);
+    debug('');
+    debug('╔════════════════════════════════════════════════════════════╗');
+    debug('║  [handleCreateWithInterpretation] USER SELECTED CHOICE     ║');
+    debug('╚════════════════════════════════════════════════════════════╝');
+    debug('[handleCreateWithInterpretation] selectedInterpretation:', selectedInterpretation);
     
     if (!selectedInterpretation) {
       toast.error('Please select an interpretation');
@@ -730,7 +731,7 @@ export function TrackerSelector({
     }
     
     const trackerName = newTrackerName.trim();
-    console.log('[handleCreateWithInterpretation] trackerName:', trackerName);
+    debug('[handleCreateWithInterpretation] trackerName:', trackerName);
     setCreating(true);
     setGenerationStep('generating');
     setGenerationStatus('Generating contextual configuration...');
@@ -745,13 +746,13 @@ export function TrackerSelector({
         ? userDescription.trim() || undefined
         : undefined;
       
-      console.log('[handleCreateWithInterpretation] Calling generateTrackerConfig with:');
-      console.log('[handleCreateWithInterpretation]   trackerName:', trackerName);
-      console.log('[handleCreateWithInterpretation]   description:', description);
-      console.log('[handleCreateWithInterpretation]   interpretation:', interpretation);
+      debug('[handleCreateWithInterpretation] Calling generateTrackerConfig with:');
+      debug('[handleCreateWithInterpretation]   trackerName:', trackerName);
+      debug('[handleCreateWithInterpretation]   description:', description);
+      debug('[handleCreateWithInterpretation]   interpretation:', interpretation);
       
       const genResult = await generateTrackerConfig(trackerName, description, interpretation);
-      console.log('[handleCreateWithInterpretation] generateTrackerConfig returned:', genResult.success ? 'SUCCESS' : 'FAILURE');
+      debug('[handleCreateWithInterpretation] generateTrackerConfig returned:', genResult.success ? 'SUCCESS' : 'FAILURE');
       
       if (!genResult.success) {
         setGenerationStep('error');
@@ -784,7 +785,7 @@ export function TrackerSelector({
           const imageResult = await generateTrackerImage(trackerName, result.data.id);
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
-            console.log(`Image generated for tracker: ${trackerName}`);
+            debug(`Image generated for tracker: ${trackerName}`);
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);

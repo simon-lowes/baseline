@@ -38,6 +38,7 @@ import { db, tracker as trackerService } from '@/runtime/appRuntime';
 import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/services/configGenerationService';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { debug } from '@/lib/logger';
 
 interface TrackerStats {
   entryCount: number;
@@ -286,7 +287,7 @@ export function Dashboard({
           const imageResult = await generateTrackerImage(name, result.data.id);
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
-            console.log(`Image generated for tracker: ${name}`);
+            debug(`Image generated for tracker: ${name}`);
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
