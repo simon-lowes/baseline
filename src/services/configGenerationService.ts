@@ -333,17 +333,31 @@ export async function generateTrackerConfig(
   }
 
   try {
+    // Always try dictionary lookup first to provide context to Gemini (even if user supplied a description/interpretation)
     let definition: string | undefined;
     let allDefinitions: string[] | undefined;
-    
-    // Try dictionary lookup first (unless user provided description or selected interpretation)
-    if (!userDescription && !selectedInterpretation) {
+    let synonyms: string[] | undefined;
+    let dictionaryFound = false;
+
+    try {
       const dictResult = await lookupWord(trackerName);
       if (dictResult) {
+        dictionaryFound = true;
         definition = dictResult.definition;
         allDefinitions = dictResult.allDefinitions;
+        synonyms = dictResult.synonyms;
       }
-      // If dictionary fails, we'll let Gemini use its own knowledge (no needsDescription)
+    } catch (dictErr) {
+      console.warn('[generateTrackerConfig] Dictionary lookup failed, continuing with AI only:', dictErr);
+    }
+
+    // If we have no dictionary context and no user description, ask for a description instead of guessing blindly
+    if (!dictionaryFound && !userDescription) {
+      return {
+        success: false,
+        needsDescription: true,
+        error: 'No reliable dictionary context found. Please describe what you want to track.',
+      };
     }
     
     // Call edge function to generate config
@@ -363,20 +377,42 @@ export async function generateTrackerConfig(
       throw new Error(error.message || 'Failed to generate configuration');
     }
     
-    if (data?.error) {
-      throw new Error(data.error);
-    }
-    
-    if (!data?.config) {
-      throw new Error('No configuration returned from AI');
-    }
-    
-    return {
-      success: true,
-      config: data.config as GeneratedTrackerConfig,
-    };
-  } catch (error) {
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data?.config) {
+        throw new Error('No configuration returned from AI');
+      }
+      
+      return {
+        success: true,
+        config: data.config as GeneratedTrackerConfig,
+      };
+    } catch (error) {
     console.error('Config generation failed:', error);
+
+    // If we have dictionary context, fall back to a definition-aware generic config to avoid guesswork
+    if (dictionaryFound) {
+      const fallback = getGenericConfig(trackerName);
+      if (definition) {
+        fallback.emptyStateDescription = definition;
+      }
+      if (synonyms && synonyms.length > 0) {
+        fallback.suggestedHashtags = synonyms.slice(0, 5).map((s) => `#${s.replace(/\s+/g, '_')}`);
+      }
+      return { success: true, config: fallback };
+    }
+
+    // If no dictionary context and user didn't describe, explicitly request description
+    if (!dictionaryFound && !userDescription) {
+      return {
+        success: false,
+        needsDescription: true,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
