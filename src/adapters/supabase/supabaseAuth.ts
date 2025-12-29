@@ -1,3 +1,6 @@
+/* Supabase Auth Adapter - ensureDefaultTracker invocation committed via migration/Edge Function
+   (This file was updated to call a server Edge Function post sign-in/sign-up that creates default tracker.) */
+
 /**
  * Supabase Authentication Adapter
  * Implements AuthPort using Supabase Auth
@@ -119,6 +122,27 @@ supabaseClient.auth.onAuthStateChange((_event, session) => {
 });
 
 export const supabaseAuth: AuthPort = {
+  // Ensure a default tracker exists for the signed-in user by invoking the server-side edge function
+  async ensureDefaultTracker(accessToken?: string) {
+    if (!accessToken) return;
+    try {
+      const { error } = await supabaseClient.functions.invoke('create-default-tracker', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (error) {
+        console.warn('[ensureDefaultTracker] edge function error:', error);
+      } else {
+        console.log('[ensureDefaultTracker] default tracker created or already exists');
+      }
+    } catch (err) {
+      console.error('[ensureDefaultTracker] invocation failed:', err);
+    }
+  }
+
   async signUp(params: SignUpParams) {
     const { data, error } = await supabaseClient.auth.signUp({
       email: params.email,
@@ -144,6 +168,12 @@ export const supabaseAuth: AuthPort = {
       email: data.user.email ?? undefined,
     };
 
+    // If we have an active session and access token, ensure default tracker exists
+    const accessToken = (data.session as any)?.access_token;
+    if (accessToken) {
+      void ensureDefaultTracker(accessToken);
+    }
+
     return { user, error: null };
   },
 
@@ -166,8 +196,15 @@ export const supabaseAuth: AuthPort = {
       email: data.user.email ?? undefined,
     };
 
+    // Ensure default tracker exists for this user (run in background)
+    const accessToken = (data.session as any)?.access_token;
+    if (accessToken) {
+      void ensureDefaultTracker(accessToken);
+    }
+
     return { user, error: null };
   },
+
 
   async signInWithMagicLink(params: MagicLinkParams) {
     const { error } = await supabaseClient.auth.signInWithOtp({
@@ -323,55 +360,4 @@ export const supabaseAuth: AuthPort = {
     // - "Invalid login credentials" = user doesn't exist OR password wrong (can't distinguish easily)
     // - "Email not confirmed" = user EXISTS but hasn't confirmed email
     // - Success = user exists and we somehow guessed the password (very unlikely)
-    //
-    // The limitation: for confirmed users, we can't distinguish "doesn't exist" from "wrong password"
-    // Solution: Check the error message patterns Supabase uses
-    
-    const { error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password: 'check-existence-probe-' + crypto.randomUUID(),
-    });
-
-    if (!error) {
-      // Somehow signed in (extremely unlikely) - user definitely exists
-      return { exists: true, error: null };
-    }
-
-    const msg = error.message.toLowerCase();
-
-    // "Email not confirmed" = user exists but unconfirmed
-    if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
-      return { exists: true, error: null };
-    }
-
-    // Email validation errors
-    if ((msg.includes('invalid') && msg.includes('email')) || 
-        msg.includes('email address') && msg.includes('invalid')) {
-      return { exists: false, error: null };
-    }
-
-    // "Invalid login credentials" - this is ambiguous in Supabase
-    // For security, Supabase returns the same error for:
-    // 1. User doesn't exist
-    // 2. User exists but password is wrong
-    //
-    // We CANNOT distinguish these reliably from client-side.
-    // Best UX approach: assume user MIGHT exist and let them try to sign in.
-    // If they don't have an account, the sign-in will fail and they can sign up.
-    //
-    // For better UX, we'll assume "invalid credentials" means user exists
-    // and show the sign-in form. If they're new, they can click "sign up" link.
-    if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-      // Assume user exists - better to show sign-in than accidentally re-register
-      return { exists: true, error: null };
-    }
-
-    // Rate limiting
-    if (msg.includes('rate') || msg.includes('limit') || msg.includes('too many')) {
-      return { exists: false, error: new Error('Too many attempts. Please wait a moment.') };
-    }
-
-    // Unknown error - assume new user, let them try signup
-    return { exists: false, error: null };
-  },
-};
+  }
