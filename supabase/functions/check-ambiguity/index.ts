@@ -88,9 +88,9 @@ RULES:
 - Focus on interpretations that make sense for a TRACKING app (things people would log regularly)`;
 
     console.log('Calling Gemini API for ambiguity check:', trackerName);
-    console.log('Using model: gemini-2.0-flash-001');
+    console.log('Using model: gemini-2.5-flash');
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +98,11 @@ RULES:
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3, // Lower temperature for more consistent classification
-            maxOutputTokens: 512,
+            maxOutputTokens: 1024,
+            // Disable thinking mode for this simple classification task
+            thinkingConfig: {
+              thinkingBudget: 0
+            },
           },
         }),
       }
@@ -120,11 +124,15 @@ RULES:
       throw new Error('No content in Gemini response');
     }
 
+    console.log('Raw content from Gemini:', content);
+
     // Parse JSON - strip any markdown if present
     let jsonText = content.trim();
     if (jsonText.startsWith('```')) {
       jsonText = jsonText.replaceAll(/```json?\n?/g, '').replaceAll(/```$/g, '').trim();
     }
+    
+    console.log('JSON text after cleanup:', jsonText);
     
     const result = JSON.parse(jsonText);
     console.log('Ambiguity check result:', JSON.stringify(result));
@@ -133,14 +141,17 @@ RULES:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Check ambiguity error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Check ambiguity error:', errorMessage);
+    console.error('Full error:', error);
     
-    // On error, return non-ambiguous to allow normal flow
+    // Return error details for debugging (temporarily)
     return new Response(
       JSON.stringify({ 
         isAmbiguous: false, 
-        reason: 'Error checking ambiguity, proceeding with default',
-        interpretations: []
+        reason: `Error: ${errorMessage}`,
+        interpretations: [],
+        debug: errorMessage
       }),
       {
         status: 200, // Return 200 to not block the flow

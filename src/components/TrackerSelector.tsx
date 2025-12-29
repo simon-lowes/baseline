@@ -524,29 +524,49 @@ export function TrackerSelector({
   }
 
   async function handleCreateTracker() {
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║  [handleCreateTracker] STARTING NEW TRACKER CREATION       ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('[handleCreateTracker] Tracker name:', newTrackerName);
+    
     if (!newTrackerName.trim()) {
       toast.error('Please enter a tracker name');
       return;
     }
 
     const trackerName = newTrackerName.trim();
+    console.log('[handleCreateTracker] Trimmed name:', trackerName);
+    console.log('[handleCreateTracker] Setting creating=true, step=checking');
     setCreating(true);
     setGenerationStep('checking');
     setGenerationStatus('Checking if we need more information...');
 
     try {
+      console.log('[handleCreateTracker] Calling checkAmbiguity...');
       // Step 1: Check for ambiguity
       const ambiguityResult = await checkAmbiguity(trackerName);
+      console.log('[handleCreateTracker] ✅ checkAmbiguity returned');
+      console.log('[handleCreateTracker] isAmbiguous:', ambiguityResult.isAmbiguous);
+      console.log('[handleCreateTracker] interpretations count:', ambiguityResult.interpretations.length);
+      console.log('[handleCreateTracker] reason:', ambiguityResult.reason);
       
       if (ambiguityResult.isAmbiguous && ambiguityResult.interpretations.length > 0) {
         // Term is ambiguous - ask user to choose
+        console.log('[handleCreateTracker] 🔀 AMBIGUOUS DETECTED - Setting up disambiguation UI');
+        console.log('[handleCreateTracker] interpretations:', JSON.stringify(ambiguityResult.interpretations, null, 2));
         setInterpretations(ambiguityResult.interpretations);
         setSelectedInterpretation(null);
+        console.log('[handleCreateTracker] Setting generationStep to "disambiguate"');
         setGenerationStep('disambiguate');
+        console.log('[handleCreateTracker] Setting creating=false');
         setCreating(false);
+        console.log('[handleCreateTracker] Exiting - user should now see disambiguation UI');
+        toast.info(`"${trackerName}" has multiple meanings - please select which one you want to track`);
         return;
       }
       
+      console.log('[handleCreateTracker] Term is NOT ambiguous, proceeding with generation');
       // Not ambiguous - proceed with generation
       setGenerationStep('generating');
       setGenerationStatus('Looking up definition...');
@@ -580,7 +600,29 @@ export function TrackerSelector({
       });
 
       if (result.error) {
-        toast.error(`Failed to create tracker: ${result.error.message}`);
+        const msg = result.error.message || '';
+        // If backend blocked creation due to ambiguity, present the disambiguation UI instead of failing silently
+        if (msg.toLowerCase().includes('ambiguous') || msg.toLowerCase().includes('requires a confirmed interpretation')) {
+          console.warn('[handleCreateTracker] Backend rejected creation due to ambiguity:', msg);
+          // Fetch interpretations and show disambiguation UI
+          try {
+            const ambiguityResult = await checkAmbiguity(trackerName);
+            if (ambiguityResult.isAmbiguous && ambiguityResult.interpretations.length > 0) {
+              setInterpretations(ambiguityResult.interpretations);
+              setSelectedInterpretation(null);
+              setGenerationStep('disambiguate');
+              setCreating(false);
+              toast.info(`"${trackerName}" looks ambiguous - please confirm what you meant`);
+              return;
+            }
+          } catch (err) {
+            console.error('[handleCreateTracker] Failed to fetch ambiguity interpretations after backend block:', err);
+          }
+
+          toast.error(`Failed to create tracker: ${result.error.message}`);
+        } else {
+          toast.error(`Failed to create tracker: ${result.error.message}`);
+        }
       } else if (result.data) {
         toast.success(`Created "${result.data.name}" tracker with AI-powered context`);
         setTrackers(prev => [...prev, result.data!]);
@@ -601,12 +643,19 @@ export function TrackerSelector({
         }
       }
     } catch (error) {
-      console.error('Create tracker error:', error);
+      console.error('[handleCreateTracker] ❌ EXCEPTION CAUGHT:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[handleCreateTracker] Error message:', errorMessage);
       setGenerationStep('error');
-      setGenerationError(error instanceof Error ? error.message : 'Unknown error');
+      setGenerationError(errorMessage);
+      toast.error(`Failed to create tracker: ${errorMessage}`, {
+        description: 'Please try again or use a generic setup. Check the console for details.'
+      });
     }
     
+    console.log('[handleCreateTracker] Setting creating=false');
     setCreating(false);
+    console.log('[handleCreateTracker] Function complete');
   }
 
   async function handleCreateWithDescription() {
@@ -669,12 +718,19 @@ export function TrackerSelector({
   }
 
   async function handleCreateWithInterpretation() {
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║  [handleCreateWithInterpretation] USER SELECTED CHOICE     ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('[handleCreateWithInterpretation] selectedInterpretation:', selectedInterpretation);
+    
     if (!selectedInterpretation) {
       toast.error('Please select an interpretation');
       return;
     }
     
     const trackerName = newTrackerName.trim();
+    console.log('[handleCreateWithInterpretation] trackerName:', trackerName);
     setCreating(true);
     setGenerationStep('generating');
     setGenerationStatus('Generating contextual configuration...');
@@ -689,7 +745,13 @@ export function TrackerSelector({
         ? userDescription.trim() || undefined
         : undefined;
       
+      console.log('[handleCreateWithInterpretation] Calling generateTrackerConfig with:');
+      console.log('[handleCreateWithInterpretation]   trackerName:', trackerName);
+      console.log('[handleCreateWithInterpretation]   description:', description);
+      console.log('[handleCreateWithInterpretation]   interpretation:', interpretation);
+      
       const genResult = await generateTrackerConfig(trackerName, description, interpretation);
+      console.log('[handleCreateWithInterpretation] generateTrackerConfig returned:', genResult.success ? 'SUCCESS' : 'FAILURE');
       
       if (!genResult.success) {
         setGenerationStep('error');
@@ -705,6 +767,7 @@ export function TrackerSelector({
         type: 'custom',
         generated_config: genResult.config,
         user_description: description,
+        confirmed_interpretation: selectedInterpretation?.value ?? null,
       });
 
       if (result.error) {
@@ -728,9 +791,13 @@ export function TrackerSelector({
         }
       }
     } catch (error) {
-      console.error('Create tracker error:', error);
+      console.error('[handleCreateWithInterpretation] ❌ EXCEPTION:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setGenerationStep('error');
-      setGenerationError(error instanceof Error ? error.message : 'Unknown error');
+      setGenerationError(errorMessage);
+      toast.error(`Failed to create tracker: ${errorMessage}`, {
+        description: 'Please try selecting a different option or try again.'
+      });
     }
     
     setCreating(false);
@@ -934,6 +1001,12 @@ export function TrackerSelector({
 
       {/* Create Tracker Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        // Prevent closing during critical async operations
+        if (!open && (generationStep === 'checking' || generationStep === 'generating' || generationStep === 'disambiguate')) {
+          console.log('[Dialog] Blocked close attempt during', generationStep, 'step');
+          toast.info('Please wait while we process your request...');
+          return;
+        }
         if (!open) resetCreateDialog();
         else setCreateDialogOpen(true);
       }}>

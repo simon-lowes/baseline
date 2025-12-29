@@ -60,6 +60,8 @@ export interface CreateTrackerInput {
   is_default?: boolean;
   generated_config?: GeneratedTrackerConfig | null;
   user_description?: string | null;
+  /** Optional: when creation follows a user-confirmed interpretation for an ambiguous name */
+  confirmed_interpretation?: string | null;
 }
 
 /**
