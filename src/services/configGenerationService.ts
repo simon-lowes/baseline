@@ -19,6 +19,62 @@ export interface ConfigGenerationResult {
   error?: string;
 }
 
+function buildInfantCrawlingConfig(trackerName: string): GeneratedTrackerConfig {
+  const name = trackerName.trim() || 'Crawling';
+  return {
+    intensityLabel: 'Progress level',
+    intensityMinLabel: 'Not yet crawling',
+    intensityMaxLabel: 'Walking soon',
+    intensityScale: 'neutral',
+    locationLabel: 'Milestone',
+    locationPlaceholder: 'Select milestone',
+    triggersLabel: 'Context',
+    notesLabel: 'Notes',
+    notesPlaceholder: 'e.g., after tummy time, on carpet, with toys...',
+    addButtonLabel: 'Log crawling progress',
+    formTitle: 'Log crawling milestone',
+    emptyStateTitle: `Welcome to ${name}`,
+    emptyStateDescription: 'Track your baby’s crawling milestones, surfaces tried, and helpful cues so you can see progress toward standing and walking.',
+    emptyStateBullets: [
+      'Capture each new crawling pattern or attempt',
+      'Note what helps (time of day, surface, toys)',
+      'Spot trends leading up to pulling up and walking',
+    ],
+    entryTitle: `${name} Entry`,
+    deleteConfirmMessage: 'Delete this crawling entry? This cannot be undone.',
+    locations: [
+      { value: 'tummy-time', label: 'Tummy time pushes' },
+      { value: 'rocking', label: 'Rocking on hands/knees' },
+      { value: 'army-crawl', label: 'Army crawl' },
+      { value: 'hands-knees', label: 'Hands & knees crawl' },
+      { value: 'pulling-up', label: 'Pulling up' },
+      { value: 'cruising', label: 'Cruising with support' },
+    ],
+    triggers: [
+      'Tummy time',
+      'On carpet',
+      'On hard floor',
+      'With toy motivation',
+      'After nap',
+      'After meal',
+      'Overtired',
+      'Teething',
+      'Growth spurt',
+      'Illness',
+    ],
+    suggestedHashtags: [
+      'milestone',
+      'tummy_time',
+      'hands_and_knees',
+      'army_crawl',
+      'pulling_up',
+      'cruising',
+      'baby_progress',
+      'gross_motor',
+    ],
+  };
+}
+
 /**
  * Common ambiguous terms and their interpretations
  * This serves as a LOCAL FALLBACK if the AI service fails.
@@ -384,6 +440,28 @@ export async function generateTrackerConfig(
         needsDescription: true,
         error: 'No reliable dictionary context found. Please describe what you want to track.',
       };
+    }
+
+    // Heuristic: if user clarified baby/infant crawling, short-circuit to a tailored config
+    const normalizedName = trackerName.toLowerCase();
+    const interp = (selectedInterpretation || '').toLowerCase();
+    const descr = (userDescription || '').toLowerCase();
+    const wikiText = (wikiSummary || wikiCategories?.join(' ') || '').toLowerCase();
+    const relatedText = (relatedTerms || []).join(' ').toLowerCase();
+    const looksInfantCrawling =
+      normalizedName.includes('crawl') &&
+      (interp.includes('baby') ||
+        interp.includes('infant') ||
+        interp.includes('development') ||
+        descr.includes('baby') ||
+        descr.includes('infant') ||
+        wikiText.includes('child') ||
+        wikiText.includes('development') ||
+        relatedText.includes('baby') ||
+        relatedText.includes('infant'));
+
+    if (looksInfantCrawling) {
+      return { success: true, config: buildInfantCrawlingConfig(trackerName) };
     }
     
     // Call edge function to generate config
