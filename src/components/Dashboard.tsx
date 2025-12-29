@@ -19,6 +19,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerFooter,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -73,6 +82,7 @@ export function Dashboard({
   const [disambiguationSelected, setDisambiguationSelected] = useState<TrackerInterpretation | null>(null);
   const [disambiguationUserDescription, setDisambiguationUserDescription] = useState('');
   const [disambiguationReason, setDisambiguationReason] = useState('');
+  const isMobile = useIsMobile();
   const [deleting, setDeleting] = useState(false);
   
   // Touch visibility state for delete icons on mobile
@@ -225,13 +235,16 @@ export function Dashboard({
   async function handleCustomSubmit(e: React.FormEvent) {
     e.preventDefault();
     const name = customName.trim();
+    console.log('[Dashboard] handleCustomSubmit called with name:', name);
     if (!name) return;
 
     setCreating(true);
 
     // FIRST: check for ambiguity and present disambiguation UI if needed
     try {
+      console.log('[Dashboard] Calling checkAmbiguity for', name);
       const ambiguity = await checkAmbiguity(name);
+      console.log('[Dashboard] checkAmbiguity returned:', ambiguity);
       if (ambiguity.isAmbiguous && ambiguity.interpretations.length > 0) {
         setDisambiguations(ambiguity.interpretations);
         setDisambiguationSelected(null);
@@ -249,11 +262,14 @@ export function Dashboard({
     try {
       let generatedConfig: GeneratedTrackerConfig | null = null;
       try {
+        console.log('[Dashboard] Calling generateTrackerConfig for', name);
         const result = await generateTrackerConfig(name);
+        console.log('[Dashboard] generateTrackerConfig returned:', result);
         if (result.success && result.config) {
           generatedConfig = result.config;
         }
-      } catch {
+      } catch (err) {
+        console.warn('[Dashboard] generateTrackerConfig failed, falling back to generic', err);
         // Fall back to generic
       }
       
@@ -261,6 +277,7 @@ export function Dashboard({
         generatedConfig = getGenericConfig(name);
       }
 
+      console.log('[Dashboard] Calling trackerService.createTracker for', name);
       const result = await trackerService.createTracker({
         name,
         type: 'custom',
@@ -269,6 +286,8 @@ export function Dashboard({
         is_default: false,
         generated_config: generatedConfig,
       });
+
+      console.log('[Dashboard] createTracker result:', result);
 
       if (result.error) {
         toast.error('Failed to create tracker');
@@ -327,6 +346,186 @@ export function Dashboard({
     e.stopPropagation(); // Prevent card click
     setTrackerToDelete(tracker);
     setDeleteDialogOpen(true);
+  }
+
+  // Render the disambiguation UI; on mobile use a bottom Drawer so users can swipe to dismiss
+  function renderDisambiguation() {
+    // Shared inner content as a fragment to avoid duplication
+    const inner = (
+      <>
+        <div className="grid gap-3 py-4">
+          {disambiguations.map((interpretation) => (
+            <button
+              key={interpretation.value}
+              type="button"
+              onClick={() => setDisambiguationSelected(interpretation)}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === interpretation.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
+            >
+              <span className="font-medium">{interpretation.label}</span>
+              <span className="text-sm text-muted-foreground">{interpretation.description}</span>
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setDisambiguationSelected({ value: 'other', label: 'Something else', description: '' })}
+            className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === 'other' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
+          >
+            <span className="font-medium">Something else</span>
+            <span className="text-sm text-muted-foreground">I'll describe what I want to track</span>
+          </button>
+
+          {disambiguationSelected?.value === 'other' && (
+            <div className="mt-2">
+              <Label htmlFor="disambiguation-description">Describe what "{customName}" means to you...</Label>
+              <Textarea
+                id="disambiguation-description"
+                placeholder={`Describe what "${customName}" means to you...`}
+                value={disambiguationUserDescription}
+                onChange={(e) => setDisambiguationUserDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => { setDisambiguateOpen(false); }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={async () => {
+              if (!disambiguationSelected) {
+                toast.error('Please select an interpretation');
+                return;
+              }
+
+              if (disambiguationSelected.value === 'other' && !disambiguationUserDescription.trim()) {
+                toast.error('Please provide a description');
+                return;
+              }
+
+              setCreating(true);
+
+              try {
+                const interpretationString = disambiguationSelected.value === 'other'
+                  ? undefined
+                  : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
+                const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
+
+                const genResult = await generateTrackerConfig(customName, description, interpretationString);
+                let finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
+
+                const result = await trackerService.createTracker({
+                  name: customName,
+                  type: 'custom',
+                  icon: 'activity',
+                  color: '#6366f1',
+                  is_default: false,
+                  generated_config: finalConfig,
+                  confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
+                });
+
+                if (result.error) {
+                  toast.error('Failed to create tracker');
+                  setCreating(false);
+                  return;
+                }
+
+                if (result.data) {
+                  toast.success(`${customName} tracker created!`);
+                  setDisambiguateOpen(false);
+                  setCreateDialogOpen(false);
+                  setCustomName('');
+                  onTrackerCreated(result.data);
+                  try {
+                    const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
+                    const imageResult = await generateTrackerImage(customName, result.data.id);
+                    if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+                      await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+                    }
+                  } catch (err) {
+                    console.warn('Failed to generate tracker image:', err);
+                  }
+                }
+              } catch (err) {
+                console.error('Disambiguation creation failed', err);
+                toast.error('Failed to create tracker');
+              }
+
+              setCreating(false);
+            }}
+            disabled={creating || !disambiguationSelected || (disambiguationSelected?.value === 'other' && !disambiguationUserDescription.trim())}
+          >
+            {creating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Tracker'
+            )}
+          </Button>
+        </div>
+      </>
+    );
+
+    if (isMobile) {
+      return (
+        <Drawer open={disambiguateOpen} onOpenChange={(open) => {
+          if (!open) {
+            setDisambiguateOpen(false);
+            setDisambiguationSelected(null);
+            setDisambiguations([]);
+            setDisambiguationUserDescription('');
+          }
+        }} direction="bottom">
+          <DrawerContent className="max-h-[80vh]">
+            <DrawerHeader>
+              <DrawerTitle>Clarify Your Tracker</DrawerTitle>
+              <DrawerDescription>{disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}</DrawerDescription>
+            </DrawerHeader>
+            <div
+              className="overflow-y-auto touch-pan-y"
+              onTouchStart={(e) => { (e.currentTarget as any).__startY = e.touches[0].clientY; }}
+              onTouchMove={(e) => { (e.currentTarget as any).__lastY = e.touches[0].clientY; }}
+              onTouchEnd={(e) => {
+                const start = (e.currentTarget as any).__startY || 0;
+                const last = (e.currentTarget as any).__lastY || start;
+                const delta = last - start;
+                if (delta > 60) {
+                  setDisambiguateOpen(false);
+                }
+              }}
+            >
+              {inner}
+            </div>
+            <DrawerFooter>
+              {/* Footer rendered inside inner; kept as no-op here */}
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      );
+    }
+
+    return (
+      <Dialog open={disambiguateOpen} onOpenChange={(open) => {
+        if (!open) {
+          setDisambiguateOpen(false);
+          setDisambiguationSelected(null);
+          setDisambiguations([]);
+          setDisambiguationUserDescription('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clarify Your Tracker</DialogTitle>
+            <DialogDescription>{disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}</DialogDescription>
+          </DialogHeader>
+          {inner}
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
@@ -510,143 +709,7 @@ export function Dashboard({
         </DialogContent>
       </Dialog>
 
-      {/* Disambiguation Dialog (shown when quick-create detects ambiguity) */}
-      <Dialog open={disambiguateOpen} onOpenChange={(open) => {
-        if (!open) {
-          setDisambiguateOpen(false);
-          setDisambiguationSelected(null);
-          setDisambiguations([]);
-          setDisambiguationUserDescription('');
-        }
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Clarify Your Tracker</DialogTitle>
-            <DialogDescription>
-              {disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 py-4">
-            {disambiguations.map((interpretation) => (
-              <button
-                key={interpretation.value}
-                type="button"
-                onClick={() => setDisambiguationSelected(interpretation)}
-                className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === interpretation.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
-              >
-                <span className="font-medium">{interpretation.label}</span>
-                <span className="text-sm text-muted-foreground">{interpretation.description}</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setDisambiguationSelected({ value: 'other', label: 'Something else', description: '' })}
-              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${disambiguationSelected?.value === 'other' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'}`}
-            >
-              <span className="font-medium">Something else</span>
-              <span className="text-sm text-muted-foreground">I'll describe what I want to track</span>
-            </button>
-
-            {disambiguationSelected?.value === 'other' && (
-              <div className="mt-2">
-                <Label htmlFor="disambiguation-description">Describe what "{customName}" means to you...</Label>
-                <Textarea
-                  id="disambiguation-description"
-                  placeholder={`Describe what "${customName}" means to you...`}
-                  value={disambiguationUserDescription}
-                  onChange={(e) => setDisambiguationUserDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setDisambiguateOpen(false); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!disambiguationSelected) {
-                  toast.error('Please select an interpretation');
-                  return;
-                }
-
-                // If user selected 'other', ensure description provided
-                if (disambiguationSelected.value === 'other' && !disambiguationUserDescription.trim()) {
-                  toast.error('Please provide a description');
-                  return;
-                }
-
-                setCreating(true);
-
-                try {
-                  const interpretationString = disambiguationSelected.value === 'other'
-                    ? undefined
-                    : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
-                  const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
-
-                  const genResult = await generateTrackerConfig(customName, description, interpretationString);
-                  let finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
-
-                  const result = await trackerService.createTracker({
-                    name: customName,
-                    type: 'custom',
-                    icon: 'activity',
-                    color: '#6366f1',
-                    is_default: false,
-                    generated_config: finalConfig,
-                    confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
-                  });
-
-                  if (result.error) {
-                    toast.error('Failed to create tracker');
-                    setCreating(false);
-                    return;
-                  }
-
-                  if (result.data) {
-                    toast.success(`${customName} tracker created!`);
-                    setDisambiguateOpen(false);
-                    setCreateDialogOpen(false);
-                    setCustomName('');
-                    onTrackerCreated(result.data);
-                    // async image generation
-                    try {
-                      const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
-                      const imageResult = await generateTrackerImage(customName, result.data.id);
-                      if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
-                        await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
-                      }
-                    } catch (err) {
-                      console.warn('Failed to generate tracker image:', err);
-                    }
-                  }
-                } catch (err) {
-                  console.error('Disambiguation creation failed', err);
-                  toast.error('Failed to create tracker');
-                }
-
-                setCreating(false);
-              }}
-              disabled={creating || !disambiguationSelected || (disambiguationSelected?.value === 'other' && !disambiguationUserDescription.trim())}
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Create Tracker
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderDisambiguation()}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
