@@ -145,13 +145,13 @@ RULES:
     console.error('Check ambiguity error:', errorMessage);
     console.error('Full error:', error);
     
-    // Return error details for debugging (temporarily)
+    // Return a generic error message to the client to avoid exposing internal details
     return new Response(
       JSON.stringify({ 
         isAmbiguous: false, 
-        reason: `Error: ${errorMessage}`,
+        reason: 'An unexpected error occurred while checking ambiguity.',
         interpretations: [],
-        debug: errorMessage
+        errorCode: 'CHECK_AMBIGUITY_ERROR'
       }),
       {
         status: 200, // Return 200 to not block the flow
