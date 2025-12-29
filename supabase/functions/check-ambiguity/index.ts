@@ -150,8 +150,7 @@ RULES:
       JSON.stringify({ 
         isAmbiguous: false, 
         reason: 'An unexpected error occurred while checking ambiguity.',
-        interpretations: [],
-        errorCode: 'CHECK_AMBIGUITY_ERROR'
+        interpretations: []
       }),
       {
         status: 200, // Return 200 to not block the flow
