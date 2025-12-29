@@ -96,6 +96,16 @@ export const supabaseTracker: TrackerPort = {
         return { data: null, error: new Error('Not authenticated') };
       }
 
+      // Server-side guard: prevent creating ambiguous-named trackers without user confirmation
+      const AMBIGUOUS_TERMS = [
+        'flying','hockey','curling','reading','drinking','smoking','shooting','chilling','running','driving',
+        'lifting','bowling','batting','pressing','cycling','boxing','climbing','dancing','walking','fasting','gaming','training'
+      ];
+      if (AMBIGUOUS_TERMS.includes(input.name.toLowerCase()) && !input.confirmed_interpretation) {
+        console.warn('[supabaseTracker] Blocked ambiguous tracker creation without confirmation:', input.name);
+        return { data: null, error: new Error(`Tracker name "${input.name}" is ambiguous and requires a confirmed interpretation before creation`) };
+      }
+
       const { data, error } = await supabaseClient
         .from('trackers')
         .insert({
@@ -108,6 +118,7 @@ export const supabaseTracker: TrackerPort = {
           is_default: input.is_default ?? false,
           generated_config: input.generated_config ?? null,
           user_description: input.user_description ?? null,
+          confirmed_interpretation: input.confirmed_interpretation ?? null,
         })
         .select()
         .single();

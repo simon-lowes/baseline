@@ -118,6 +118,8 @@ function ChartTooltipContent({
   labelKey,
 }: ComponentProps<typeof RechartsPrimitive.Tooltip> &
   ComponentProps<"div"> & {
+    payload?: any[]
+    label?: any
     hideLabel?: boolean
     hideIndicator?: boolean
     indicator?: "line" | "dot" | "dashed"
@@ -254,8 +256,10 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+}: ComponentProps<"div"> & {
+    payload?: any[]
+    verticalAlign?: "bottom" | "top" | string
+  } & {
     hideIcon?: boolean
     nameKey?: string
   }) {
