@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 // Rate limiting configuration
-const RATE_LIMIT_PER_MINUTE = 10; // Max images to generate per minute
+// Rate limiting settings (kept for documentation):
+// RATE_LIMIT_PER_MINUTE = 10;  // Max images to generate per minute
+const RATE_LIMIT_DELAY_MS = 6000; // 6 seconds between image generations
 const RATE_LIMIT_DELAY_MS = 6000; // 6 seconds between image generations
 
 interface BackfillProgress {

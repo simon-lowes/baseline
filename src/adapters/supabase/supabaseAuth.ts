@@ -20,9 +20,7 @@ import { supabaseClient } from './supabaseClient';
 // Store current user in memory - ONLY set after server validation
 let currentUser: AuthUser | null = null;
 
-// Track if we've completed initial server validation
-let initialValidationComplete = false;
-let initialValidationPromise: Promise<AuthUser | null> | null = null;
+// (no-op) initial validation flags removed — not used in runtime
 
 /**
  * Get session from local cache (fast, no network request).
@@ -90,7 +88,7 @@ void (async () => {
   try {
     await getSessionFromCache();
   } finally {
-    initialValidationComplete = true;
+    // initial validation complete (no-op)
   }
 })();
 
@@ -253,11 +251,7 @@ export const supabaseAuth: AuthPort = {
    * Call this before rendering authenticated UI.
    */
   async waitForInitialValidation(): Promise<AuthUser | null> {
-    // Always await the initial validation promise if it exists
-    // This ensures we wait for server validation to complete
-    if (initialValidationPromise !== null) {
-      return await initialValidationPromise;
-    }
+    // Backwards-compatible placeholder. Server validation runs in background; return currentUser.
     return currentUser;
   },
 
