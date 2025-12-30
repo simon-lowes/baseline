@@ -96,6 +96,10 @@ export const supabaseTracker: TrackerPort = {
         return { data: null, error: new Error('Not authenticated') };
       }
 
+      if ((input.type ?? 'custom') === 'custom' && !input.generated_config) {
+        return { data: null, error: new Error('Custom trackers require a generated configuration.') };
+      }
+
       // Server-side guard: prevent creating ambiguous-named trackers without user confirmation
       const AMBIGUOUS_TERMS = [
         'flying','hockey','curling','reading','drinking','smoking','shooting','chilling','running','driving',
