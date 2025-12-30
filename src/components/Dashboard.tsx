@@ -91,6 +91,7 @@ export function Dashboard({
   const [disambiguationQuestions, setDisambiguationQuestions] = useState<string[]>([]);
   const [disambiguationAnswers, setDisambiguationAnswers] = useState<string[]>([]);
   const [disambiguationNeedsDescription, setDisambiguationNeedsDescription] = useState(false);
+  const [pendingDisambiguationOpen, setPendingDisambiguationOpen] = useState(false);
   const returnToCreateDialogRef = useRef(false);
 
   const disambiguationDescriptionReady =
@@ -136,6 +137,16 @@ export function Dashboard({
       setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
     }
   }, [disambiguateOpen, isMobile]);
+
+  useEffect(() => {
+    if (!pendingDisambiguationOpen) return;
+    if (createDialogOpen) return;
+    const timer = window.setTimeout(() => {
+      setDisambiguateOpen(true);
+      setPendingDisambiguationOpen(false);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [pendingDisambiguationOpen, createDialogOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -318,7 +329,7 @@ export function Dashboard({
         if (createDialogOpen) {
           setCreateDialogOpen(false);
         }
-        setDisambiguateOpen(true);
+        setPendingDisambiguationOpen(true);
         setCreating(false);
         // Bail out - user must confirm the interpretation
         return;
