@@ -432,6 +432,7 @@ export async function generateTrackerConfig(
       return {
         success: false,
         needsDescription: true,
+        questions: buildClarifyingQuestions(trackerName, selectedInterpretation),
         error: 'No reliable dictionary context found. Please describe what you want to track.',
       };
     }
@@ -490,9 +491,11 @@ export async function generateTrackerConfig(
   } catch (error) {
     console.error('Config generation failed:', error);
 
+    const needsDescription = !userDescription;
     return {
       success: false,
-      needsDescription: !userDescription,
+      needsDescription,
+      questions: needsDescription ? buildClarifyingQuestions(trackerName, selectedInterpretation) : [],
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
