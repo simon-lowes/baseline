@@ -34,4 +34,9 @@ Run through this checklist and fix any failures.
 - [ ] Meaningful errors surfaced to user
 - [ ] Console logs removed or guarded in dev
 
+## Mobile UI
+- [ ] iOS Safari: Create Tracker opens and stays visible when keyboard shows/hides
+- [ ] iOS Safari: Disambiguation flow stays visible (no dimmed screen only)
+- [ ] iOS Safari: Scroll within modal works and can close with Cancel
+
 Report results and create `POST_MIGRATION_REPORT.md`.
