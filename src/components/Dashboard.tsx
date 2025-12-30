@@ -103,6 +103,17 @@ export function Dashboard({
     DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]
   );
   const [deleting, setDeleting] = useState(false);
+  const handleDisambiguationSnapPointChange = useCallback((snapPoint: number | string | null) => {
+    if (!disambiguateOpen) {
+      setDisambiguationSnapPoint(snapPoint);
+      return;
+    }
+    if (snapPoint === null) {
+      setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
+      return;
+    }
+    setDisambiguationSnapPoint(snapPoint);
+  }, [disambiguateOpen]);
   const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
     if (!isMobile) return;
     const target = event.currentTarget;
@@ -125,6 +136,18 @@ export function Dashboard({
       setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
     }
   }, [disambiguateOpen, isMobile]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (createDialogOpen || disambiguateOpen || deleteDialogOpen) return;
+    const hasModalContent = document.querySelector('[data-slot="dialog-content"], [data-slot="drawer-content"]');
+    if (hasModalContent) return;
+    document.querySelectorAll('[data-slot="dialog-overlay"], [data-slot="drawer-overlay"]').forEach((node) => {
+      node.remove();
+    });
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }, [createDialogOpen, disambiguateOpen, deleteDialogOpen]);
   
   // Touch visibility state for delete icons on mobile
   const [touchActive, setTouchActive] = useState(false);
@@ -647,7 +670,7 @@ export function Dashboard({
           direction="bottom"
           snapPoints={disambiguationSnapPoints}
           activeSnapPoint={disambiguationSnapPoint}
-          setActiveSnapPoint={setDisambiguationSnapPoint}
+          setActiveSnapPoint={handleDisambiguationSnapPointChange}
           snapToSequentialPoint
           fixed
           closeThreshold={0.4}
