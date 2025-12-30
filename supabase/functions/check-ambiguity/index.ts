@@ -62,6 +62,7 @@ Examples:
 - "Flying" → AMBIGUOUS (pilot training vs hang gliding vs frequent flyer tracking vs fear of flying)
 - "Hockey" → AMBIGUOUS (ice hockey vs field hockey - different sports, different metrics)
 - "Curling" → AMBIGUOUS (winter sport vs hair styling)
+- "Spinning" → AMBIGUOUS (vertigo/dizziness symptom vs spinning class exercise vs spinning yarn/fiber)
 - "Running" → NOT AMBIGUOUS (clearly the exercise activity)
 - "Migraine" → NOT AMBIGUOUS (clearly the headache condition)
 - "Yoga" → NOT AMBIGUOUS (clearly the practice)
@@ -86,7 +87,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 RULES:
 - If NOT ambiguous: return empty interpretations array []
-- If AMBIGUOUS: return 3-6 most likely interpretations for health/wellness tracking
+- If AMBIGUOUS: return 4-8 most likely interpretations for health/wellness tracking
 - Order interpretations by likelihood (most common first)
 - Focus on interpretations that make sense for a TRACKING app (things people would log regularly)`;
 
