@@ -1,6 +1,4 @@
--- Migration: Add service-role function to create a default tracker for a user
--- Use SECURITY DEFINER so trusted server code can create default trackers without RLS failures
-
+-- Add a SECURITY DEFINER function to create a default tracker for a user
 CREATE OR REPLACE FUNCTION create_default_tracker(p_user_id UUID)
 RETURNS UUID AS $$
 DECLARE
@@ -20,4 +18,4 @@ BEGIN
 
   RETURN v_tracker_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;;

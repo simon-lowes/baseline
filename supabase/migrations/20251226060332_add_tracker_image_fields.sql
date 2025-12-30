@@ -1,0 +1,4 @@
+ALTER TABLE trackers 
+ADD COLUMN IF NOT EXISTS image_url TEXT,
+ADD COLUMN IF NOT EXISTS image_generated_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS image_model_name TEXT;;

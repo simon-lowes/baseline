@@ -26,6 +26,7 @@ let currentUser: AuthUser | null = null;
 // Track if we've completed initial server validation
 let initialValidationComplete = false;
 let initialValidationPromise: Promise<AuthUser | null> | null = null;
+let lastValidatedUserId: string | null = null;
 
 /**
  * Get session from local cache (fast, no network request).
@@ -67,6 +68,7 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
     if (error || !user) {
       // Invalid session - clear everything
       currentUser = null;
+      lastValidatedUserId = null;
       // Also clear Supabase's local storage to prevent stale state
       await supabaseClient.auth.signOut();
       return null;
@@ -76,14 +78,23 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
       id: user.id,
       email: user.email ?? undefined,
     };
+    lastValidatedUserId = user.id;
     
     return currentUser;
   } catch (error) {
     console.error('Session validation failed:', error);
     currentUser = null;
+    lastValidatedUserId = null;
     await supabaseClient.auth.signOut();
     return null;
   }
+}
+
+function startServerValidation(): void {
+  initialValidationComplete = false;
+  initialValidationPromise = validateSessionWithServer().finally(() => {
+    initialValidationComplete = true;
+  });
 }
 
 // Start with cached session immediately (fast, no network)
@@ -95,7 +106,7 @@ void (async () => {
     await getSessionFromCache();
 
     // Start server-side validation and keep the promise for anyone who wants to await it
-    initialValidationPromise = validateSessionWithServer();
+    startServerValidation();
 
     // Wait for server validation to complete in the background (don't block module load)
     await initialValidationPromise;
@@ -109,6 +120,9 @@ supabaseClient.auth.onAuthStateChange((_event, session) => {
   // For SIGNED_OUT events, always clear immediately
   if (!session) {
     currentUser = null;
+    lastValidatedUserId = null;
+    initialValidationPromise = null;
+    initialValidationComplete = false;
     return;
   }
   
@@ -118,6 +132,9 @@ supabaseClient.auth.onAuthStateChange((_event, session) => {
       id: session.user.id,
       email: session.user.email ?? undefined,
     };
+    if (currentUser.id !== lastValidatedUserId) {
+      startServerValidation();
+    }
   }
 });
 
@@ -297,8 +314,8 @@ export const supabaseAuth: AuthPort = {
    */
   async waitForInitialValidation(): Promise<AuthUser | null> {
     // Ensure server-side validation is kicked off and return its result.
-    if (initialValidationPromise === null) {
-      initialValidationPromise = validateSessionWithServer();
+    if (initialValidationPromise === null || (currentUser && currentUser.id !== lastValidatedUserId)) {
+      startServerValidation();
     }
     return await initialValidationPromise;
   },
