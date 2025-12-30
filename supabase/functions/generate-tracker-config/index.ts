@@ -205,6 +205,28 @@ Make it medically/scientifically informed but accessible to regular users.`;
     }
 
     const config = parsed?.config ?? parsed;
+    const locLabels = Array.isArray(config?.locations) ? config.locations.map((l: any) => String(l?.label || '').toLowerCase()) : [];
+    const trigLabels = Array.isArray(config?.triggers) ? config.triggers.map((t: any) => String(t || '').toLowerCase()) : [];
+    const genericLocations = ['general', 'positive', 'negative', 'neutral'];
+    const genericTriggers = ['note', 'important', 'follow-up', 'recurring'];
+    const looksGenericLocations = locLabels.length <= 3 || locLabels.every((l: string) => genericLocations.includes(l));
+    const looksGenericTriggers = trigLabels.length <= 4 && trigLabels.every((t: string) => genericTriggers.includes(t));
+    if (looksGenericLocations || looksGenericTriggers) {
+      const questions = [
+        `When you say "${trackerName}", what exactly do you want to track?`,
+        'What situations, positions, or activities usually trigger it?',
+        'What specific categories should the tracker include (types, contexts, or patterns)?',
+      ];
+      return new Response(
+        JSON.stringify({
+          needs_clarification: true,
+          confidence: 0.3,
+          questions,
+          reason: 'Generated configuration was too generic.',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const requiredFields = [
       'intensityLabel', 'intensityScale', 'locationLabel',
       'addButtonLabel', 'formTitle', 'emptyStateTitle', 'locations', 'triggers'

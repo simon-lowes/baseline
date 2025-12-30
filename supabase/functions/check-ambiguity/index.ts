@@ -91,26 +91,31 @@ RULES:
 - Order interpretations by likelihood (most common first)
 - Focus on interpretations that make sense for a TRACKING app (things people would log regularly)`;
 
-    console.log('Calling Gemini API for ambiguity check:', trackerName);
-    console.log('Using model: gemini-2.5-flash');
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.3, // Lower temperature for more consistent classification
-            maxOutputTokens: 1024,
-            // Disable thinking mode for this simple classification task
-            thinkingConfig: {
-              thinkingBudget: 0
+    async function callGemini(promptText: string) {
+      console.log('Calling Gemini API for ambiguity check:', trackerName);
+      console.log('Using model: gemini-2.5-flash');
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+              temperature: 0.3, // Lower temperature for more consistent classification
+              maxOutputTokens: 1024,
+              // Disable thinking mode for this simple classification task
+              thinkingConfig: {
+                thinkingBudget: 0
+              },
             },
-          },
-        }),
-      }
-    );
+          }),
+        }
+      );
+      return response;
+    }
+
+    let response = await callGemini(prompt);
 
     console.log('Gemini response status:', response.status);
     
@@ -120,7 +125,7 @@ RULES:
       throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 200)}`);
     }
 
-    const data = await response.json();
+    let data = await response.json();
     console.log('Gemini raw response:', JSON.stringify(data).substring(0, 500));
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
@@ -138,7 +143,25 @@ RULES:
     
     console.log('JSON text after cleanup:', jsonText);
     
-    const result = JSON.parse(jsonText);
+    let result = JSON.parse(jsonText);
+    const interpCount = Array.isArray(result?.interpretations) ? result.interpretations.length : 0;
+    if (result?.isAmbiguous && interpCount < 4) {
+      const strongerPrompt = `${prompt}\n\nIMPORTANT: Your last output had too few interpretations. You MUST return 4-8 interpretations if ambiguous.\n- Ensure diversity across plausible domains (symptom/medical, activity/exercise, device/object, hobby/creative) if applicable.\n- If a health symptom interpretation is plausible, include it.`;
+      response = await callGemini(strongerPrompt);
+      if (response.ok) {
+        data = await response.json();
+        const retryContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (retryContent) {
+          let retryJson = retryContent.trim();
+          if (retryJson.startsWith('```')) {
+            retryJson = retryJson.replaceAll(/```json?\n?/g, '').replaceAll(/```$/g, '').trim();
+          }
+          try {
+            result = JSON.parse(retryJson);
+          } catch {}
+        }
+      }
+    }
     console.log('Ambiguity check result:', JSON.stringify(result));
     
     return new Response(JSON.stringify(result), {
