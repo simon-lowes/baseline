@@ -91,6 +91,7 @@ export function Dashboard({
   const [disambiguationQuestions, setDisambiguationQuestions] = useState<string[]>([]);
   const [disambiguationAnswers, setDisambiguationAnswers] = useState<string[]>([]);
   const [disambiguationNeedsDescription, setDisambiguationNeedsDescription] = useState(false);
+  const returnToCreateDialogRef = useRef(false);
 
   const disambiguationDescriptionReady =
     disambiguationUserDescription.trim().length > 0 ||
@@ -290,6 +291,10 @@ export function Dashboard({
         setDisambiguationSelected(null);
         setDisambiguationUserDescription('');
         setDisambiguationReason(ambiguity.reason || '');
+        returnToCreateDialogRef.current = createDialogOpen;
+        if (createDialogOpen) {
+          setCreateDialogOpen(false);
+        }
         setDisambiguateOpen(true);
         setCreating(false);
         // Bail out - user must confirm the interpretation
@@ -582,11 +587,12 @@ export function Dashboard({
                 return;
               }
 
-              if (result.data) {
-                toast.success(`${customName} tracker created!`);
-                setDisambiguateOpen(false);
-                setCreateDialogOpen(false);
-                setCustomName('');
+                if (result.data) {
+                  toast.success(`${customName} tracker created!`);
+                  returnToCreateDialogRef.current = false;
+                  setDisambiguateOpen(false);
+                  setCreateDialogOpen(false);
+                  setCustomName('');
                 onTrackerCreated(result.data);
                 try {
                   const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
@@ -632,6 +638,10 @@ export function Dashboard({
             setDisambiguationQuestions([]);
             setDisambiguationAnswers([]);
             setDisambiguationNeedsDescription(false);
+            if (returnToCreateDialogRef.current) {
+              setCreateDialogOpen(true);
+              returnToCreateDialogRef.current = false;
+            }
           }
           }}
           direction="bottom"
@@ -676,6 +686,10 @@ export function Dashboard({
             setDisambiguationQuestions([]);
             setDisambiguationAnswers([]);
             setDisambiguationNeedsDescription(false);
+            if (returnToCreateDialogRef.current) {
+              setCreateDialogOpen(true);
+              returnToCreateDialogRef.current = false;
+            }
           }
       }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col">
