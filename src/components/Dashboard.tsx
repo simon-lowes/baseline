@@ -733,6 +733,7 @@ export function Dashboard({
         <Input
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
+          onFocus={handleMobileFieldFocus}
           placeholder="e.g., Migraines, Diet, Gratitude..."
           disabled={creating}
           className="flex-1"
@@ -756,6 +757,7 @@ export function Dashboard({
                   <p className="text-sm text-muted-foreground">{question}</p>
                   <Input
                     value={customAnswers[index] ?? ''}
+                    onFocus={handleMobileFieldFocus}
                     onChange={(e) => {
                       const next = [...customAnswers];
                       next[index] = e.target.value;
@@ -772,6 +774,7 @@ export function Dashboard({
             <Textarea
               id="custom-description"
               value={customDescription}
+              onFocus={handleMobileFieldFocus}
               onChange={(e) => setCustomDescription(e.target.value)}
               placeholder="What exactly do you want to track? Any specific details?"
               rows={3}
@@ -927,11 +930,12 @@ export function Dashboard({
           activeSnapPoint={mobileDrawerIsDisambiguation ? disambiguationSnapPoint : undefined}
           setActiveSnapPoint={mobileDrawerIsDisambiguation ? handleDisambiguationSnapPointChange : undefined}
           snapToSequentialPoint={mobileDrawerIsDisambiguation}
+          repositionInputs
           fixed
           closeThreshold={mobileDrawerIsDisambiguation ? 0.4 : undefined}
           scrollLockTimeout={mobileDrawerIsDisambiguation ? 1000 : undefined}
         >
-          <DrawerContent className="max-h-[92vh] max-h-[92dvh]">
+          <DrawerContent className="h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh] data-[vaul-drawer-direction=bottom]:mt-2">
             {mobileDrawerIsDisambiguation ? (
               <>
                 <DrawerHeader>
