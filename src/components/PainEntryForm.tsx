@@ -128,7 +128,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
                 key={value}
                 type="button"
                 variant={selectedLocations.includes(value) ? 'default' : 'outline'}
-                className={`justify-start ${
+                className={`w-full justify-start text-left whitespace-normal break-words h-auto min-h-9 py-2 leading-snug ${
                   selectedLocations.includes(value)
                     ? 'bg-primary text-primary-foreground'
                     : ''
