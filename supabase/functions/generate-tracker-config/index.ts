@@ -17,7 +17,16 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
     
-    const { trackerName, definition, allDefinitions, userDescription, selectedInterpretation } = body;
+    const {
+      trackerName,
+      definition,
+      allDefinitions,
+      userDescription,
+      selectedInterpretation,
+      wikiSummary,
+      wikiCategories,
+      relatedTerms,
+    } = body;
     
     if (!trackerName) {
       console.log('Missing tracker name');
@@ -31,23 +40,39 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
     
-    // Build context section based on what we have (priority order)
-    let contextSection = '';
+    // Build context block from all signals
+    const lines: string[] = [];
     if (selectedInterpretation) {
-      // User explicitly selected an interpretation - use it directly
-      contextSection = `The user has clarified that "${trackerName}" specifically refers to: ${selectedInterpretation}. Generate a configuration tailored to this specific interpretation.`;
-    } else if (userDescription) {
-      contextSection = `User's description: "${userDescription}"`;
-    } else if (allDefinitions && allDefinitions.length > 0) {
-      contextSection = `Dictionary definitions:\n${allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}`;
-    } else if (definition) {
-      contextSection = `Dictionary definition: "${definition}"`;
-    } else {
-      contextSection = `No dictionary definition was found. Use your knowledge of "${trackerName}" to understand what the user likely wants to track.`;
+      lines.push(`• User selected interpretation: ${selectedInterpretation}`);
     }
+    if (userDescription) {
+      lines.push(`• User description: ${userDescription}`);
+    }
+    if (allDefinitions?.length) {
+      lines.push(
+        '• Dictionary definitions:',
+        ...allDefinitions.map((d: string, i: number) => `   ${i + 1}. ${d}`)
+      );
+    } else if (definition) {
+      lines.push(`• Dictionary definition: ${definition}`);
+    }
+    if (wikiSummary) {
+      lines.push(`• Wikipedia summary: ${wikiSummary}`);
+    }
+    if (wikiCategories?.length) {
+      lines.push(`• Wikipedia categories: ${wikiCategories.join(', ')}`);
+    }
+    if (relatedTerms?.length) {
+      lines.push(`• Related terms (Datamuse): ${relatedTerms.join(', ')}`);
+    }
+    if (lines.length === 0) {
+      lines.push(`• No external context found. Infer the most likely health/wellness meaning of "${trackerName}" that a person would track.`);
+    }
+    const contextSection = lines.join('\n');
     
     const prompt = `You are helping configure a health/wellness tracking app. The user wants to create a custom tracker called "${trackerName}".
 
+Context signals:
 ${contextSection}
 
 CRITICAL INTERPRETATION RULES:
@@ -59,6 +84,7 @@ CRITICAL INTERPRETATION RULES:
    - "Running" → the exercise activity
    - "Curling" → the winter sport (if athletic) or possibly hair care
    - "Depression" → mental health condition
+5. Avoid generic outputs. NEVER use generic categories like "General/Positive/Negative/Neutral" or triggers like "Note/Important/Follow-up/Recurring". Make locations/triggers specific to the interpreted domain (e.g., for vertigo/dizziness: positional changes, head movement, hydration, medication, sleep, stress, sinus/ear issues, visual triggers).
 
 Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
 
@@ -90,6 +116,7 @@ Guidelines:
 - locations: 6-10 relevant categories/types with value (lowercase-hyphenated) and label
 - triggers: 8-12 common factors that might affect this
 - suggestedHashtags: 5-8 useful hashtags without the # symbol
+- Be domain-specific. If the context indicates symptoms (e.g., dizziness/vertigo), include symptom types/positions as locations and likely triggers as triggers. If it's performance/activity, include modality/intensity/frequency as locations and influencing factors as triggers.
 
 For intensityScale:
 - "high_bad" if high values are concerning (pain, blood pressure, anxiety)
@@ -108,7 +135,7 @@ Make it medically/scientifically informed but accessible to regular users.`;
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.5,
             maxOutputTokens: 2048,
             // Disable thinking mode to get clean JSON output
             thinkingConfig: {
