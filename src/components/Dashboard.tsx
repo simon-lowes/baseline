@@ -5,7 +5,7 @@
  * Displays tracker cards with entry counts and quick access.
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, type FocusEvent, type TouchEvent } from 'react';
 import { Activity, Plus, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,6 +96,22 @@ export function Dashboard({
       disambiguationQuestions.every((_, index) => Boolean(disambiguationAnswers[index]?.trim())));
   const isMobile = useIsMobile();
   const [deleting, setDeleting] = useState(false);
+  const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
+    if (!isMobile) return;
+    const target = event.currentTarget;
+    window.setTimeout(() => {
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 250);
+  }, [isMobile]);
+  const handleMobileScrollStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      active.blur();
+    }
+  }, [isMobile]);
   
   // Touch visibility state for delete icons on mobile
   const [touchActive, setTouchActive] = useState(false);
@@ -457,6 +473,7 @@ export function Dashboard({
                     <p className="text-sm text-muted-foreground">{question}</p>
                     <Input
                       value={disambiguationAnswers[index] ?? ''}
+                      onFocus={handleMobileFieldFocus}
                       onChange={(e) => {
                         const next = [...disambiguationAnswers];
                         next[index] = e.target.value;
@@ -473,6 +490,7 @@ export function Dashboard({
               id="disambiguation-description"
               placeholder={`Describe what "${customName}" means to you...`}
               value={disambiguationUserDescription}
+              onFocus={handleMobileFieldFocus}
               onChange={(e) => setDisambiguationUserDescription(e.target.value)}
               rows={3}
             />
@@ -602,27 +620,22 @@ export function Dashboard({
             setDisambiguationNeedsDescription(false);
           }
         }} direction="bottom">
-          <DrawerContent className="max-h-[85vh]">
+          <DrawerContent className="max-h-[92vh] max-h-[92dvh]">
             <DrawerHeader>
               <DrawerTitle>Clarify Your Tracker</DrawerTitle>
               <DrawerDescription>{disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}</DrawerDescription>
             </DrawerHeader>
             <div
-              className="flex-1 overflow-y-auto touch-pan-y px-4"
-              onTouchStart={(e) => { (e.currentTarget as any).__startY = e.touches[0].clientY; }}
-              onTouchMove={(e) => { (e.currentTarget as any).__lastY = e.touches[0].clientY; }}
-              onTouchEnd={(e) => {
-                const start = (e.currentTarget as any).__startY || 0;
-                const last = (e.currentTarget as any).__lastY || start;
-                const delta = last - start;
-                if (delta > 60) {
-                  setDisambiguateOpen(false);
-                }
-              }}
+              data-vaul-no-drag
+              className="flex-1 overflow-y-auto touch-pan-y overscroll-contain px-4 pb-4"
+              onTouchStart={handleMobileScrollStart}
             >
               {content}
             </div>
-            <DrawerFooter className="border-t">
+            <DrawerFooter
+              data-vaul-no-drag
+              className="border-t pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            >
               {actions}
             </DrawerFooter>
           </DrawerContent>
