@@ -1,0 +1,85 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const DATAMUSE_URL = 'https://api.datamuse.com/words';
+const DEFAULT_MAX = 10;
+const MAX_TERMS = 50;
+
+function parseMax(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.min(Math.max(Math.floor(value), 1), MAX_TERMS);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.min(Math.max(parsed, 1), MAX_TERMS);
+    }
+  }
+  return DEFAULT_MAX;
+}
+
+Deno.serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    let term = '';
+    let max = DEFAULT_MAX;
+
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      term = (url.searchParams.get('term') ?? '').trim();
+      max = parseMax(url.searchParams.get('max'));
+    } else {
+      const body = await req.json().catch(() => ({}));
+      term = typeof body?.term === 'string' ? body.term.trim() : '';
+      max = parseMax(body?.max);
+    }
+
+    if (!term) {
+      return new Response(JSON.stringify({ terms: [] }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const url = new URL(DATAMUSE_URL);
+    url.searchParams.set('ml', term);
+    url.searchParams.set('max', String(max));
+
+    const response = await fetch(url.toString(), { method: 'GET' });
+    if (!response.ok) {
+      return new Response(JSON.stringify({ terms: [] }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      return new Response(JSON.stringify({ terms: [] }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const terms = data
+      .map((item: { word?: unknown }) => (typeof item?.word === 'string' ? item.word.trim() : ''))
+      .filter((word: string) => word.length > 0);
+
+    return new Response(JSON.stringify({ terms }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch {
+    return new Response(JSON.stringify({ terms: [] }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
