@@ -756,6 +756,7 @@ export function TrackerSelector({
       
       if (!genResult.success) {
         if (genResult.needsDescription) {
+          // Persist the selection and prompt for description without closing the dialog
           setGenerationStep('needs-description');
           setCreating(false);
           toast.info('Please add a brief description so we can tailor this tracker.');
