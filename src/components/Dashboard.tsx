@@ -742,6 +742,92 @@ export function Dashboard({
     );
   }
 
+  const createTrackerBody = (
+    <>
+      <div className="grid grid-cols-2 gap-2">
+        {TRACKER_PRESETS.map((preset) => (
+          <Button
+            key={preset.id}
+            variant="outline"
+            className="h-auto py-3 flex flex-col items-center gap-1"
+            disabled={creatingPreset !== null}
+            onClick={() => handlePresetClick(preset.id)}
+          >
+            {creatingPreset === preset.id ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Activity className="w-5 h-5" style={{ color: preset.color }} />
+            )}
+            <span className="text-xs">{preset.name}</span>
+          </Button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-muted-foreground">or create custom</span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
+      <form onSubmit={handleCustomSubmit} className="flex gap-2">
+        <Input
+          value={customName}
+          onChange={(e) => setCustomName(e.target.value)}
+          placeholder="e.g., Migraines, Diet, Gratitude..."
+          disabled={creating}
+          className="flex-1"
+        />
+        <Button type="submit" disabled={creating || !customName.trim()}>
+          {creating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+        </Button>
+      </form>
+
+      {(customNeedsDescription || customQuestions.length > 0) && (
+        <div className="grid gap-3">
+          {customQuestions.length > 0 && (
+            <div className="grid gap-3">
+              <p className="text-sm text-muted-foreground">Answer a few quick questions:</p>
+              {customQuestions.map((question, index) => (
+                <div key={question} className="grid gap-2">
+                  <p className="text-sm text-muted-foreground">{question}</p>
+                  <Input
+                    value={customAnswers[index] ?? ''}
+                    onChange={(e) => {
+                      const next = [...customAnswers];
+                      next[index] = e.target.value;
+                      setCustomAnswers(next);
+                    }}
+                    placeholder="Your answer..."
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="custom-description">Add a brief description</Label>
+            <Textarea
+              id="custom-description"
+              value={customDescription}
+              onChange={(e) => setCustomDescription(e.target.value)}
+              placeholder="What exactly do you want to track? Any specific details?"
+              rows={3}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const createTrackerActions = (
+    <Button variant="ghost" onClick={() => setCreateDialogOpen(false)}>
+      Cancel
+    </Button>
+  );
+
   return (
     <div className="py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -861,101 +947,45 @@ export function Dashboard({
       </div>
 
       {/* Create Tracker Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Tracker</DialogTitle>
-            <DialogDescription>
-              Track anything that matters to you.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Preset options */}
-          <div className="grid grid-cols-2 gap-2">
-            {TRACKER_PRESETS.map((preset) => (
-              <Button
-                key={preset.id}
-                variant="outline"
-                className="h-auto py-3 flex flex-col items-center gap-1"
-                disabled={creatingPreset !== null}
-                onClick={() => handlePresetClick(preset.id)}
-              >
-                {creatingPreset === preset.id ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Activity className="w-5 h-5" style={{ color: preset.color }} />
-                )}
-                <span className="text-xs">{preset.name}</span>
-              </Button>
-            ))}
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or create custom</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          {/* Custom tracker input */}
-          <form onSubmit={handleCustomSubmit} className="flex gap-2">
-            <Input
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder="e.g., Migraines, Diet, Gratitude..."
-              disabled={creating}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={creating || !customName.trim()}>
-              {creating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-            </Button>
-          </form>
-
-          {(customNeedsDescription || customQuestions.length > 0) && (
-            <div className="grid gap-3">
-              {customQuestions.length > 0 && (
-                <div className="grid gap-3">
-                  <p className="text-sm text-muted-foreground">Answer a few quick questions:</p>
-                  {customQuestions.map((question, index) => (
-                    <div key={question} className="grid gap-2">
-                      <p className="text-sm text-muted-foreground">{question}</p>
-                      <Input
-                        value={customAnswers[index] ?? ''}
-                        onChange={(e) => {
-                          const next = [...customAnswers];
-                          next[index] = e.target.value;
-                          setCustomAnswers(next);
-                        }}
-                        placeholder="Your answer..."
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="grid gap-2">
-                <Label htmlFor="custom-description">Add a brief description</Label>
-                <Textarea
-                  id="custom-description"
-                  value={customDescription}
-                  onChange={(e) => setCustomDescription(e.target.value)}
-                  placeholder="What exactly do you want to track? Any specific details?"
-                  rows={3}
-                />
+      {isMobile ? (
+        <Drawer open={createDialogOpen} onOpenChange={setCreateDialogOpen} fixed>
+          <DrawerContent className="max-h-[92vh] max-h-[92dvh]">
+            <DrawerHeader>
+              <DrawerTitle>Create New Tracker</DrawerTitle>
+              <DrawerDescription>Track anything that matters to you.</DrawerDescription>
+            </DrawerHeader>
+            <div
+              data-vaul-no-drag
+              className="flex-1 overflow-y-auto touch-pan-y overscroll-contain px-4 pb-4"
+              onTouchStart={handleMobileScrollStart}
+            >
+              <div className="grid gap-4">
+                {createTrackerBody}
               </div>
             </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DrawerFooter className="border-t pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              {createTrackerActions}
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Tracker</DialogTitle>
+              <DialogDescription>
+                Track anything that matters to you.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              {createTrackerBody}
+            </div>
+            <DialogFooter>
+              {createTrackerActions}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {renderDisambiguation()}
 
