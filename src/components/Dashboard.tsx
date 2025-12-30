@@ -44,7 +44,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { PainEntry } from '@/types/pain-entry';
 import { db, tracker as trackerService, auth } from '@/runtime/appRuntime';
-import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/services/configGenerationService';
+import { generateTrackerConfig, checkAmbiguity } from '@/services/configGenerationService';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { debug } from '@/lib/logger';

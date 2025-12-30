@@ -16,7 +16,7 @@ import { TRACKER_PRESETS } from '@/types/tracker';
 import type { Tracker, TrackerPresetId } from '@/types/tracker';
 import type { GeneratedTrackerConfig } from '@/types/generated-config';
 import { tracker as trackerService } from '@/runtime/appRuntime';
-import { generateTrackerConfig, getGenericConfig } from '@/services/configGenerationService';
+import { generateTrackerConfig } from '@/services/configGenerationService';
 import { toast } from 'sonner';
 
 interface WelcomeScreenProps {

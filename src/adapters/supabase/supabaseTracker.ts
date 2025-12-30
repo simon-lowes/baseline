@@ -136,33 +136,24 @@ export const supabaseTracker: TrackerPort = {
         msg.includes('column');
 
       if (error && looksLikeSchemaCacheIssue) {
-        const wantsRichConfig =
-          Boolean(input.generated_config) ||
-          Boolean(input.user_description) ||
-          Boolean(input.confirmed_interpretation);
-        if (wantsRichConfig) {
-          console.error('[supabaseTracker] Schema mismatch detected; refusing to create tracker without config:', error.message);
+        console.warn('[supabaseTracker] Schema cache issue detected, attempting refresh and retry:', error.message);
+        try {
+          await supabaseClient.rpc('refresh_schema_cache');
+        } catch (refreshErr) {
+          console.warn('[supabaseTracker] Failed to refresh schema cache:', refreshErr);
+        }
+        ({ data, error } = await attemptInsert(payload));
+      }
+
+      if (error) {
+        const msg = error.message || 'Failed to create tracker';
+        if (looksLikeSchemaCacheIssue) {
           return {
             data: null,
             error: new Error('Schema cache is out of date. Please refresh and try again so your tracker config can be saved.'),
           };
         }
-
-        console.warn('[supabaseTracker] Schema mismatch detected, retrying with minimal payload:', error.message);
-        const fallbackPayload = {
-          user_id: user.id,
-          name: input.name,
-          type: input.type ?? 'custom',
-          preset_id: input.preset_id ?? null,
-          icon: input.icon ?? 'activity',
-          color: input.color ?? '#6366f1',
-          is_default: input.is_default ?? false,
-        };
-        ({ data, error } = await attemptInsert(fallbackPayload));
-      }
-
-      if (error) {
-        return { data: null, error: new Error(error.message) };
+        return { data: null, error: new Error(msg) };
       }
 
       return { data: data as Tracker, error: null };
