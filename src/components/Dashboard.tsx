@@ -71,6 +71,10 @@ export function Dashboard({
   const [loadingStats, setLoadingStats] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [customName, setCustomName] = useState('');
+  const [customDescription, setCustomDescription] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
+  const [customAnswers, setCustomAnswers] = useState<string[]>([]);
+  const [customNeedsDescription, setCustomNeedsDescription] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creatingPreset, setCreatingPreset] = useState<TrackerPresetId | null>(null);
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
@@ -82,6 +86,14 @@ export function Dashboard({
   const [disambiguationSelected, setDisambiguationSelected] = useState<TrackerInterpretation | null>(null);
   const [disambiguationUserDescription, setDisambiguationUserDescription] = useState('');
   const [disambiguationReason, setDisambiguationReason] = useState('');
+  const [disambiguationQuestions, setDisambiguationQuestions] = useState<string[]>([]);
+  const [disambiguationAnswers, setDisambiguationAnswers] = useState<string[]>([]);
+  const [disambiguationNeedsDescription, setDisambiguationNeedsDescription] = useState(false);
+
+  const disambiguationDescriptionReady =
+    disambiguationUserDescription.trim().length > 0 ||
+    (disambiguationQuestions.length > 0 &&
+      disambiguationQuestions.every((_, index) => Boolean(disambiguationAnswers[index]?.trim())));
   const isMobile = useIsMobile();
   const [deleting, setDeleting] = useState(false);
   
@@ -261,20 +273,31 @@ export function Dashboard({
 
     try {
       let generatedConfig: GeneratedTrackerConfig | null = null;
+      const combinedDescription = buildCustomDescription();
       try {
         console.log('[Dashboard] Calling generateTrackerConfig for', name);
-        const result = await generateTrackerConfig(name);
+        const result = await generateTrackerConfig(name, combinedDescription || undefined);
         console.log('[Dashboard] generateTrackerConfig returned:', result);
+        if (result.needsDescription) {
+          setCustomNeedsDescription(true);
+          setCustomQuestions(result.questions ?? []);
+          setCustomAnswers(new Array((result.questions ?? []).length).fill(''));
+          toast.info('Please add a brief description so we can tailor this tracker.');
+          setCreating(false);
+          return;
+        }
         if (result.success && result.config) {
           generatedConfig = result.config;
         }
       } catch (err) {
-        console.warn('[Dashboard] generateTrackerConfig failed, falling back to generic', err);
-        // Fall back to generic
+        console.warn('[Dashboard] generateTrackerConfig failed', err);
       }
       
       if (!generatedConfig) {
-        generatedConfig = getGenericConfig(name);
+        toast.error('Unable to generate a specific tracker. Please add more detail.');
+        setCustomNeedsDescription(true);
+        setCreating(false);
+        return;
       }
 
       // Ensure we've validated the session with the server before attempting creation
@@ -301,6 +324,7 @@ export function Dashboard({
         color: '#6366f1',
         is_default: false,
         generated_config: generatedConfig,
+        user_description: combinedDescription || undefined,
       });
 
       console.log('[Dashboard] createTracker result:', result);
@@ -316,6 +340,10 @@ export function Dashboard({
         toast.success(`${name} tracker created!`);
         setCreateDialogOpen(false);
         setCustomName('');
+        setCustomDescription('');
+        setCustomQuestions([]);
+        setCustomAnswers([]);
+        setCustomNeedsDescription(false);
         onTrackerCreated(result.data);
 
         // Generate image asynchronously (don't block UI)
@@ -366,6 +394,34 @@ export function Dashboard({
     setDeleteDialogOpen(true);
   }
 
+  function buildCustomDescription() {
+    const parts: string[] = [];
+    if (customDescription.trim()) {
+      parts.push(customDescription.trim());
+    }
+    customQuestions.forEach((question, index) => {
+      const answer = customAnswers[index]?.trim();
+      if (answer) {
+        parts.push(`Q: ${question}\nA: ${answer}`);
+      }
+    });
+    return parts.join('\n');
+  }
+
+  function buildDisambiguationDescription() {
+    const parts: string[] = [];
+    if (disambiguationUserDescription.trim()) {
+      parts.push(disambiguationUserDescription.trim());
+    }
+    disambiguationQuestions.forEach((question, index) => {
+      const answer = disambiguationAnswers[index]?.trim();
+      if (answer) {
+        parts.push(`Q: ${question}\nA: ${answer}`);
+      }
+    });
+    return parts.join('\n');
+  }
+
   // Render the disambiguation UI; on mobile use a bottom Drawer so users can swipe to dismiss
   function renderDisambiguation() {
     // Shared inner content as a fragment to avoid duplication
@@ -393,8 +449,26 @@ export function Dashboard({
             <span className="text-sm text-muted-foreground">I'll describe what I want to track</span>
           </button>
 
-          {disambiguationSelected?.value === 'other' && (
+          {(disambiguationSelected?.value === 'other' || disambiguationNeedsDescription || disambiguationQuestions.length > 0) && (
             <div className="mt-2">
+              {disambiguationQuestions.length > 0 && (
+                <div className="grid gap-3 mb-3">
+                  {disambiguationQuestions.map((question, index) => (
+                    <div key={question} className="grid gap-2">
+                      <p className="text-sm text-muted-foreground">{question}</p>
+                      <Input
+                        value={disambiguationAnswers[index] ?? ''}
+                        onChange={(e) => {
+                          const next = [...disambiguationAnswers];
+                          next[index] = e.target.value;
+                          setDisambiguationAnswers(next);
+                        }}
+                        placeholder="Your answer..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               <Label htmlFor="disambiguation-description">Describe what "{customName}" means to you...</Label>
               <Textarea
                 id="disambiguation-description"
@@ -443,10 +517,23 @@ export function Dashboard({
                 const interpretationString = disambiguationSelected.value === 'other'
                   ? undefined
                   : `${disambiguationSelected.label}: ${disambiguationSelected.description}`;
-                const description = disambiguationSelected.value === 'other' ? disambiguationUserDescription.trim() : undefined;
+                const combinedDescription = buildDisambiguationDescription();
 
-                const genResult = await generateTrackerConfig(customName, description, interpretationString);
-                const finalConfig = genResult.success && genResult.config ? genResult.config : getGenericConfig(customName);
+                const genResult = await generateTrackerConfig(customName, combinedDescription || undefined, interpretationString);
+                if (genResult.needsDescription) {
+                  setDisambiguationNeedsDescription(true);
+                  setDisambiguationQuestions(genResult.questions ?? []);
+                  setDisambiguationAnswers(new Array((genResult.questions ?? []).length).fill(''));
+                  toast.info('Please add a brief description so we can tailor this tracker.');
+                  return;
+                }
+
+                const finalConfig = genResult.success && genResult.config ? genResult.config : null;
+                if (!finalConfig) {
+                  toast.error('Unable to generate a specific tracker. Please add more detail.');
+                  setDisambiguationNeedsDescription(true);
+                  return;
+                }
 
                 const result = await trackerService.createTracker({
                   name: customName,
@@ -456,7 +543,7 @@ export function Dashboard({
                   is_default: false,
                   generated_config: finalConfig,
                   confirmed_interpretation: disambiguationSelected.value === 'other' ? null : disambiguationSelected.value,
-                  user_description: description,
+                  user_description: combinedDescription || undefined,
                 });
 
                 if (result.error) {
@@ -487,7 +574,7 @@ export function Dashboard({
                 setCreating(false);
               }
             }}
-            disabled={creating || !disambiguationSelected || (disambiguationSelected?.value === 'other' && !disambiguationUserDescription.trim())}
+            disabled={creating || !disambiguationSelected || (disambiguationNeedsDescription && !disambiguationDescriptionReady) || (disambiguationSelected?.value === 'other' && !disambiguationDescriptionReady)}
           >
             {creating ? (
               <>
@@ -510,6 +597,9 @@ export function Dashboard({
             setDisambiguationSelected(null);
             setDisambiguations([]);
             setDisambiguationUserDescription('');
+            setDisambiguationQuestions([]);
+            setDisambiguationAnswers([]);
+            setDisambiguationNeedsDescription(false);
           }
         }} direction="bottom">
           <DrawerContent className="max-h-[80vh]">
@@ -542,12 +632,15 @@ export function Dashboard({
 
     return (
       <Dialog open={disambiguateOpen} onOpenChange={(open) => {
-        if (!open) {
-          setDisambiguateOpen(false);
-          setDisambiguationSelected(null);
-          setDisambiguations([]);
-          setDisambiguationUserDescription('');
-        }
+          if (!open) {
+            setDisambiguateOpen(false);
+            setDisambiguationSelected(null);
+            setDisambiguations([]);
+            setDisambiguationUserDescription('');
+            setDisambiguationQuestions([]);
+            setDisambiguationAnswers([]);
+            setDisambiguationNeedsDescription(false);
+          }
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -732,6 +825,40 @@ export function Dashboard({
               )}
             </Button>
           </form>
+
+          {(customNeedsDescription || customQuestions.length > 0) && (
+            <div className="grid gap-3">
+              {customQuestions.length > 0 && (
+                <div className="grid gap-3">
+                  <p className="text-sm text-muted-foreground">Answer a few quick questions:</p>
+                  {customQuestions.map((question, index) => (
+                    <div key={question} className="grid gap-2">
+                      <p className="text-sm text-muted-foreground">{question}</p>
+                      <Input
+                        value={customAnswers[index] ?? ''}
+                        onChange={(e) => {
+                          const next = [...customAnswers];
+                          next[index] = e.target.value;
+                          setCustomAnswers(next);
+                        }}
+                        placeholder="Your answer..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="custom-description">Add a brief description</Label>
+                <Textarea
+                  id="custom-description"
+                  value={customDescription}
+                  onChange={(e) => setCustomDescription(e.target.value)}
+                  placeholder="What exactly do you want to track? Any specific details?"
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateDialogOpen(false)}>

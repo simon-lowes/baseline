@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { Activity, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { TRACKER_PRESETS } from '@/types/tracker';
 import type { Tracker, TrackerPresetId } from '@/types/tracker';
@@ -23,8 +25,26 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>) {
   const [customName, setCustomName] = useState('');
+  const [customDescription, setCustomDescription] = useState('');
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
+  const [customAnswers, setCustomAnswers] = useState<string[]>([]);
+  const [customNeedsDescription, setCustomNeedsDescription] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creatingPreset, setCreatingPreset] = useState<TrackerPresetId | null>(null);
+
+  function buildCustomDescription() {
+    const parts: string[] = [];
+    if (customDescription.trim()) {
+      parts.push(customDescription.trim());
+    }
+    customQuestions.forEach((question, index) => {
+      const answer = customAnswers[index]?.trim();
+      if (answer) {
+        parts.push(`Q: ${question}\nA: ${answer}`);
+      }
+    });
+    return parts.join('\n');
+  }
 
   async function handlePresetClick(presetId: TrackerPresetId) {
     const preset = TRACKER_PRESETS.find(p => p.id === presetId);
@@ -82,7 +102,16 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
       // Try AI generation first
       let generatedConfig: GeneratedTrackerConfig | null = null;
       try {
-        const result = await generateTrackerConfig(name);
+        const description = buildCustomDescription();
+        const result = await generateTrackerConfig(name, description || undefined);
+        if (result.needsDescription) {
+          setCustomNeedsDescription(true);
+          setCustomQuestions(result.questions ?? []);
+          setCustomAnswers(new Array((result.questions ?? []).length).fill(''));
+          toast.info('Please add a brief description so we can tailor this tracker.');
+          setCreating(false);
+          return;
+        }
         if (result.success && result.config) {
           generatedConfig = result.config;
         }
@@ -92,7 +121,10 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
       
       // Use generic config as fallback
       if (!generatedConfig) {
-        generatedConfig = getGenericConfig(name);
+        toast.error('Unable to generate a specific tracker. Please add more detail.');
+        setCustomNeedsDescription(true);
+        setCreating(false);
+        return;
       }
 
       const result = await trackerService.createTracker({
@@ -102,6 +134,7 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
         color: '#6366f1',
         is_default: true,
         generated_config: generatedConfig,
+        user_description: buildCustomDescription() || undefined,
       });
 
       if (result.error) {
@@ -113,6 +146,10 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
       if (result.data) {
         toast.success(`${name} tracker created!`);
         onTrackerCreated(result.data);
+        setCustomDescription('');
+        setCustomQuestions([]);
+        setCustomAnswers([]);
+        setCustomNeedsDescription(false);
         
         // Generate image asynchronously for custom trackers (don't block UI)
         try {
@@ -206,22 +243,57 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
         </div>
 
         {/* Custom tracker input */}
-        <form onSubmit={handleCustomSubmit} className="flex gap-2 max-w-sm mx-auto">
-          <Input
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            placeholder="Track something else..."
-            disabled={creating}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={creating || !customName.trim()}>
-            {creating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              'Start'
-            )}
-          </Button>
-        </form>
+        <div className="max-w-sm mx-auto space-y-3">
+          <form onSubmit={handleCustomSubmit} className="flex gap-2">
+            <Input
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder="Track something else..."
+              disabled={creating}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={creating || !customName.trim()}>
+              {creating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Start'
+              )}
+            </Button>
+          </form>
+          {(customNeedsDescription || customQuestions.length > 0) && (
+            <div className="grid gap-3 text-left">
+              {customQuestions.length > 0 && (
+                <div className="grid gap-3">
+                  <p className="text-xs text-muted-foreground">Answer a few quick questions:</p>
+                  {customQuestions.map((question, index) => (
+                    <div key={question} className="grid gap-2">
+                      <p className="text-sm text-muted-foreground">{question}</p>
+                      <Input
+                        value={customAnswers[index] ?? ''}
+                        onChange={(e) => {
+                          const next = [...customAnswers];
+                          next[index] = e.target.value;
+                          setCustomAnswers(next);
+                        }}
+                        placeholder="Your answer..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="custom-description">Add a brief description</Label>
+                <Textarea
+                  id="custom-description"
+                  value={customDescription}
+                  onChange={(e) => setCustomDescription(e.target.value)}
+                  placeholder="What exactly do you want to track? Any specific details?"
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

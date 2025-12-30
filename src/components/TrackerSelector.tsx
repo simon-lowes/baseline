@@ -108,6 +108,7 @@ interface DialogFooterButtonsProps {
   userDescription: string;
   newTrackerName: string;
   selectedInterpretation: TrackerInterpretation | null;
+  descriptionReady: boolean;
   handleCreateWithDescription: () => void;
   handleCreateTracker: () => void;
   handleCreateWithInterpretation: () => void;
@@ -124,6 +125,7 @@ function DialogFooterButtons({
   userDescription,
   newTrackerName,
   selectedInterpretation,
+  descriptionReady,
   handleCreateWithDescription,
   handleCreateTracker,
   handleCreateWithInterpretation,
@@ -168,15 +170,8 @@ function DialogFooterButtons({
     return (
       <>
         <Button 
-          variant="outline" 
-          onClick={handleCreateGeneric}
-          disabled={creating}
-        >
-          Use Generic Setup
-        </Button>
-        <Button 
           onClick={handleCreateWithDescription} 
-          disabled={creating || !userDescription.trim()}
+          disabled={creating || !descriptionReady}
         >
           {creating ? (
             <>
@@ -198,13 +193,6 @@ function DialogFooterButtons({
     const handleRetry = userDescription.trim() ? handleCreateWithDescription : handleCreateTracker;
     return (
       <>
-        <Button 
-          variant="outline" 
-          onClick={handleCreateGeneric}
-          disabled={creating}
-        >
-          Use Generic Setup
-        </Button>
         <Button 
           onClick={handleRetry} 
           disabled={creating}
@@ -251,6 +239,9 @@ interface DialogContentAreaProps {
   generationError: string;
   newTrackerName: string;
   userDescription: string;
+  clarifyingQuestions: string[];
+  clarifyingAnswers: string[];
+  setClarifyingAnswers: (value: string[]) => void;
   interpretations: TrackerInterpretation[];
   selectedInterpretation: TrackerInterpretation | null;
   setSelectedInterpretation: (value: TrackerInterpretation | null) => void;
@@ -274,6 +265,9 @@ function DialogContentArea({
   generationError,
   newTrackerName,
   userDescription,
+  clarifyingQuestions,
+  clarifyingAnswers,
+  setClarifyingAnswers,
   interpretations,
   selectedInterpretation,
   setSelectedInterpretation,
@@ -348,6 +342,25 @@ function DialogContentArea({
   if (generationStep === 'needs-description') {
     return (
       <div className="grid gap-4 py-4">
+        {clarifyingQuestions.length > 0 && (
+          <div className="grid gap-3">
+            <Label>Help us tailor this tracker</Label>
+            {clarifyingQuestions.map((question, index) => (
+              <div key={question} className="grid gap-2">
+                <p className="text-sm text-muted-foreground">{question}</p>
+                <Input
+                  value={clarifyingAnswers[index] ?? ''}
+                  onChange={(e) => {
+                    const next = [...clarifyingAnswers];
+                    next[index] = e.target.value;
+                    setClarifyingAnswers(next);
+                  }}
+                  placeholder="Your answer..."
+                />
+              </div>
+            ))}
+          </div>
+        )}
         <div className="grid gap-2">
           <Label htmlFor="tracker-description">
             What is "{newTrackerName}"?
@@ -480,12 +493,19 @@ export function TrackerSelector({
   // Disambiguation states
   const [interpretations, setInterpretations] = useState<TrackerInterpretation[]>([]);
   const [selectedInterpretation, setSelectedInterpretation] = useState<TrackerInterpretation | null>(null);
+  const [clarifyingQuestions, setClarifyingQuestions] = useState<string[]>([]);
+  const [clarifyingAnswers, setClarifyingAnswers] = useState<string[]>([]);
   
   // Delete tracker states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteDrawerOpen, setDeleteDrawerOpen] = useState(false);
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const descriptionReady =
+    userDescription.trim().length > 0 ||
+    (clarifyingQuestions.length > 0 &&
+      clarifyingQuestions.every((_, index) => Boolean(clarifyingAnswers[index]?.trim())));
 
   // Load trackers on mount
   useEffect(() => {
@@ -530,6 +550,9 @@ export function TrackerSelector({
     debug('║  [handleCreateTracker] STARTING NEW TRACKER CREATION       ║');
     debug('╚════════════════════════════════════════════════════════════╝');
     debug('[handleCreateTracker] Tracker name:', newTrackerName);
+
+    setClarifyingQuestions([]);
+    setClarifyingAnswers([]);
     
     if (!newTrackerName.trim()) {
       toast.error('Please enter a tracker name');
@@ -577,6 +600,8 @@ export function TrackerSelector({
       
       if (genResult.needsDescription) {
         // Word not found - ask for description
+        setClarifyingQuestions(genResult.questions ?? []);
+        setClarifyingAnswers(new Array((genResult.questions ?? []).length).fill(''));
         setGenerationStep('needs-description');
         setCreating(false);
         return;
@@ -660,7 +685,8 @@ export function TrackerSelector({
   }
 
   async function handleCreateWithDescription() {
-    if (!userDescription.trim()) {
+    const combinedDescription = buildClarificationDescription();
+    if (!combinedDescription.trim()) {
       toast.error('Please enter a description');
       return;
     }
@@ -670,9 +696,16 @@ export function TrackerSelector({
     setGenerationStatus('Generating contextual configuration...');
     
     try {
-      const genResult = await generateTrackerConfig(newTrackerName.trim(), userDescription.trim());
+      const genResult = await generateTrackerConfig(newTrackerName.trim(), combinedDescription.trim());
       
       if (!genResult.success) {
+        if (genResult.needsDescription) {
+          setClarifyingQuestions(genResult.questions ?? []);
+          setClarifyingAnswers(new Array((genResult.questions ?? []).length).fill(''));
+          setGenerationStep('needs-description');
+          setCreating(false);
+          return;
+        }
         setGenerationStep('error');
         setGenerationError(genResult.error || 'Failed to generate configuration');
         setCreating(false);
@@ -685,7 +718,7 @@ export function TrackerSelector({
         name: newTrackerName.trim(),
         type: 'custom',
         generated_config: genResult.config,
-        user_description: userDescription.trim(),
+        user_description: combinedDescription.trim(),
       });
 
       if (result.error) {
@@ -732,19 +765,13 @@ export function TrackerSelector({
     
     const trackerName = newTrackerName.trim();
     debug('[handleCreateWithInterpretation] trackerName:', trackerName);
+    setClarifyingQuestions([]);
+    setClarifyingAnswers([]);
     setCreating(true);
     setGenerationStep('generating');
     setGenerationStatus('Generating contextual configuration...');
     
     try {
-      // If ambiguity choices were thin and we have no description, ask for more detail before calling AI
-      if (interpretations.length < 3 && !userDescription.trim()) {
-        setGenerationStep('needs-description');
-        setCreating(false);
-        toast.info('Please add a brief description so we can tailor this tracker.');
-        return;
-      }
-
       // If user selected "other", use their description
       // Otherwise, use the selected interpretation
       const interpretation = selectedInterpretation.value === 'other' 
@@ -765,6 +792,8 @@ export function TrackerSelector({
       if (!genResult.success) {
         if (genResult.needsDescription) {
           // Persist the selection and prompt for description without closing the dialog
+          setClarifyingQuestions(genResult.questions ?? []);
+          setClarifyingAnswers(new Array((genResult.questions ?? []).length).fill(''));
           setGenerationStep('needs-description');
           setCreating(false);
           toast.info('Please add a brief description so we can tailor this tracker.');
@@ -857,6 +886,20 @@ export function TrackerSelector({
     setCreating(false);
   }
 
+  function buildClarificationDescription() {
+    const parts: string[] = [];
+    if (userDescription.trim()) {
+      parts.push(userDescription.trim());
+    }
+    clarifyingQuestions.forEach((question, index) => {
+      const answer = clarifyingAnswers[index]?.trim();
+      if (answer) {
+        parts.push(`Q: ${question}\nA: ${answer}`);
+      }
+    });
+    return parts.join('\n');
+  }
+
   function resetCreateDialog() {
     setCreateDialogOpen(false);
     setNewTrackerName('');
@@ -866,6 +909,8 @@ export function TrackerSelector({
     setGenerationError('');
     setInterpretations([]);
     setSelectedInterpretation(null);
+    setClarifyingQuestions([]);
+    setClarifyingAnswers([]);
   }
 
   async function handleDeleteTracker() {
@@ -1043,6 +1088,9 @@ export function TrackerSelector({
             generationError={generationError}
             newTrackerName={newTrackerName}
             userDescription={userDescription}
+            clarifyingQuestions={clarifyingQuestions}
+            clarifyingAnswers={clarifyingAnswers}
+            setClarifyingAnswers={setClarifyingAnswers}
             interpretations={interpretations}
             selectedInterpretation={selectedInterpretation}
             setSelectedInterpretation={setSelectedInterpretation}
@@ -1064,6 +1112,7 @@ export function TrackerSelector({
               userDescription={userDescription}
               newTrackerName={newTrackerName}
               selectedInterpretation={selectedInterpretation}
+              descriptionReady={descriptionReady}
               handleCreateWithDescription={handleCreateWithDescription}
               handleCreateTracker={handleCreateTracker}
               handleCreateWithInterpretation={handleCreateWithInterpretation}

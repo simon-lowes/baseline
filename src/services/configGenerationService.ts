@@ -16,6 +16,7 @@ export interface ConfigGenerationResult {
   success: boolean;
   config?: GeneratedTrackerConfig;
   needsDescription?: boolean;
+  questions?: string[];
   error?: string;
 }
 
@@ -35,18 +36,23 @@ function isLikelyGenericConfig(config: GeneratedTrackerConfig | undefined): bool
   return looksGenericLocations || looksGenericTriggers;
 }
 
+function buildClarifyingQuestions(trackerName: string, selectedInterpretation?: string): string[] {
+  const base = selectedInterpretation
+    ? `When you say "${trackerName}" (${selectedInterpretation}), what exactly do you want to track?`
+    : `When you say "${trackerName}", what exactly do you want to track?`;
+  return [
+    base,
+    'What situations, positions, or activities usually trigger it?',
+    'What specific categories should the tracker include (types, contexts, or patterns)?',
+  ];
+}
+
 /**
  * Common ambiguous terms and their interpretations
  * This serves as a LOCAL FALLBACK if the AI service fails.
  * These are known ambiguous terms that should ALWAYS prompt the user.
  */
 const KNOWN_AMBIGUOUS_TERMS: Record<string, TrackerInterpretation[]> = {
-  spinning: [
-    { value: 'vertigo', label: 'Vertigo / Dizziness', description: 'Spinning sensation or dizziness episodes' },
-    { value: 'spin-class', label: 'Spin / Cycling Class', description: 'Indoor cycling / spin workouts' },
-    { value: 'spinning-fiber', label: 'Spinning Fiber/Yarn', description: 'Fiber or yarn spinning hobby' },
-    { value: 'spinning-sensation', label: 'Spinning Sensation (Other)', description: 'Other spinning context' },
-  ],
   flying: [
     { value: 'air-travel', label: 'Air Travel (Passenger)', description: 'Track flights as a passenger - comfort, anxiety, jet lag' },
     { value: 'recreational-flying', label: 'Recreational Flying', description: 'Paragliding, hang gliding, skydiving, or similar activities' },
@@ -291,6 +297,9 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
   try {
     // Get dictionary definitions for context
     let allDefinitions: string[] | undefined;
+    let wikiSummary: string | undefined;
+    let wikiCategories: string[] | undefined;
+    let relatedTerms: string[] | undefined;
     try {
       const dictResult = await lookupWord(trackerName);
       allDefinitions = dictResult?.allDefinitions;
@@ -298,11 +307,30 @@ export async function checkAmbiguity(trackerName: string): Promise<AmbiguityChec
     } catch (dictError) {
       console.warn('[checkAmbiguity] Dictionary lookup failed (continuing):', dictError);
     }
+
+    try {
+      const wiki = await fetchWikipediaContext(trackerName);
+      if (wiki) {
+        wikiSummary = wiki.summary;
+        wikiCategories = wiki.categories;
+      }
+    } catch (wikiErr) {
+      console.warn('[checkAmbiguity] Wikipedia lookup failed (continuing):', wikiErr);
+    }
+
+    try {
+      const related = await fetchDatamuseRelated(trackerName, 12);
+      if (related?.terms?.length) {
+        relatedTerms = related.terms;
+      }
+    } catch (dmErr) {
+      console.warn('[checkAmbiguity] Datamuse lookup failed (continuing):', dmErr);
+    }
     
     // Call edge function to check ambiguity
     debug('[checkAmbiguity] Calling check-ambiguity edge function...');
     const { data, error } = await supabaseClient.functions.invoke('check-ambiguity', {
-      body: { trackerName, allDefinitions },
+      body: { trackerName, allDefinitions, wikiSummary, wikiCategories, relatedTerms },
     });
     
     if (error) {
@@ -432,6 +460,15 @@ export async function generateTrackerConfig(
         throw new Error(data.error);
       }
       
+    if (data?.needs_clarification || (Array.isArray(data?.questions) && data.questions.length > 0)) {
+      return {
+        success: false,
+        needsDescription: true,
+        questions: data.questions ?? [],
+        error: data.reason || 'More detail needed to tailor this tracker.',
+      };
+    }
+
     if (!data?.config) {
       throw new Error('No configuration returned from AI');
     }
@@ -441,6 +478,7 @@ export async function generateTrackerConfig(
       return {
         success: false,
         needsDescription: true,
+        questions: buildClarifyingQuestions(trackerName, selectedInterpretation),
         error: 'The generated setup is too generic. Please add a brief description to tailor it.',
       };
     }
@@ -452,35 +490,9 @@ export async function generateTrackerConfig(
   } catch (error) {
     console.error('Config generation failed:', error);
 
-    // If we have dictionary/Wiki/related context, fall back to a context-aware generic config to avoid guesswork
-    if (dictionaryFound || wikiSummary || (relatedTerms && relatedTerms.length > 0)) {
-      const fallback = getGenericConfig(trackerName);
-      if (definition) {
-        fallback.emptyStateDescription = definition;
-      }
-      if (wikiSummary) {
-        fallback.emptyStateDescription = wikiSummary;
-      }
-      if (synonyms && synonyms.length > 0) {
-        fallback.suggestedHashtags = synonyms.slice(0, 5).map((s) => `#${s.replace(/\s+/g, '_')}`);
-      }
-      if (!fallback.suggestedHashtags?.length && relatedTerms && relatedTerms.length > 0) {
-        fallback.suggestedHashtags = relatedTerms.slice(0, 5).map((s) => `#${s.replace(/\s+/g, '_')}`);
-      }
-      return { success: true, config: fallback };
-    }
-
-    // If no dictionary context and user didn't describe, explicitly request description
-    if (!dictionaryFound && !userDescription) {
-      return {
-        success: false,
-        needsDescription: true,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-
     return {
       success: false,
+      needsDescription: !userDescription,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }

@@ -87,10 +87,35 @@ CRITICAL INTERPRETATION RULES:
 5. Avoid generic outputs. NEVER use generic categories like "General/Positive/Negative/Neutral" or triggers like "Note/Important/Follow-up/Recurring". Make locations/triggers specific to the interpreted domain (e.g., for vertigo/dizziness: positional changes, head movement, hydration, medication, sleep, stress, sinus/ear issues, visual triggers).
 6. If the term is about dizziness/vertigo/spinning sensation, bias locations to symptom types/positions (e.g., "positional", "head movement", "standing up", "visual trigger", "post-exertion", "ear/sinus related") and triggers to common factors (hydration, sleep, stress, medication, caffeine/alcohol, motion, bright lights).
 7. If the term suggests a class or sport (e.g., spinning class), bias locations to modality/intensity/duration and triggers to effort, fatigue, hydration, equipment, recovery.
+8. If you cannot confidently generate SPECIFIC locations/triggers (at least 6 locations and 8 triggers) from the context, do NOT output a config. Instead, ask clarifying questions.
+
+Your response MUST be valid JSON and MUST follow one of these two shapes:
+
+Shape A (ready to generate):
+{
+  "needs_clarification": false,
+  "confidence": 0.0-1.0,
+  "config": { ...exact config shape below... }
+}
+
+Shape B (needs more info):
+{
+  "needs_clarification": true,
+  "confidence": 0.0-1.0,
+  "questions": ["question 1", "question 2", "question 3"],
+  "reason": "short reason why more detail is needed"
+}
+
+If confidence < 0.7 OR you would output generic categories/triggers, return Shape B.
+For questions, ask 2-4 concrete, narrow questions that directly enable specific categories/triggers.
+Avoid vague prompts like "tell me more". Example questions:
+- "Is this about symptoms (dizziness/vertigo) or an activity (spinning class)?"
+- "How long do episodes typically last?"
+- "Which situations trigger it (turning head, standing up, screens, exercise, travel)?"
 
 Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
 
-Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
+For Shape A, the config MUST be this exact structure:
 {
   "intensityLabel": "string - what the 1-10 scale measures (e.g., 'Blood Pressure Level', 'Severity')",
   "intensityMinLabel": "string - label for value 1 (e.g., '1 - Low/Normal')",
@@ -170,11 +195,18 @@ Make it medically/scientifically informed but accessible to regular users.`;
       jsonText = jsonText.replaceAll(/```json?\n?/g, '').replaceAll(/```$/g, '').trim();
     }
     
-    const config = JSON.parse(jsonText);
+    const parsed = JSON.parse(jsonText);
     
     // Validate required fields
+    if (parsed?.needs_clarification) {
+      return new Response(JSON.stringify(parsed), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const config = parsed?.config ?? parsed;
     const requiredFields = [
-      'intensityLabel', 'intensityScale', 'locationLabel', 
+      'intensityLabel', 'intensityScale', 'locationLabel',
       'addButtonLabel', 'formTitle', 'emptyStateTitle', 'locations', 'triggers'
     ];
     for (const field of requiredFields) {
