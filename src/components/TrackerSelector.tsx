@@ -755,10 +755,17 @@ export function TrackerSelector({
       debug('[handleCreateWithInterpretation] generateTrackerConfig returned:', genResult.success ? 'SUCCESS' : 'FAILURE');
       
       if (!genResult.success) {
-        setGenerationStep('error');
-        setGenerationError(genResult.error || 'Failed to generate configuration');
-        setCreating(false);
-        return;
+        if (genResult.needsDescription) {
+          setGenerationStep('needs-description');
+          setCreating(false);
+          toast.info('Please add a brief description so we can tailor this tracker.');
+          return;
+        } else {
+          setGenerationStep('error');
+          setGenerationError(genResult.error || 'Failed to generate configuration');
+          setCreating(false);
+          return;
+        }
       }
       
       setGenerationStatus('Creating tracker...');

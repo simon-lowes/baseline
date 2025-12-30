@@ -430,8 +430,8 @@ export async function generateTrackerConfig(
       throw new Error('No configuration returned from AI');
     }
 
-    // If the returned config still looks generic and the user hasn't provided a description, require more detail
-    if (isLikelyGenericConfig(data.config) && !userDescription) {
+    // If the returned config looks generic, require more detail and do not accept it
+    if (isLikelyGenericConfig(data.config)) {
       return {
         success: false,
         needsDescription: true,
