@@ -1,0 +1,1 @@
+alter table public.pain_entries enable row level security; alter table public.pain_entries force row level security; alter table public.profiles enable row level security; alter table public.profiles force row level security;;
