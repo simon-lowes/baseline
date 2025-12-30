@@ -85,6 +85,8 @@ CRITICAL INTERPRETATION RULES:
    - "Curling" → the winter sport (if athletic) or possibly hair care
    - "Depression" → mental health condition
 5. Avoid generic outputs. NEVER use generic categories like "General/Positive/Negative/Neutral" or triggers like "Note/Important/Follow-up/Recurring". Make locations/triggers specific to the interpreted domain (e.g., for vertigo/dizziness: positional changes, head movement, hydration, medication, sleep, stress, sinus/ear issues, visual triggers).
+6. If the term is about dizziness/vertigo/spinning sensation, bias locations to symptom types/positions (e.g., "positional", "head movement", "standing up", "visual trigger", "post-exertion", "ear/sinus related") and triggers to common factors (hydration, sleep, stress, medication, caffeine/alcohol, motion, bright lights).
+7. If the term suggests a class or sport (e.g., spinning class), bias locations to modality/intensity/duration and triggers to effort, fatigue, hydration, equipment, recovery.
 
 Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
 

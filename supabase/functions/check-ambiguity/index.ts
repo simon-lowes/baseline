@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
     
-    const { trackerName, allDefinitions } = body;
+    const { trackerName, allDefinitions, relatedTerms, wikiSummary, wikiCategories } = body;
     
     if (!trackerName) {
       throw new Error('trackerName is required');
@@ -30,12 +30,15 @@ Deno.serve(async (req: Request) => {
     }
     
     // Build context for ambiguity check
-    let definitionContext = '';
+    const ctx: string[] = [];
     if (allDefinitions && allDefinitions.length > 0) {
-      definitionContext = `Dictionary definitions found:\n${allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}`;
-    } else {
-      definitionContext = `No dictionary definitions found. Use your knowledge of "${trackerName}".`;
+      ctx.push('Dictionary definitions:', ...allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`));
     }
+    if (wikiSummary) ctx.push(`Wikipedia summary: ${wikiSummary}`);
+    if (wikiCategories?.length) ctx.push(`Wikipedia categories: ${wikiCategories.join(', ')}`);
+    if (relatedTerms?.length) ctx.push(`Related terms: ${relatedTerms.join(', ')}`);
+    if (ctx.length === 0) ctx.push(`No external context found. Use your knowledge of "${trackerName}".`);
+    const definitionContext = ctx.join('\n');
     
     const prompt = `You are helping a health/wellness tracking app determine if a tracker name is ambiguous.
 
@@ -83,7 +86,7 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 RULES:
 - If NOT ambiguous: return empty interpretations array []
-- If AMBIGUOUS: return 2-4 most likely interpretations for health/wellness tracking
+- If AMBIGUOUS: return 3-6 most likely interpretations for health/wellness tracking
 - Order interpretations by likelihood (most common first)
 - Focus on interpretations that make sense for a TRACKING app (things people would log regularly)`;
 
