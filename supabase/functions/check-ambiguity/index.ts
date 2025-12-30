@@ -5,6 +5,98 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MIN_INTERPRETATIONS = 4;
+const MAX_INTERPRETATIONS = 8;
+
+type Interpretation = {
+  value: string;
+  label: string;
+  description: string;
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function normalizeInterpretations(raw: unknown): Interpretation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      const value = typeof item?.value === 'string' ? item.value.trim() : '';
+      const label = typeof item?.label === 'string' ? item.label.trim() : '';
+      const description = typeof item?.description === 'string' ? item.description.trim() : '';
+      if (!value || !label || !description) return null;
+      return { value, label, description };
+    })
+    .filter((item): item is Interpretation => Boolean(item));
+}
+
+function buildFallbackInterpretations(trackerName: string): Interpretation[] {
+  const term = trackerName.trim();
+  const templates = [
+    {
+      value: 'symptom-condition',
+      label: 'Symptom / Condition',
+      description: `Tracking "${term}" as a symptom, condition, or health issue.`,
+    },
+    {
+      value: 'activity-exercise',
+      label: 'Activity / Exercise',
+      description: `Tracking "${term}" as a physical activity or workout.`,
+    },
+    {
+      value: 'habit-behavior',
+      label: 'Habit / Behavior',
+      description: `Tracking "${term}" as a daily habit or behavior.`,
+    },
+    {
+      value: 'nutrition-intake',
+      label: 'Nutrition / Intake',
+      description: `Tracking "${term}" as something consumed (food, drink, or supplement).`,
+    },
+    {
+      value: 'measurement-reading',
+      label: 'Measurement / Reading',
+      description: `Tracking "${term}" as a measurement or health reading.`,
+    },
+    {
+      value: 'device-object',
+      label: 'Device / Object',
+      description: `Tracking use of "${term}" as an object, tool, or device.`,
+    },
+  ];
+
+  return templates.map((item) => ({
+    ...item,
+    value: slugify(item.value),
+  }));
+}
+
+function ensureInterpretationCount(result: any, trackerName: string): void {
+  if (!result || !result.isAmbiguous) {
+    if (result) result.interpretations = [];
+    return;
+  }
+
+  const existing = normalizeInterpretations(result.interpretations);
+  const seen = new Set(existing.map((item) => item.value.toLowerCase()));
+  const fallback = buildFallbackInterpretations(trackerName);
+
+  for (const candidate of fallback) {
+    if (existing.length >= MIN_INTERPRETATIONS) break;
+    const key = candidate.value.toLowerCase();
+    if (!seen.has(key)) {
+      existing.push(candidate);
+      seen.add(key);
+    }
+  }
+
+  result.interpretations = existing.slice(0, MAX_INTERPRETATIONS);
+}
+
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -146,7 +238,7 @@ RULES:
     let result = JSON.parse(jsonText);
     const interpCount = Array.isArray(result?.interpretations) ? result.interpretations.length : 0;
     if (result?.isAmbiguous && interpCount < 4) {
-      const strongerPrompt = `${prompt}\n\nIMPORTANT: Your last output had too few interpretations. You MUST return 4-8 interpretations if ambiguous.\n- Ensure diversity across plausible domains (symptom/medical, activity/exercise, device/object, hobby/creative) if applicable.\n- If a health symptom interpretation is plausible, include it.`;
+      const strongerPrompt = `${prompt}\n\nIMPORTANT: Your last output had too few interpretations. You MUST return 4-8 interpretations if ambiguous.\n- Ensure diversity across plausible domains (symptom/medical, activity/exercise, device/object, hobby/creative, nutrition/intake, measurement/reading) if applicable.\n- If a health symptom interpretation is plausible, include it.\n- If you are unsure, include broader but still trackable interpretations to reach 4-8 options.`;
       response = await callGemini(strongerPrompt);
       if (response.ok) {
         data = await response.json();
@@ -162,6 +254,7 @@ RULES:
         }
       }
     }
+    ensureInterpretationCount(result, trackerName);
     console.log('Ambiguity check result:', JSON.stringify(result));
     
     return new Response(JSON.stringify(result), {
