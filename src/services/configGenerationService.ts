@@ -19,60 +19,20 @@ export interface ConfigGenerationResult {
   error?: string;
 }
 
-function buildInfantCrawlingConfig(trackerName: string): GeneratedTrackerConfig {
-  const name = trackerName.trim() || 'Crawling';
-  return {
-    intensityLabel: 'Progress level',
-    intensityMinLabel: 'Not yet crawling',
-    intensityMaxLabel: 'Walking soon',
-    intensityScale: 'neutral',
-    locationLabel: 'Milestone',
-    locationPlaceholder: 'Select milestone',
-    triggersLabel: 'Context',
-    notesLabel: 'Notes',
-    notesPlaceholder: 'e.g., after tummy time, on carpet, with toys...',
-    addButtonLabel: 'Log crawling progress',
-    formTitle: 'Log crawling milestone',
-    emptyStateTitle: `Welcome to ${name}`,
-    emptyStateDescription: 'Track your baby’s crawling milestones, surfaces tried, and helpful cues so you can see progress toward standing and walking.',
-    emptyStateBullets: [
-      'Capture each new crawling pattern or attempt',
-      'Note what helps (time of day, surface, toys)',
-      'Spot trends leading up to pulling up and walking',
-    ],
-    entryTitle: `${name} Entry`,
-    deleteConfirmMessage: 'Delete this crawling entry? This cannot be undone.',
-    locations: [
-      { value: 'tummy-time', label: 'Tummy time pushes' },
-      { value: 'rocking', label: 'Rocking on hands/knees' },
-      { value: 'army-crawl', label: 'Army crawl' },
-      { value: 'hands-knees', label: 'Hands & knees crawl' },
-      { value: 'pulling-up', label: 'Pulling up' },
-      { value: 'cruising', label: 'Cruising with support' },
-    ],
-    triggers: [
-      'Tummy time',
-      'On carpet',
-      'On hard floor',
-      'With toy motivation',
-      'After nap',
-      'After meal',
-      'Overtired',
-      'Teething',
-      'Growth spurt',
-      'Illness',
-    ],
-    suggestedHashtags: [
-      'milestone',
-      'tummy_time',
-      'hands_and_knees',
-      'army_crawl',
-      'pulling_up',
-      'cruising',
-      'baby_progress',
-      'gross_motor',
-    ],
-  };
+function isLikelyGenericConfig(config: GeneratedTrackerConfig | undefined): boolean {
+  if (!config) return true;
+  const genericLocations = ['general', 'positive', 'negative', 'neutral'];
+  const genericTriggers = ['note', 'important', 'follow-up', 'recurring'];
+
+  const locLabels = (config.locations || []).map((l) => l.label.toLowerCase());
+  const trigLabels = (config.triggers || []).map((t) => t.toLowerCase());
+
+  const looksGenericLocations =
+    locLabels.length <= 3 || locLabels.every((l) => genericLocations.includes(l));
+  const looksGenericTriggers =
+    trigLabels.length <= 4 && trigLabels.every((t) => genericTriggers.includes(t));
+
+  return looksGenericLocations || looksGenericTriggers;
 }
 
 /**
@@ -441,28 +401,6 @@ export async function generateTrackerConfig(
         error: 'No reliable dictionary context found. Please describe what you want to track.',
       };
     }
-
-    // Heuristic: if user clarified baby/infant crawling, short-circuit to a tailored config
-    const normalizedName = trackerName.toLowerCase();
-    const interp = (selectedInterpretation || '').toLowerCase();
-    const descr = (userDescription || '').toLowerCase();
-    const wikiText = (wikiSummary || wikiCategories?.join(' ') || '').toLowerCase();
-    const relatedText = (relatedTerms || []).join(' ').toLowerCase();
-    const looksInfantCrawling =
-      normalizedName.includes('crawl') &&
-      (interp.includes('baby') ||
-        interp.includes('infant') ||
-        interp.includes('development') ||
-        descr.includes('baby') ||
-        descr.includes('infant') ||
-        wikiText.includes('child') ||
-        wikiText.includes('development') ||
-        relatedText.includes('baby') ||
-        relatedText.includes('infant'));
-
-    if (looksInfantCrawling) {
-      return { success: true, config: buildInfantCrawlingConfig(trackerName) };
-    }
     
     // Call edge function to generate config
     // Gemini will use dictionary definitions if available, or its own knowledge otherwise
@@ -488,19 +426,28 @@ export async function generateTrackerConfig(
         throw new Error(data.error);
       }
       
-      if (!data?.config) {
-        throw new Error('No configuration returned from AI');
-      }
-      
+    if (!data?.config) {
+      throw new Error('No configuration returned from AI');
+    }
+
+    // If the returned config still looks generic and the user hasn't provided a description, require more detail
+    if (isLikelyGenericConfig(data.config) && !userDescription) {
       return {
-        success: true,
-        config: data.config as GeneratedTrackerConfig,
+        success: false,
+        needsDescription: true,
+        error: 'The generated setup is too generic. Please add a brief description to tailor it.',
       };
-    } catch (error) {
+    }
+    
+    return {
+      success: true,
+      config: data.config as GeneratedTrackerConfig,
+    };
+  } catch (error) {
     console.error('Config generation failed:', error);
 
-    // If we have dictionary context, fall back to a definition-aware generic config to avoid guesswork
-    if (dictionaryFound) {
+    // If we have dictionary/Wiki/related context, fall back to a context-aware generic config to avoid guesswork
+    if (dictionaryFound || wikiSummary || (relatedTerms && relatedTerms.length > 0)) {
       const fallback = getGenericConfig(trackerName);
       if (definition) {
         fallback.emptyStateDescription = definition;
