@@ -35,12 +35,161 @@ function isLikelyGenericConfig(config: GeneratedTrackerConfig | undefined): bool
   return looksGenericLocations || looksGenericTriggers;
 }
 
+// Deterministic fallbacks when AI is generic or unhelpful
+function buildVertigoConfig(trackerName: string): GeneratedTrackerConfig {
+  const name = trackerName.trim() || 'Vertigo/Dizziness';
+  return {
+    intensityLabel: 'Severity',
+    intensityMinLabel: '1 - None',
+    intensityMaxLabel: '10 - Severe',
+    intensityScale: 'high_bad',
+    locationLabel: 'Episode type',
+    locationPlaceholder: 'Select type',
+    triggersLabel: 'Likely triggers',
+    notesLabel: 'Notes',
+    notesPlaceholder: 'e.g., onset after turning head left, lasted 30s, nausea, tinnitus...',
+    addButtonLabel: 'Log dizziness episode',
+    formTitle: 'Log dizziness/vertigo',
+    emptyStateTitle: `Welcome to ${name}`,
+    emptyStateDescription:
+      'Track dizziness/vertigo episodes with context like position, triggers, and duration so you can spot patterns and discuss them with your clinician.',
+    emptyStateBullets: [
+      'Capture episode type, duration, and severity',
+      'Track positional triggers and related symptoms',
+      'Identify patterns to share with your doctor',
+    ],
+    entryTitle: `${name} Entry`,
+    deleteConfirmMessage: 'Delete this dizziness entry? This cannot be undone.',
+    locations: [
+      { value: 'positional', label: 'Positional (BPPV-like)' },
+      { value: 'head-movement', label: 'Head movement/turning' },
+      { value: 'standing-up', label: 'Standing up/orthostatic' },
+      { value: 'visual-trigger', label: 'Visual trigger (lights/screens)' },
+      { value: 'post-exertion', label: 'After exertion' },
+      { value: 'ear-sinus', label: 'Ear/sinus related' },
+      { value: 'medication', label: 'Medication related' },
+      { value: 'unknown', label: 'Unknown/other' },
+    ],
+    triggers: [
+      'Turning head quickly',
+      'Rolling over in bed',
+      'Standing up fast',
+      'Dehydration',
+      'Lack of sleep',
+      'Skipping meals',
+      'Stress/anxiety',
+      'Bright lights/screens',
+      'Crowded visual patterns',
+      'Allergies/sinus congestion',
+      'Ear infection/tinnitus',
+      'New medication/alcohol/caffeine',
+    ],
+    suggestedHashtags: [
+      'vertigo',
+      'dizziness',
+      'positional',
+      'hydration',
+      'sleep',
+      'stress',
+      'tinnitus',
+      'bppv',
+    ],
+  };
+}
+
+function buildSpinningClassConfig(trackerName: string): GeneratedTrackerConfig {
+  const name = trackerName.trim() || 'Spinning Class';
+  return {
+    intensityLabel: 'Effort',
+    intensityMinLabel: '1 - Easy',
+    intensityMaxLabel: '10 - Max effort',
+    intensityScale: 'neutral',
+    locationLabel: 'Ride focus',
+    locationPlaceholder: 'Select focus',
+    triggersLabel: 'Context',
+    notesLabel: 'Notes',
+    notesPlaceholder: 'e.g., cadence focus, hills, intervals, shoes/cleats fit...',
+    addButtonLabel: 'Log ride',
+    formTitle: 'Log spinning ride',
+    emptyStateTitle: `Welcome to ${name}`,
+    emptyStateDescription: 'Track your spinning rides with effort, duration, and context to see fitness trends.',
+    emptyStateBullets: [
+      'Capture effort, duration, and focus',
+      'Track hydration, sleep, and recovery',
+      'Spot improvements over time',
+    ],
+    entryTitle: `${name} Entry`,
+    deleteConfirmMessage: 'Delete this ride entry? This cannot be undone.',
+    locations: [
+      { value: 'endurance', label: 'Endurance' },
+      { value: 'intervals', label: 'Intervals' },
+      { value: 'hills', label: 'Hills/Resistance' },
+      { value: 'cadence', label: 'Cadence/Speed' },
+      { value: 'recovery', label: 'Recovery ride' },
+      { value: 'mixed', label: 'Mixed focus' },
+    ],
+    triggers: [
+      'Sleep quality',
+      'Hydration',
+      'Pre-ride nutrition',
+      'Warm-up quality',
+      'Bike fit/seat comfort',
+      'Shoes/cleats fit',
+      'Room temperature/ventilation',
+      'Music/coach motivation',
+      'Stress/fatigue',
+      'Previous workout soreness',
+    ],
+    suggestedHashtags: [
+      'spinning',
+      'intervals',
+      'endurance',
+      'hills',
+      'cadence',
+      'hydration',
+      'recovery',
+      'fitness',
+    ],
+  };
+}
+
+function buildContextualFallback(
+  trackerName: string,
+  interpretation?: string,
+  description?: string
+): GeneratedTrackerConfig | null {
+  const text = `${trackerName} ${interpretation || ''} ${description || ''}`.toLowerCase();
+  if (
+    text.includes('vertigo') ||
+    text.includes('dizziness') ||
+    text.includes('spinning sensation') ||
+    text.includes('dizzy')
+  ) {
+    return buildVertigoConfig(trackerName);
+  }
+  if (
+    text.includes('spin class') ||
+    text.includes('spinning class') ||
+    text.includes('spin bike') ||
+    text.includes('cycling class')
+  ) {
+    return buildSpinningClassConfig(trackerName);
+  }
+  return null;
+}
+
 /**
  * Common ambiguous terms and their interpretations
  * This serves as a LOCAL FALLBACK if the AI service fails.
  * These are known ambiguous terms that should ALWAYS prompt the user.
  */
 const KNOWN_AMBIGUOUS_TERMS: Record<string, TrackerInterpretation[]> = {
+  spinning: [
+    { value: 'vertigo', label: 'Vertigo / Dizziness', description: 'Spinning sensation or dizziness episodes' },
+    { value: 'spin-class', label: 'Spin / Cycling Class', description: 'Indoor cycling / spin workouts' },
+    { value: 'spinning-fiber', label: 'Spinning Fiber/Yarn', description: 'Fiber or yarn spinning hobby' },
+    { value: 'spinning-sensation', label: 'Spinning Sensation (Other)', description: 'Other spinning context' },
+  ],
   flying: [
     { value: 'air-travel', label: 'Air Travel (Passenger)', description: 'Track flights as a passenger - comfort, anxiety, jet lag' },
     { value: 'recreational-flying', label: 'Recreational Flying', description: 'Paragliding, hang gliding, skydiving, or similar activities' },
@@ -432,6 +581,11 @@ export async function generateTrackerConfig(
 
     // If the returned config looks generic, require more detail and do not accept it
     if (isLikelyGenericConfig(data.config)) {
+      // Try to synthesize a contextual fallback based on interpretation/description
+      const fallback = buildContextualFallback(trackerName, selectedInterpretation, userDescription);
+      if (fallback) {
+        return { success: true, config: fallback };
+      }
       return {
         success: false,
         needsDescription: true,
