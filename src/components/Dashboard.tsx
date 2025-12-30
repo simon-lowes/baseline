@@ -61,6 +61,8 @@ interface DashboardProps {
   onTrackerDeleted: (trackerId: string) => void;
 }
 
+const DISAMBIGUATION_SNAP_POINTS = [70, 92] as const;
+
 export function Dashboard({ 
   trackers, 
   onTrackerSelect,
@@ -95,6 +97,10 @@ export function Dashboard({
     (disambiguationQuestions.length > 0 &&
       disambiguationQuestions.every((_, index) => Boolean(disambiguationAnswers[index]?.trim())));
   const isMobile = useIsMobile();
+  const disambiguationSnapPoints = DISAMBIGUATION_SNAP_POINTS;
+  const [disambiguationSnapPoint, setDisambiguationSnapPoint] = useState<number | string | null>(
+    DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]
+  );
   const [deleting, setDeleting] = useState(false);
   const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
     if (!isMobile) return;
@@ -112,6 +118,12 @@ export function Dashboard({
       active.blur();
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    if (disambiguateOpen && isMobile) {
+      setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
+    }
+  }, [disambiguateOpen, isMobile]);
   
   // Touch visibility state for delete icons on mobile
   const [touchActive, setTouchActive] = useState(false);
@@ -609,7 +621,9 @@ export function Dashboard({
 
     if (isMobile) {
       return (
-        <Drawer open={disambiguateOpen} onOpenChange={(open) => {
+        <Drawer
+          open={disambiguateOpen}
+          onOpenChange={(open) => {
           if (!open) {
             setDisambiguateOpen(false);
             setDisambiguationSelected(null);
@@ -619,7 +633,16 @@ export function Dashboard({
             setDisambiguationAnswers([]);
             setDisambiguationNeedsDescription(false);
           }
-        }} direction="bottom">
+          }}
+          direction="bottom"
+          snapPoints={disambiguationSnapPoints}
+          activeSnapPoint={disambiguationSnapPoint}
+          setActiveSnapPoint={setDisambiguationSnapPoint}
+          snapToSequentialPoint
+          fixed
+          closeThreshold={0.4}
+          scrollLockTimeout={1000}
+        >
           <DrawerContent className="max-h-[92vh] max-h-[92dvh]">
             <DrawerHeader>
               <DrawerTitle>Clarify Your Tracker</DrawerTitle>
