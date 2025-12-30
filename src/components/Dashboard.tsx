@@ -62,6 +62,7 @@ interface DashboardProps {
 }
 
 const DISAMBIGUATION_SNAP_POINTS = [70, 92] as const;
+const CREATE_SNAP_POINTS = [92] as const;
 
 export function Dashboard({ 
   trackers, 
@@ -796,6 +797,7 @@ export function Dashboard({
     : null;
   const mobileDrawerOpen = mobileDrawerView !== null;
   const mobileDrawerIsDisambiguation = mobileDrawerView === 'disambiguate';
+  const mobileDrawerSnapPoints = mobileDrawerIsDisambiguation ? disambiguationSnapPoints : CREATE_SNAP_POINTS;
 
   return (
     <div className="py-8 px-4">
@@ -926,11 +928,12 @@ export function Dashboard({
             }
           }}
           direction="bottom"
-          snapPoints={mobileDrawerIsDisambiguation ? disambiguationSnapPoints : undefined}
+          snapPoints={mobileDrawerSnapPoints}
           activeSnapPoint={mobileDrawerIsDisambiguation ? disambiguationSnapPoint : undefined}
           setActiveSnapPoint={mobileDrawerIsDisambiguation ? handleDisambiguationSnapPointChange : undefined}
           snapToSequentialPoint={mobileDrawerIsDisambiguation}
           repositionInputs
+          handleOnly
           fixed
           closeThreshold={mobileDrawerIsDisambiguation ? 0.4 : undefined}
           scrollLockTimeout={mobileDrawerIsDisambiguation ? 1000 : undefined}
