@@ -5,22 +5,25 @@
  * Useful for enriching tags/hashtags and providing domain hints.
  */
 
+import { supabaseClient } from '@/adapters/supabase/supabaseClient';
+
 export interface RelatedTerms {
   terms: string[];
 }
 
-const DATAMUSE_URL = 'https://api.datamuse.com/words';
+const FUNCTION_NAME = 'datamuse-lookup';
 
 export async function fetchDatamuseRelated(term: string, max: number = 10): Promise<RelatedTerms | null> {
   try {
-    const url = `${DATAMUSE_URL}?ml=${encodeURIComponent(term)}&max=${max}`;
-    const res = await fetch(url, { method: 'GET' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!Array.isArray(data)) return null;
-    const terms = data
-      .map((item: any) => item?.word)
-      .filter((w: string | undefined) => typeof w === 'string' && w.trim().length > 0);
+    const normalizedTerm = term.trim();
+    if (!normalizedTerm) return null;
+    const { data, error } = await supabaseClient.functions.invoke(FUNCTION_NAME, {
+      body: { term: normalizedTerm, max },
+    });
+    if (error) return null;
+    const terms = Array.isArray(data?.terms)
+      ? data.terms.filter((w: unknown) => typeof w === 'string' && w.trim().length > 0)
+      : [];
     return terms.length ? { terms } : null;
   } catch {
     return null;

@@ -380,8 +380,8 @@ export async function generateTrackerConfig(
 ): Promise<ConfigGenerationResult> {
   // In E2E mode, avoid calling external AI services for deterministic, fast tests
   if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
-    debug('[generateTrackerConfig] E2E mode detected - skipping AI generation (deterministic)');
-    return { success: false };
+    debug('[generateTrackerConfig] E2E mode detected - returning generic config (deterministic)');
+    return { success: true, config: getGenericConfig(trackerName) };
   }
 
   try {
