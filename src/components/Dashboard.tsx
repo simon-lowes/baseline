@@ -18,14 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerFooter,
-  DrawerTitle,
-  DrawerDescription,
-} from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   AlertDialog,
@@ -60,9 +52,6 @@ interface DashboardProps {
   onTrackerCreated: (tracker: Tracker) => void;
   onTrackerDeleted: (trackerId: string) => void;
 }
-
-const DISAMBIGUATION_SNAP_POINTS = [70, 92] as const;
-const CREATE_SNAP_POINTS = [92] as const;
 
 export function Dashboard({ 
   trackers, 
@@ -100,22 +89,7 @@ export function Dashboard({
     (disambiguationQuestions.length > 0 &&
       disambiguationQuestions.every((_, index) => Boolean(disambiguationAnswers[index]?.trim())));
   const isMobile = useIsMobile();
-  const disambiguationSnapPoints = DISAMBIGUATION_SNAP_POINTS;
-  const [disambiguationSnapPoint, setDisambiguationSnapPoint] = useState<number | string | null>(
-    DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]
-  );
   const [deleting, setDeleting] = useState(false);
-  const handleDisambiguationSnapPointChange = useCallback((snapPoint: number | string | null) => {
-    if (!disambiguateOpen) {
-      setDisambiguationSnapPoint(snapPoint);
-      return;
-    }
-    if (snapPoint === null) {
-      setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
-      return;
-    }
-    setDisambiguationSnapPoint(snapPoint);
-  }, [disambiguateOpen]);
   const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
     if (!isMobile) return;
     const target = event.currentTarget;
@@ -134,10 +108,26 @@ export function Dashboard({
   }, [isMobile]);
 
   useEffect(() => {
-    if (disambiguateOpen && isMobile) {
-      setDisambiguationSnapPoint(DISAMBIGUATION_SNAP_POINTS[DISAMBIGUATION_SNAP_POINTS.length - 1]);
-    }
-  }, [disambiguateOpen, isMobile]);
+    if (!isMobile) return;
+    const root = document.documentElement;
+    const setViewportHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      root.style.setProperty('--mobile-vh', `${height}px`);
+    };
+    setViewportHeight();
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', setViewportHeight);
+    viewport?.addEventListener('scroll', setViewportHeight);
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+    return () => {
+      viewport?.removeEventListener('resize', setViewportHeight);
+      viewport?.removeEventListener('scroll', setViewportHeight);
+      window.removeEventListener('resize', setViewportHeight);
+      window.removeEventListener('orientationchange', setViewportHeight);
+      root.style.removeProperty('--mobile-vh');
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     if (!pendingDisambiguationOpen) return;
@@ -792,12 +782,11 @@ export function Dashboard({
     </Button>
   );
 
-  const mobileDrawerView = isMobile
+  const mobileModalView = isMobile
     ? (disambiguateOpen ? 'disambiguate' : createDialogOpen ? 'create' : null)
     : null;
-  const mobileDrawerOpen = mobileDrawerView !== null;
-  const mobileDrawerIsDisambiguation = mobileDrawerView === 'disambiguate';
-  const mobileDrawerSnapPoints = mobileDrawerIsDisambiguation ? disambiguationSnapPoints : CREATE_SNAP_POINTS;
+  const mobileModalOpen = mobileModalView !== null;
+  const mobileModalIsDisambiguation = mobileModalView === 'disambiguate';
 
   return (
     <div className="py-8 px-4">
@@ -919,54 +908,46 @@ export function Dashboard({
 
       {/* Create Tracker Dialog */}
       {isMobile ? (
-        <Drawer
-          open={mobileDrawerOpen}
+        <Dialog
+          open={mobileModalOpen}
           onOpenChange={(open) => {
             if (!open) {
               setCreateDialogOpen(false);
               closeDisambiguation(false);
             }
           }}
-          direction="bottom"
-          snapPoints={mobileDrawerSnapPoints}
-          activeSnapPoint={mobileDrawerIsDisambiguation ? disambiguationSnapPoint : undefined}
-          setActiveSnapPoint={mobileDrawerIsDisambiguation ? handleDisambiguationSnapPointChange : undefined}
-          snapToSequentialPoint={mobileDrawerIsDisambiguation}
-          repositionInputs
-          handleOnly
-          fixed
-          closeThreshold={mobileDrawerIsDisambiguation ? 0.4 : undefined}
-          scrollLockTimeout={mobileDrawerIsDisambiguation ? 1000 : undefined}
         >
-          <DrawerContent className="h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh] data-[vaul-drawer-direction=bottom]:mt-2">
-            {mobileDrawerIsDisambiguation ? (
+          <DialogContent
+            className="top-auto bottom-0 left-0 right-0 translate-x-0 translate-y-0 w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-t-2xl rounded-b-none p-0 gap-0 flex flex-col overflow-hidden"
+            style={{
+              height: 'var(--mobile-vh, 100dvh)',
+              maxHeight: 'var(--mobile-vh, 100dvh)',
+            }}
+          >
+            <div className="bg-muted mx-auto mt-3 h-1.5 w-12 rounded-full" />
+            {mobileModalIsDisambiguation ? (
               <>
-                <DrawerHeader>
-                  <DrawerTitle>Clarify Your Tracker</DrawerTitle>
-                  <DrawerDescription>{disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}</DrawerDescription>
-                </DrawerHeader>
+                <DialogHeader className="px-4 pt-4 text-left">
+                  <DialogTitle>Clarify Your Tracker</DialogTitle>
+                  <DialogDescription>{disambiguationReason ? disambiguationReason : `"${customName}" could mean different things. Please select what you want to track:`}</DialogDescription>
+                </DialogHeader>
                 <div
-                  data-vaul-no-drag
                   className="flex-1 overflow-y-auto touch-pan-y overscroll-contain px-4 pb-4"
                   onTouchStart={handleMobileScrollStart}
                 >
                   {disambiguationContent}
                 </div>
-                <DrawerFooter
-                  data-vaul-no-drag
-                  className="border-t pb-[calc(1rem+env(safe-area-inset-bottom))]"
-                >
+                <DialogFooter className="flex-row justify-end gap-2 border-t px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                   {disambiguationActions}
-                </DrawerFooter>
+                </DialogFooter>
               </>
             ) : (
               <>
-                <DrawerHeader>
-                  <DrawerTitle>Create New Tracker</DrawerTitle>
-                  <DrawerDescription>Track anything that matters to you.</DrawerDescription>
-                </DrawerHeader>
+                <DialogHeader className="px-4 pt-4 text-left">
+                  <DialogTitle>Create New Tracker</DialogTitle>
+                  <DialogDescription>Track anything that matters to you.</DialogDescription>
+                </DialogHeader>
                 <div
-                  data-vaul-no-drag
                   className="flex-1 overflow-y-auto touch-pan-y overscroll-contain px-4 pb-4"
                   onTouchStart={handleMobileScrollStart}
                 >
@@ -974,16 +955,13 @@ export function Dashboard({
                     {createTrackerBody}
                   </div>
                 </div>
-                <DrawerFooter
-                  data-vaul-no-drag
-                  className="border-t pb-[calc(1rem+env(safe-area-inset-bottom))]"
-                >
+                <DialogFooter className="flex-row justify-end gap-2 border-t px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                   {createTrackerActions}
-                </DrawerFooter>
+                </DialogFooter>
               </>
             )}
-          </DrawerContent>
-        </Drawer>
+          </DialogContent>
+        </Dialog>
       ) : (
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
