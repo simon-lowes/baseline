@@ -737,6 +737,14 @@ export function TrackerSelector({
     setGenerationStatus('Generating contextual configuration...');
     
     try {
+      // If ambiguity choices were thin and we have no description, ask for more detail before calling AI
+      if (interpretations.length < 3 && !userDescription.trim()) {
+        setGenerationStep('needs-description');
+        setCreating(false);
+        toast.info('Please add a brief description so we can tailor this tracker.');
+        return;
+      }
+
       // If user selected "other", use their description
       // Otherwise, use the selected interpretation
       const interpretation = selectedInterpretation.value === 'other' 
