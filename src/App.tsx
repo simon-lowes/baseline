@@ -36,6 +36,7 @@ import { filterEntriesByDateRange, filterEntriesByLocation } from '@/lib/pain-ut
 import { getTrackerConfig } from '@/types/tracker-config'
 import type { AuthUser } from '@/ports/AuthPort'
 import { AnalyticsDashboard } from '@/components/analytics'
+import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 /** View states for the main app */
 type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
@@ -631,15 +632,18 @@ function App() {
                 Know your baseline, spot the changes
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="gap-2"
-            >
-              <SignOut size={18} />
-              Sign Out
-            </Button>
+            <div className="flex items-center gap-1">
+              <ThemeSwitcher />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="gap-2"
+              >
+                <SignOut size={18} />
+                Sign Out
+              </Button>
+            </div>
           </div>
           
           {/* Tracker Selector - only show when in tracker view */}
