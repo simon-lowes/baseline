@@ -23,16 +23,16 @@ interface LocationDistributionPieProps {
   height?: number
 }
 
-// Accessible color palette for pie slices
+// Theme-aware color palette for pie slices using CSS variables
 const COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(210, 70%, 50%)',
-  'hsl(280, 70%, 50%)',
-  'hsl(330, 70%, 50%)',
+  'oklch(var(--primary))',
+  'oklch(var(--chart-2))',
+  'oklch(var(--chart-3))',
+  'oklch(var(--chart-4))',
+  'oklch(var(--chart-5))',
+  'oklch(var(--chart-1))',
+  'oklch(var(--accent))',
+  'oklch(var(--muted-foreground))',
 ]
 
 export function LocationDistributionPie({

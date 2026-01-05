@@ -56,6 +56,19 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  /* Semantic chart colors for intensity (green-yellow-red gradient) */
+  --chart-intensity-low: oklch(0.55 0.18 145);     /* Green - good visibility on light bg */
+  --chart-intensity-medium: oklch(0.75 0.18 85);   /* Yellow/Amber */
+  --chart-intensity-high: oklch(0.55 0.22 25);     /* Red */
+  /* Heatmap gradient (light to dark green) */
+  --chart-heatmap-0: oklch(0.92 0.02 145);         /* Empty/None */
+  --chart-heatmap-1: oklch(0.82 0.10 145);         /* Level 1 */
+  --chart-heatmap-2: oklch(0.70 0.14 145);         /* Level 2 */
+  --chart-heatmap-3: oklch(0.58 0.16 145);         /* Level 3 */
+  --chart-heatmap-4: oklch(0.48 0.16 145);         /* Level 4 */
+  /* Generic chart bars/dots */
+  --chart-bar: oklch(0.50 0.12 250);               /* Visible on light backgrounds */
+  --chart-dot: oklch(0.35 0.10 250);               /* Data point color */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.25 0.01 260);
   --sidebar-primary: oklch(0.65 0.12 200);
@@ -93,6 +106,19 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  /* Semantic chart colors for intensity (brighter for dark bg contrast) */
+  --chart-intensity-low: oklch(0.72 0.20 145);     /* Bright green - 3:1+ on dark */
+  --chart-intensity-medium: oklch(0.82 0.18 85);   /* Bright yellow/amber */
+  --chart-intensity-high: oklch(0.70 0.22 25);     /* Bright red */
+  /* Heatmap gradient (adjusted for dark mode visibility) */
+  --chart-heatmap-0: oklch(0.25 0.02 145);         /* Empty/None */
+  --chart-heatmap-1: oklch(0.45 0.12 145);         /* Level 1 */
+  --chart-heatmap-2: oklch(0.58 0.15 145);         /* Level 2 */
+  --chart-heatmap-3: oklch(0.70 0.18 145);         /* Level 3 */
+  --chart-heatmap-4: oklch(0.80 0.20 145);         /* Level 4 */
+  /* Generic chart bars/dots */
+  --chart-bar: oklch(0.75 0.15 250);               /* Bright for dark backgrounds */
+  --chart-dot: oklch(0.85 0.12 250);               /* Data point color */
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -128,6 +154,17 @@
   --border: oklch(0.88 0.01 260);
   --input: oklch(0.88 0.01 260);
   --ring: oklch(0.55 0.18 250);
+  /* Chart colors - light mode */
+  --chart-intensity-low: oklch(0.55 0.18 145);
+  --chart-intensity-medium: oklch(0.75 0.18 85);
+  --chart-intensity-high: oklch(0.55 0.22 25);
+  --chart-heatmap-0: oklch(0.92 0.02 145);
+  --chart-heatmap-1: oklch(0.82 0.10 145);
+  --chart-heatmap-2: oklch(0.70 0.14 145);
+  --chart-heatmap-3: oklch(0.58 0.16 145);
+  --chart-heatmap-4: oklch(0.48 0.16 145);
+  --chart-bar: oklch(0.50 0.15 250);
+  --chart-dot: oklch(0.35 0.12 250);
 }
 
 /* Zinc Theme - Dark */
@@ -149,6 +186,17 @@
   --border: oklch(0.3 0.01 260);
   --input: oklch(0.3 0.01 260);
   --ring: oklch(0.65 0.20 250);
+  /* Chart colors - dark mode (brighter for contrast) */
+  --chart-intensity-low: oklch(0.72 0.20 145);
+  --chart-intensity-medium: oklch(0.82 0.18 85);
+  --chart-intensity-high: oklch(0.70 0.22 25);
+  --chart-heatmap-0: oklch(0.25 0.02 145);
+  --chart-heatmap-1: oklch(0.45 0.12 145);
+  --chart-heatmap-2: oklch(0.58 0.15 145);
+  --chart-heatmap-3: oklch(0.70 0.18 145);
+  --chart-heatmap-4: oklch(0.80 0.20 145);
+  --chart-bar: oklch(0.75 0.15 250);
+  --chart-dot: oklch(0.85 0.12 250);
 }
 
 /* Nature Theme - Light (Soft greens/Earth tones) */
@@ -170,6 +218,17 @@
   --border: oklch(0.85 0.03 140);
   --input: oklch(0.85 0.03 140);
   --ring: oklch(0.55 0.15 155);
+  /* Chart colors - light mode */
+  --chart-intensity-low: oklch(0.55 0.18 145);
+  --chart-intensity-medium: oklch(0.75 0.18 85);
+  --chart-intensity-high: oklch(0.55 0.22 25);
+  --chart-heatmap-0: oklch(0.92 0.02 145);
+  --chart-heatmap-1: oklch(0.82 0.10 145);
+  --chart-heatmap-2: oklch(0.70 0.14 145);
+  --chart-heatmap-3: oklch(0.58 0.16 145);
+  --chart-heatmap-4: oklch(0.48 0.16 145);
+  --chart-bar: oklch(0.50 0.15 155);
+  --chart-dot: oklch(0.35 0.12 155);
 }
 
 /* Nature Theme - Dark */
@@ -191,6 +250,17 @@
   --border: oklch(0.30 0.03 140);
   --input: oklch(0.30 0.03 140);
   --ring: oklch(0.65 0.18 155);
+  /* Chart colors - dark mode (brighter for contrast) */
+  --chart-intensity-low: oklch(0.72 0.20 145);
+  --chart-intensity-medium: oklch(0.82 0.18 85);
+  --chart-intensity-high: oklch(0.70 0.22 25);
+  --chart-heatmap-0: oklch(0.25 0.02 145);
+  --chart-heatmap-1: oklch(0.45 0.12 145);
+  --chart-heatmap-2: oklch(0.58 0.15 145);
+  --chart-heatmap-3: oklch(0.70 0.18 145);
+  --chart-heatmap-4: oklch(0.80 0.20 145);
+  --chart-bar: oklch(0.75 0.15 155);
+  --chart-dot: oklch(0.85 0.12 155);
 }
 
 /* Rose Theme - Light (Warm/Soft with pink accent) */
@@ -212,6 +282,17 @@
   --border: oklch(0.88 0.02 30);
   --input: oklch(0.88 0.02 30);
   --ring: oklch(0.60 0.18 350);
+  /* Chart colors - light mode */
+  --chart-intensity-low: oklch(0.55 0.18 145);
+  --chart-intensity-medium: oklch(0.75 0.18 85);
+  --chart-intensity-high: oklch(0.55 0.22 25);
+  --chart-heatmap-0: oklch(0.92 0.02 145);
+  --chart-heatmap-1: oklch(0.82 0.10 145);
+  --chart-heatmap-2: oklch(0.70 0.14 145);
+  --chart-heatmap-3: oklch(0.58 0.16 145);
+  --chart-heatmap-4: oklch(0.48 0.16 145);
+  --chart-bar: oklch(0.50 0.15 350);
+  --chart-dot: oklch(0.35 0.12 350);
 }
 
 /* Rose Theme - Dark */
@@ -233,6 +314,17 @@
   --border: oklch(0.30 0.02 30);
   --input: oklch(0.30 0.02 30);
   --ring: oklch(0.70 0.20 350);
+  /* Chart colors - dark mode (brighter for contrast) */
+  --chart-intensity-low: oklch(0.72 0.20 145);
+  --chart-intensity-medium: oklch(0.82 0.18 85);
+  --chart-intensity-high: oklch(0.70 0.22 25);
+  --chart-heatmap-0: oklch(0.25 0.02 145);
+  --chart-heatmap-1: oklch(0.45 0.12 145);
+  --chart-heatmap-2: oklch(0.58 0.15 145);
+  --chart-heatmap-3: oklch(0.70 0.18 145);
+  --chart-heatmap-4: oklch(0.80 0.20 145);
+  --chart-bar: oklch(0.75 0.15 350);
+  --chart-dot: oklch(0.85 0.12 350);
 }
 
 /*
