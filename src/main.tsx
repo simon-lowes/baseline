@@ -7,12 +7,22 @@ import { ErrorFallback } from './ErrorFallback.tsx'
 
 import "./main.css"
 
+// Determine initial theme based on system preference
+const getInitialTheme = () => {
+  const stored = localStorage.getItem('baseline-theme')
+  if (stored) return stored
+  
+  // Respect system preference for dark/light, default to zinc color
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark ? 'zinc-dark' : 'zinc-light'
+}
+
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <ThemeProvider
       attribute="class"
-      defaultTheme="zinc"
-      themes={['zinc', 'nature', 'rose']}
+      defaultTheme={getInitialTheme()}
+      themes={['zinc-light', 'zinc-dark', 'nature-light', 'nature-dark', 'rose-light', 'rose-dark']}
       enableColorScheme={false}
       storageKey="baseline-theme"
     >
