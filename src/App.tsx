@@ -407,6 +407,13 @@ function App() {
       if (error) {
         toast.error('Could not sign out')
       } else {
+        // Reset theme to system default on logout so new users get fresh experience
+        localStorage.removeItem('theme')
+        localStorage.removeItem('baseline-theme-onboarded')
+        // Remove theme class from document to reset to default
+        document.documentElement.classList.remove(
+          'dark', 'zinc-light', 'zinc-dark', 'nature-light', 'nature-dark', 'rose-light', 'rose-dark'
+        )
         toast.success('Signed out')
       }
     } catch (err) {

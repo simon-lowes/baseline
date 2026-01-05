@@ -23,17 +23,23 @@ interface LocationDistributionPieProps {
   height?: number
 }
 
-// Theme-aware color palette for pie slices using CSS variables
-const COLORS = [
-  'oklch(var(--primary))',
-  'oklch(var(--chart-2))',
-  'oklch(var(--chart-3))',
-  'oklch(var(--chart-4))',
-  'oklch(var(--chart-5))',
-  'oklch(var(--chart-1))',
-  'oklch(var(--accent))',
-  'oklch(var(--muted-foreground))',
-]
+/**
+ * Get theme-aware color palette for pie slices
+ * Uses getComputedStyle to read resolved oklch values at runtime
+ */
+function getPieColors(): string[] {
+  const styles = getComputedStyle(document.documentElement)
+  return [
+    styles.getPropertyValue('--primary').trim(),
+    styles.getPropertyValue('--chart-2').trim(),
+    styles.getPropertyValue('--chart-3').trim(),
+    styles.getPropertyValue('--chart-4').trim(),
+    styles.getPropertyValue('--chart-5').trim(),
+    styles.getPropertyValue('--chart-1').trim(),
+    styles.getPropertyValue('--accent').trim(),
+    styles.getPropertyValue('--muted-foreground').trim(),
+  ]
+}
 
 export function LocationDistributionPie({
   entries,
@@ -41,8 +47,9 @@ export function LocationDistributionPie({
   maxSlices = 8,
   height = 300,
 }: LocationDistributionPieProps) {
-  const { distribution, chartConfig } = useMemo(() => {
+  const { distribution, chartConfig, colors } = useMemo(() => {
     const dist = getLocationDistribution(entries)
+    const pieColors = getPieColors()
     
     // Limit slices and group remainder as "Other"
     let processedDist: CategoryCount[]
@@ -70,11 +77,11 @@ export function LocationDistributionPie({
       const key = item.name.toLowerCase().replace(/\s+/g, '-')
       config[key] = {
         label: item.name,
-        color: COLORS[idx % COLORS.length],
+        color: pieColors[idx % pieColors.length],
       }
     })
     
-    return { distribution: processedDist, chartConfig: config }
+    return { distribution: processedDist, chartConfig: config, colors: pieColors }
   }, [entries, maxSlices])
 
   if (distribution.length === 0) {
@@ -89,7 +96,7 @@ export function LocationDistributionPie({
     name: item.name,
     value: item.count,
     percentage: item.percentage,
-    fill: COLORS[idx % COLORS.length],
+    fill: colors[idx % colors.length],
   }))
 
   return (

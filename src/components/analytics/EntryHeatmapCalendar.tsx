@@ -123,15 +123,20 @@ export function EntryHeatmapCalendar({
       {/* Calendar grid */}
       <div className="overflow-x-auto pb-2">
         <div className="inline-flex flex-col gap-1">
-          {/* Month labels */}
-          <div className="flex" style={{ marginLeft: isMobile ? 20 : 30 }}>
+          {/* Month labels - positioned inline with week columns */}
+          <div 
+            className="flex relative h-5" 
+            style={{ 
+              marginLeft: isMobile ? 0 : 30,
+              width: weeks.length * (cellSize + gap),
+            }}
+          >
             {monthLabels.map((label, idx) => (
               <div
                 key={`${label.month}-${idx}`}
-                className="text-xs text-muted-foreground"
+                className="text-xs text-muted-foreground absolute"
                 style={{
-                  position: 'absolute',
-                  left: (isMobile ? 20 : 30) + label.weekIndex * (cellSize + gap),
+                  left: label.weekIndex * (cellSize + gap),
                 }}
               >
                 {label.month}
