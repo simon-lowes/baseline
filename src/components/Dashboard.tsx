@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback, type FocusEvent, type TouchEvent } from 'react';
-import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3 } from 'lucide-react';
+import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,10 @@ import { debug } from '@/lib/logger';
 interface TrackerStats {
   entryCount: number;
   lastEntryDate: number | null;
+  /** Average intensity from last 7 days, null if no entries */
+  recentAvgIntensity: number | null;
+  /** Trend: 'up' if recent > older, 'down' if recent < older, 'stable' otherwise */
+  trend: 'up' | 'down' | 'stable' | null;
 }
 
 interface DashboardProps {
@@ -219,6 +223,9 @@ export function Dashboard({
     async function loadStats() {
       setLoadingStats(true);
       const newStats: Record<string, TrackerStats> = {};
+      const now = Date.now();
+      const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+      const fourteenDaysAgo = now - 14 * 24 * 60 * 60 * 1000;
 
       // Fetch stats for all trackers in parallel
       await Promise.all(
@@ -229,12 +236,39 @@ export function Dashboard({
               orderBy: { column: 'timestamp', ascending: false },
             });
 
+            const entries = data ?? [];
+            
+            // Calculate recent (last 7 days) vs older (7-14 days ago) average intensity
+            const recentEntries = entries.filter(e => e.timestamp >= sevenDaysAgo);
+            const olderEntries = entries.filter(e => e.timestamp >= fourteenDaysAgo && e.timestamp < sevenDaysAgo);
+            
+            const recentAvg = recentEntries.length > 0
+              ? recentEntries.reduce((sum, e) => sum + e.pain_level, 0) / recentEntries.length
+              : null;
+            const olderAvg = olderEntries.length > 0
+              ? olderEntries.reduce((sum, e) => sum + e.pain_level, 0) / olderEntries.length
+              : null;
+            
+            // Determine trend
+            let trend: 'up' | 'down' | 'stable' | null = null;
+            if (recentAvg !== null && olderAvg !== null) {
+              const diff = recentAvg - olderAvg;
+              if (diff > 0.5) trend = 'up';
+              else if (diff < -0.5) trend = 'down';
+              else trend = 'stable';
+            } else if (recentAvg !== null && recentEntries.length >= 2) {
+              // If no older entries but we have recent data, show stable
+              trend = 'stable';
+            }
+
             newStats[tracker.id] = {
-              entryCount: data?.length ?? 0,
-              lastEntryDate: data?.[0]?.timestamp ?? null,
+              entryCount: entries.length,
+              lastEntryDate: entries[0]?.timestamp ?? null,
+              recentAvgIntensity: recentAvg !== null ? Math.round(recentAvg * 10) / 10 : null,
+              trend,
             };
           } catch {
-            newStats[tracker.id] = { entryCount: 0, lastEntryDate: null };
+            newStats[tracker.id] = { entryCount: 0, lastEntryDate: null, recentAvgIntensity: null, trend: null };
           }
         })
       );
@@ -804,7 +838,7 @@ export function Dashboard({
             </p>
           </div>
           
-          {/* Analytics button - only show when there are trackers with entries */}
+          {/* View Your Progress button - only show when there are trackers with entries */}
           {trackers.length > 0 && onShowAnalytics && (
             <Button 
               variant="outline" 
@@ -813,7 +847,7 @@ export function Dashboard({
               className="gap-2 self-center sm:self-auto"
             >
               <BarChart3 className="h-4 w-4" />
-              Analytics
+              View Your Progress
             </Button>
           )}
         </div>
@@ -882,9 +916,30 @@ export function Dashboard({
                         </div>
                       ) : (
                         <>
-                          <p>
-                            {trackerStats?.entryCount ?? 0} {(trackerStats?.entryCount ?? 0) === 1 ? 'entry' : 'entries'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {trackerStats?.entryCount ?? 0} {(trackerStats?.entryCount ?? 0) === 1 ? 'entry' : 'entries'}
+                            </span>
+                            {/* Trend indicator */}
+                            {trackerStats?.trend && (
+                              <span 
+                                className={`flex items-center gap-0.5 text-xs ${
+                                  trackerStats.trend === 'up' ? 'text-amber-500' :
+                                  trackerStats.trend === 'down' ? 'text-green-500' :
+                                  'text-muted-foreground'
+                                }`}
+                                title={
+                                  trackerStats.trend === 'up' ? 'Intensity trending up' :
+                                  trackerStats.trend === 'down' ? 'Intensity trending down' :
+                                  'Intensity stable'
+                                }
+                              >
+                                {trackerStats.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                                {trackerStats.trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                                {trackerStats.trend === 'stable' && <Minus className="w-3 h-3" />}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs">
                             {formatLastEntry(trackerStats?.lastEntryDate ?? null)}
                           </p>

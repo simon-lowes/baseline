@@ -1,7 +1,7 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, List, Calendar, SignOut } from '@phosphor-icons/react'
+import { Plus, List, Calendar, SignOut, TrendUp } from '@phosphor-icons/react'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -99,6 +99,7 @@ function App() {
   const [trackersLoading, setTrackersLoading] = useState(true)
   const [currentView, setCurrentView] = useState<AppView>('dashboard')
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
+  const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
 
   // Listen for auth state changes
   useEffect(() => {
@@ -459,6 +460,13 @@ function App() {
 
   const handleShowAnalytics = useCallback(async () => {
     await loadAllEntries()
+    setAnalyticsTracker(null) // Show all trackers
+    setCurrentView('analytics')
+  }, [loadAllEntries])
+
+  const handleShowTrackerAnalytics = useCallback(async (tracker: Tracker) => {
+    await loadAllEntries()
+    setAnalyticsTracker(tracker) // Show single tracker
     setCurrentView('analytics')
   }, [loadAllEntries])
 
@@ -636,12 +644,24 @@ function App() {
           
           {/* Tracker Selector - only show when in tracker view */}
           {currentView === 'tracker' && currentTracker && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Tracking:</span>
-              <TrackerSelector
-                currentTracker={currentTracker}
-                onTrackerChange={handleTrackerSelect}
-              />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Tracking:</span>
+                <TrackerSelector
+                  currentTracker={currentTracker}
+                  onTrackerChange={handleTrackerSelect}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => handleShowTrackerAnalytics(currentTracker)}
+              >
+                <TrendUp size={16} />
+                <span className="hidden sm:inline">View Your Progress</span>
+                <span className="sm:hidden">Progress</span>
+              </Button>
             </div>
           )}
         </div>
@@ -693,9 +713,11 @@ function App() {
             <AnalyticsDashboard
               entries={allEntries}
               trackers={trackers}
-              onBack={() => setCurrentView('dashboard')}
+              onBack={() => analyticsTracker ? setCurrentView('tracker') : setCurrentView('dashboard')}
               onEntryEdit={handleEditEntry}
               onEntryDelete={handleDeleteEntry}
+              currentTracker={analyticsTracker}
+              onViewAllTrackers={handleShowAnalytics}
             />
           </motion.div>
         )}
@@ -760,6 +782,10 @@ function App() {
                 <TabsTrigger value="filter" className="gap-2">
                   <Calendar size={18} />
                   Filter
+                </TabsTrigger>
+                <TabsTrigger value="progress" className="gap-2">
+                  <TrendUp size={18} />
+                  Progress
                 </TabsTrigger>
               </TabsList>
 
@@ -860,6 +886,19 @@ function App() {
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="progress" className="mt-6">
+              <AnalyticsDashboard
+                entries={entries}
+                trackers={trackers}
+                onBack={() => {}} // No-op since we're in a tab
+                onEntryEdit={handleEditEntry}
+                onEntryDelete={handleDeleteEntry}
+                currentTracker={currentTracker}
+                onViewAllTrackers={handleShowAnalytics}
+                embedded
+              />
             </TabsContent>
           </Tabs>
         )}
