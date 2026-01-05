@@ -5,7 +5,7 @@
  * Shows all visualizations with time range filtering and export options.
  */
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
   ChevronLeft,
   Download,
@@ -80,6 +80,12 @@ interface AnalyticsDashboardProps {
   onBack: () => void
   onEntryEdit?: (entry: PainEntry) => void
   onEntryDelete?: (id: string) => void
+  /** When provided, shows single-tracker analytics (hides tracker selector) */
+  currentTracker?: Tracker | null
+  /** Callback to view all trackers analytics */
+  onViewAllTrackers?: () => void
+  /** When true, hides the header and back button (for embedding in tabs) */
+  embedded?: boolean
 }
 
 type ChartSection = 
@@ -97,14 +103,40 @@ export function AnalyticsDashboard({
   onBack,
   onEntryEdit,
   onEntryDelete,
+  currentTracker,
+  onViewAllTrackers,
+  embedded = false,
 }: AnalyticsDashboardProps) {
-  const [selectedTracker, setSelectedTracker] = useState<string>('all')
+  // When viewing a specific tracker, lock to that tracker
+  const isSingleTrackerMode = !!currentTracker
+  const [selectedTracker, setSelectedTracker] = useState<string>(
+    currentTracker?.id ?? 'all'
+  )
   const [timeRange, setTimeRange] = useState<number | null>(30)
   const [expandedSections, setExpandedSections] = useState<string[]>(['insights', 'trend'])
   const [drillDownEntries, setDrillDownEntries] = useState<PainEntry[] | null>(null)
   const [drillDownTitle, setDrillDownTitle] = useState<string>('')
   
   const chartsRef = useRef<HTMLDivElement>(null)
+
+  // Update selected tracker if currentTracker changes
+  useEffect(() => {
+    if (currentTracker) {
+      setSelectedTracker(currentTracker.id)
+    }
+  }, [currentTracker])
+
+  // Get tracker name for exports and titles
+  const trackerDisplayName = useMemo(() => {
+    if (isSingleTrackerMode && currentTracker) {
+      return currentTracker.name
+    }
+    if (selectedTracker !== 'all') {
+      const tracker = trackers.find(t => t.id === selectedTracker)
+      return tracker?.name ?? null
+    }
+    return null
+  }, [isSingleTrackerMode, currentTracker, selectedTracker, trackers])
 
   // Filter entries by tracker and time range
   const filteredEntries = useMemo(() => {
@@ -144,20 +176,30 @@ export function AnalyticsDashboard({
     setDrillDownEntries(dayEntries)
   }, [])
 
+  // Helper to generate filename with optional tracker name
+  const getExportFilename = useCallback((type: string, extension: string) => {
+    const date = new Date().toISOString().split('T')[0]
+    if (trackerDisplayName) {
+      const safeName = trackerDisplayName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      return `baseline-${safeName}-${type}-${date}.${extension}`
+    }
+    return `baseline-${type}-${date}.${extension}`
+  }, [trackerDisplayName])
+
   // Export handlers
   const handleExportCSV = useCallback(() => {
     const csv = exportToCSV(filteredEntries)
-    const filename = `baseline-entries-${new Date().toISOString().split('T')[0]}.csv`
+    const filename = getExportFilename('entries', 'csv')
     downloadFile(csv, filename, 'text/csv')
     toast.success('Entries exported to CSV')
-  }, [filteredEntries])
+  }, [filteredEntries, getExportFilename])
 
   const handleExportSummary = useCallback(() => {
     const csv = exportAnalyticsSummary(filteredEntries)
-    const filename = `baseline-summary-${new Date().toISOString().split('T')[0]}.csv`
+    const filename = getExportFilename('summary', 'csv')
     downloadFile(csv, filename, 'text/csv')
     toast.success('Summary exported to CSV')
-  }, [filteredEntries])
+  }, [filteredEntries, getExportFilename])
 
   const handleExportPNG = useCallback(async () => {
     if (!chartsRef.current) return
@@ -170,7 +212,7 @@ export function AnalyticsDashboard({
       })
       const dataUrl = canvas.toDataURL('image/png')
       const link = document.createElement('a')
-      link.download = `baseline-analytics-${new Date().toISOString().split('T')[0]}.png`
+      link.download = getExportFilename('analytics', 'png')
       link.href = dataUrl
       link.click()
       toast.dismiss()
@@ -180,7 +222,7 @@ export function AnalyticsDashboard({
       toast.error('Failed to export image')
       console.error('PNG export error:', error)
     }
-  }, [])
+  }, [getExportFilename])
 
   const handleExportPDF = useCallback(async () => {
     if (!chartsRef.current) return
@@ -198,7 +240,7 @@ export function AnalyticsDashboard({
         format: [canvas.width, canvas.height],
       })
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
-      pdf.save(`baseline-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
+      pdf.save(getExportFilename('analytics', 'pdf'))
       toast.dismiss()
       toast.success('Analytics exported as PDF')
     } catch (error) {
@@ -206,7 +248,7 @@ export function AnalyticsDashboard({
       toast.error('Failed to export PDF')
       console.error('PDF export error:', error)
     }
-  }, [])
+  }, [getExportFilename])
 
   const sections: { id: ChartSection; title: string; icon: typeof TrendingUp; description: string }[] = [
     { id: 'insights', title: 'Insights', icon: Lightbulb, description: 'AI-detected patterns and trends' },
@@ -219,23 +261,42 @@ export function AnalyticsDashboard({
   ]
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold">Analytics</h1>
-            <p className="text-sm text-muted-foreground">
-              {filteredEntries.length} entries analyzed
-            </p>
+    <div className={embedded ? "space-y-6" : "container max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6"}>
+      {/* Header - hidden when embedded */}
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold">
+                {isSingleTrackerMode && currentTracker 
+                  ? `${currentTracker.icon} ${currentTracker.name}` 
+                  : 'Your Progress'}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {filteredEntries.length} entries analyzed
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Export dropdown */}
-        <DropdownMenu>
+          <div className="flex items-center gap-2">
+            {/* View All Trackers link (single tracker mode only) */}
+            {isSingleTrackerMode && onViewAllTrackers && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={onViewAllTrackers}
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">All Trackers</span>
+              </Button>
+            )}
+
+            {/* Export dropdown */}
+            <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
               <Download className="h-4 w-4" />
@@ -266,29 +327,86 @@ export function AnalyticsDashboard({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
+      )}
+
+      {/* Embedded mode header with export only */}
+      {embedded && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {filteredEntries.length} entries analyzed
+          </p>
+          <div className="flex items-center gap-2">
+            {onViewAllTrackers && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={onViewAllTrackers}
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">All Trackers</span>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  All Entries (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportSummary}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Daily Summary (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Export Charts</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportPNG}>
+                  <Image className="h-4 w-4 mr-2" />
+                  Screenshot (PNG)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Report (PDF)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Tracker filter */}
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1.5 block">Tracker</label>
-              <Select value={selectedTracker} onValueChange={setSelectedTracker}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select tracker" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Trackers</SelectItem>
-                  {trackers.map(tracker => (
-                    <SelectItem key={tracker.id} value={tracker.id}>
-                      {tracker.icon} {tracker.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Tracker filter - hidden in single tracker mode */}
+            {!isSingleTrackerMode && (
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1.5 block">Tracker</label>
+                <Select value={selectedTracker} onValueChange={setSelectedTracker}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select tracker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Trackers</SelectItem>
+                    {trackers.map(tracker => (
+                      <SelectItem key={tracker.id} value={tracker.id}>
+                        {tracker.icon} {tracker.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Time range filter */}
             <div className="flex-1">
