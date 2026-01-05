@@ -693,24 +693,25 @@ function formatLocationName(location: string): string {
 }
 
 /**
- * Get color for intensity value
+ * Get color for intensity value using CSS variables for theme awareness
+ * Returns oklch values that automatically adapt to light/dark mode via CSS custom properties
  */
 export function getIntensityColor(intensity: number): string {
-  if (intensity <= 3) return 'hsl(142, 76%, 36%)' // Green
-  if (intensity <= 6) return 'hsl(45, 93%, 47%)'  // Yellow/Amber
-  return 'hsl(0, 84%, 60%)'                        // Red
+  if (intensity <= 3) return 'oklch(var(--chart-intensity-low))' // Green
+  if (intensity <= 6) return 'oklch(var(--chart-intensity-medium))'  // Yellow/Amber
+  return 'oklch(var(--chart-intensity-high))'                        // Red
 }
 
 /**
- * Get heatmap cell color based on level
+ * Get heatmap cell color based on level using CSS variables for theme awareness
  */
 export function getHeatmapColor(level: 0 | 1 | 2 | 3 | 4): string {
   const colors = [
-    'hsl(var(--muted))',           // 0 - Empty
-    'hsl(142, 76%, 80%)',          // 1 - Light
-    'hsl(142, 76%, 60%)',          // 2 - Medium-Light
-    'hsl(142, 76%, 45%)',          // 3 - Medium
-    'hsl(142, 76%, 36%)',          // 4 - Dark
+    'oklch(var(--chart-heatmap-0))',   // 0 - Empty
+    'oklch(var(--chart-heatmap-1))',   // 1 - Light
+    'oklch(var(--chart-heatmap-2))',   // 2 - Medium-Light
+    'oklch(var(--chart-heatmap-3))',   // 3 - Medium
+    'oklch(var(--chart-heatmap-4))',   // 4 - Dark
   ]
   return colors[level]
 }
