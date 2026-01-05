@@ -35,9 +35,10 @@ import { Dashboard } from '@/components/Dashboard'
 import { filterEntriesByDateRange, filterEntriesByLocation } from '@/lib/pain-utils'
 import { getTrackerConfig } from '@/types/tracker-config'
 import type { AuthUser } from '@/ports/AuthPort'
+import { AnalyticsDashboard } from '@/components/analytics'
 
 /** View states for the main app */
-type AppView = 'welcome' | 'dashboard' | 'tracker';
+type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
 
 /**
  * Validates session against Supabase server before trusting any state.
@@ -97,6 +98,7 @@ function App() {
   const [trackers, setTrackers] = useState<Tracker[]>([])
   const [trackersLoading, setTrackersLoading] = useState(true)
   const [currentView, setCurrentView] = useState<AppView>('dashboard')
+  const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
 
   // Listen for auth state changes
   useEffect(() => {
@@ -165,6 +167,22 @@ function App() {
     }
     
     loadTrackers()
+  }, [user])
+
+  // Load ALL entries for analytics view (cross-tracker)
+  const loadAllEntries = useCallback(async () => {
+    if (!user) return
+    
+    const { data, error } = await db.select<PainEntry>('tracker_entries', {
+      orderBy: { column: 'timestamp', ascending: false },
+    })
+    
+    if (error) {
+      console.error('Failed to load all entries for analytics:', error)
+      return
+    }
+    
+    setAllEntries(data ?? [])
   }, [user])
 
   // Load entries when tracker changes
@@ -439,6 +457,11 @@ function App() {
     setCurrentView('tracker')
   }, [])
 
+  const handleShowAnalytics = useCallback(async () => {
+    await loadAllEntries()
+    setCurrentView('analytics')
+  }, [loadAllEntries])
+
   // Listen for manual dev tracker creation events and update UI accordingly
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -653,6 +676,26 @@ function App() {
               onTrackerSelect={handleTrackerSelect}
               onTrackerCreated={handleTrackerCreated}
               onTrackerDeleted={handleTrackerDeleted}
+              onShowAnalytics={handleShowAnalytics}
+            />
+          </motion.div>
+        )}
+
+        {/* Analytics view */}
+        {currentView === 'analytics' && (
+          <motion.div
+            key="analytics"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <AnalyticsDashboard
+              entries={allEntries}
+              trackers={trackers}
+              onBack={() => setCurrentView('dashboard')}
+              onEntryEdit={handleEditEntry}
+              onEntryDelete={handleDeleteEntry}
             />
           </motion.div>
         )}

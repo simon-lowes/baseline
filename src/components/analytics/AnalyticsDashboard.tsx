@@ -1,0 +1,449 @@
+/**
+ * Analytics Dashboard Component
+ * 
+ * Cross-tracker analytics view with responsive accordion layout.
+ * Shows all visualizations with time range filtering and export options.
+ */
+
+import { useState, useMemo, useRef, useCallback } from 'react'
+import {
+  ChevronLeft,
+  Download,
+  FileSpreadsheet,
+  Image,
+  FileText,
+  Calendar,
+  TrendingUp,
+  MapPin,
+  Zap,
+  Hash,
+  BarChart3,
+  Lightbulb,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
+
+import type { PainEntry } from '@/types/pain-entry'
+import type { Tracker } from '@/types/tracker'
+import {
+  TIME_RANGES,
+  filterByDateRange,
+  exportToCSV,
+  exportAnalyticsSummary,
+  downloadFile,
+} from '@/lib/analytics-utils'
+import {
+  IntensityTrendLine,
+  LocationDistributionPie,
+  TriggerFrequencyBar,
+  HashtagCloud,
+  EntryHeatmapCalendar,
+  IntensityDistributionBar,
+  InsightsPanel,
+} from '@/components/analytics'
+import { PainEntryCard } from '@/components/PainEntryCard'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+
+interface AnalyticsDashboardProps {
+  entries: PainEntry[]
+  trackers: Tracker[]
+  onBack: () => void
+  onEntryEdit?: (entry: PainEntry) => void
+  onEntryDelete?: (id: string) => void
+}
+
+type ChartSection = 
+  | 'insights'
+  | 'trend'
+  | 'heatmap'
+  | 'distribution'
+  | 'locations'
+  | 'triggers'
+  | 'hashtags'
+
+export function AnalyticsDashboard({
+  entries,
+  trackers,
+  onBack,
+  onEntryEdit,
+  onEntryDelete,
+}: AnalyticsDashboardProps) {
+  const [selectedTracker, setSelectedTracker] = useState<string>('all')
+  const [timeRange, setTimeRange] = useState<number | null>(30)
+  const [expandedSections, setExpandedSections] = useState<string[]>(['insights', 'trend'])
+  const [drillDownEntries, setDrillDownEntries] = useState<PainEntry[] | null>(null)
+  const [drillDownTitle, setDrillDownTitle] = useState<string>('')
+  
+  const chartsRef = useRef<HTMLDivElement>(null)
+
+  // Filter entries by tracker and time range
+  const filteredEntries = useMemo(() => {
+    let result = entries
+    
+    // Filter by tracker
+    if (selectedTracker !== 'all') {
+      result = result.filter(e => e.tracker_id === selectedTracker)
+    }
+    
+    // Filter by time range
+    result = filterByDateRange(result, timeRange)
+    
+    return result
+  }, [entries, selectedTracker, timeRange])
+
+  // Drill-down handlers
+  const handleDayClick = useCallback((date: string, dayEntries: PainEntry[]) => {
+    if (dayEntries.length === 0) return
+    const formattedDate = new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+    setDrillDownTitle(`Entries for ${formattedDate}`)
+    setDrillDownEntries(dayEntries)
+  }, [])
+
+  const handleTrendPointClick = useCallback((date: string, dayEntries: PainEntry[]) => {
+    if (dayEntries.length === 0) return
+    const formattedDate = new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    })
+    setDrillDownTitle(`Entries for ${formattedDate}`)
+    setDrillDownEntries(dayEntries)
+  }, [])
+
+  // Export handlers
+  const handleExportCSV = useCallback(() => {
+    const csv = exportToCSV(filteredEntries)
+    const filename = `baseline-entries-${new Date().toISOString().split('T')[0]}.csv`
+    downloadFile(csv, filename, 'text/csv')
+    toast.success('Entries exported to CSV')
+  }, [filteredEntries])
+
+  const handleExportSummary = useCallback(() => {
+    const csv = exportAnalyticsSummary(filteredEntries)
+    const filename = `baseline-summary-${new Date().toISOString().split('T')[0]}.csv`
+    downloadFile(csv, filename, 'text/csv')
+    toast.success('Summary exported to CSV')
+  }, [filteredEntries])
+
+  const handleExportPNG = useCallback(async () => {
+    if (!chartsRef.current) return
+    
+    try {
+      toast.loading('Generating image...')
+      const canvas = await html2canvas(chartsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      })
+      const dataUrl = canvas.toDataURL('image/png')
+      const link = document.createElement('a')
+      link.download = `baseline-analytics-${new Date().toISOString().split('T')[0]}.png`
+      link.href = dataUrl
+      link.click()
+      toast.dismiss()
+      toast.success('Analytics exported as PNG')
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to export image')
+      console.error('PNG export error:', error)
+    }
+  }, [])
+
+  const handleExportPDF = useCallback(async () => {
+    if (!chartsRef.current) return
+    
+    try {
+      toast.loading('Generating PDF...')
+      const canvas = await html2canvas(chartsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+      pdf.save(`baseline-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
+      toast.dismiss()
+      toast.success('Analytics exported as PDF')
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to export PDF')
+      console.error('PDF export error:', error)
+    }
+  }, [])
+
+  const sections: { id: ChartSection; title: string; icon: typeof TrendingUp; description: string }[] = [
+    { id: 'insights', title: 'Insights', icon: Lightbulb, description: 'AI-detected patterns and trends' },
+    { id: 'trend', title: 'Intensity Trend', icon: TrendingUp, description: 'Track your intensity over time' },
+    { id: 'heatmap', title: 'Activity Calendar', icon: Calendar, description: 'See your tracking consistency' },
+    { id: 'distribution', title: 'Intensity Distribution', icon: BarChart3, description: 'How often each level occurs' },
+    { id: 'locations', title: 'Location Breakdown', icon: MapPin, description: 'Where you feel it most' },
+    { id: 'triggers', title: 'Top Triggers', icon: Zap, description: 'What affects you most' },
+    { id: 'hashtags', title: 'Tags', icon: Hash, description: 'Your most used hashtags' },
+  ]
+
+  return (
+    <div className="container max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold">Analytics</h1>
+            <p className="text-sm text-muted-foreground">
+              {filteredEntries.length} entries analyzed
+            </p>
+          </div>
+        </div>
+
+        {/* Export dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExportCSV}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              All Entries (CSV)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportSummary}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Daily Summary (CSV)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Export Charts</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExportPNG}>
+              <Image className="h-4 w-4 mr-2" />
+              Screenshot (PNG)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPDF}>
+              <FileText className="h-4 w-4 mr-2" />
+              Report (PDF)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Tracker filter */}
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-1.5 block">Tracker</label>
+              <Select value={selectedTracker} onValueChange={setSelectedTracker}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select tracker" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Trackers</SelectItem>
+                  {trackers.map(tracker => (
+                    <SelectItem key={tracker.id} value={tracker.id}>
+                      {tracker.icon} {tracker.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Time range filter */}
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-1.5 block">Time Range</label>
+              <Select 
+                value={timeRange?.toString() ?? 'all'} 
+                onValueChange={(v) => setTimeRange(v === 'all' ? null : parseInt(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_RANGES.map(range => (
+                    <SelectItem 
+                      key={range.label} 
+                      value={range.days?.toString() ?? 'all'}
+                    >
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* No data state */}
+      {filteredEntries.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Data Available</h3>
+            <p className="text-muted-foreground">
+              Start tracking to see your analytics and insights here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        /* Charts accordion */
+        <div ref={chartsRef}>
+          <Accordion
+            type="multiple"
+            value={expandedSections}
+            onValueChange={setExpandedSections}
+            className="space-y-4"
+          >
+            {sections.map(section => (
+              <AccordionItem
+                key={section.id}
+                value={section.id}
+                className="border rounded-lg bg-card overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="p-2 rounded-md bg-primary/10">
+                      <section.icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-medium">{section.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {section.description}
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <ChartContent
+                    section={section.id}
+                    entries={filteredEntries}
+                    timeRange={timeRange}
+                    onDayClick={handleDayClick}
+                    onTrendPointClick={handleTrendPointClick}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      )}
+
+      {/* Drill-down dialog */}
+      <Dialog open={drillDownEntries !== null} onOpenChange={() => setDrillDownEntries(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{drillDownTitle}</DialogTitle>
+            <DialogDescription>
+              {drillDownEntries?.length ?? 0} {(drillDownEntries?.length ?? 0) === 1 ? 'entry' : 'entries'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {drillDownEntries?.map(entry => (
+              <PainEntryCard
+                key={entry.id}
+                entry={entry}
+                onEdit={(e) => {
+                  setDrillDownEntries(null)
+                  onEntryEdit?.(e)
+                }}
+                onDelete={(id) => {
+                  setDrillDownEntries(null)
+                  onEntryDelete?.(id)
+                }}
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+interface ChartContentProps {
+  section: ChartSection
+  entries: PainEntry[]
+  timeRange: number | null
+  onDayClick: (date: string, entries: PainEntry[]) => void
+  onTrendPointClick: (date: string, entries: PainEntry[]) => void
+}
+
+function ChartContent({
+  section,
+  entries,
+  timeRange,
+  onDayClick,
+  onTrendPointClick,
+}: ChartContentProps) {
+  switch (section) {
+    case 'insights':
+      return <InsightsPanel entries={entries} />
+    case 'trend':
+      return (
+        <IntensityTrendLine
+          entries={entries}
+          days={timeRange}
+          onPointClick={onTrendPointClick}
+        />
+      )
+    case 'heatmap':
+      return (
+        <EntryHeatmapCalendar
+          entries={entries}
+          days={timeRange ?? 365}
+          onDayClick={onDayClick}
+        />
+      )
+    case 'distribution':
+      return <IntensityDistributionBar entries={entries} />
+    case 'locations':
+      return <LocationDistributionPie entries={entries} />
+    case 'triggers':
+      return <TriggerFrequencyBar entries={entries} />
+    case 'hashtags':
+      return <HashtagCloud entries={entries} />
+    default:
+      return null
+  }
+}

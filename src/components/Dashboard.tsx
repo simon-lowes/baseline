@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback, type FocusEvent, type TouchEvent } from 'react';
-import { Activity, Plus, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,7 @@ interface DashboardProps {
   onTrackerSelect: (tracker: Tracker) => void;
   onTrackerCreated: (tracker: Tracker) => void;
   onTrackerDeleted: (trackerId: string) => void;
+  onShowAnalytics?: () => void;
 }
 
 export function Dashboard({ 
@@ -58,6 +59,7 @@ export function Dashboard({
   onTrackerSelect,
   onTrackerCreated,
   onTrackerDeleted,
+  onShowAnalytics,
 }: Readonly<DashboardProps>) {
   const [stats, setStats] = useState<Record<string, TrackerStats>>({});
   const [loadingStats, setLoadingStats] = useState(true);
@@ -792,13 +794,28 @@ export function Dashboard({
     <div className="py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-semibold text-foreground">
-            Your Trackers
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Select a tracker to view or add entries
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="text-center sm:text-left">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Your Trackers
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              Select a tracker to view or add entries
+            </p>
+          </div>
+          
+          {/* Analytics button - only show when there are trackers with entries */}
+          {trackers.length > 0 && onShowAnalytics && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onShowAnalytics}
+              className="gap-2 self-center sm:self-auto"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </Button>
+          )}
         </div>
 
         {/* Tracker cards grid */}
