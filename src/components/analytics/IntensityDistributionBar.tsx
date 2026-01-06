@@ -22,17 +22,30 @@ interface IntensityDistributionBarProps {
   height?: number
 }
 
-const chartConfig = {
-  count: {
-    label: 'Count',
-    color: 'hsl(var(--primary))',
-  },
-} satisfies ChartConfig
+/**
+ * Get theme-aware chart colors using getComputedStyle
+ */
+function getChartColors() {
+  const styles = getComputedStyle(document.documentElement)
+  return {
+    primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 200)',
+  }
+}
 
 export function IntensityDistributionBar({
   entries,
   height = 200,
 }: IntensityDistributionBarProps) {
+  // Get resolved theme colors
+  const chartColors = useMemo(() => getChartColors(), [])
+  
+  const chartConfig = useMemo(() => ({
+    count: {
+      label: 'Count',
+      color: chartColors.primary,
+    },
+  } satisfies ChartConfig), [chartColors])
+
   const distribution = useMemo(() => {
     return getIntensityDistribution(entries)
   }, [entries])

@@ -28,16 +28,17 @@ interface IntensityTrendLineProps {
   height?: number
 }
 
-const chartConfig = {
-  intensity: {
-    label: 'Avg Intensity',
-    color: 'hsl(var(--primary))',
-  },
-  movingAvg: {
-    label: '7-day Average',
-    color: 'hsl(var(--muted-foreground))',
-  },
-} satisfies ChartConfig
+/**
+ * Get theme-aware chart colors using getComputedStyle
+ */
+function getChartColors() {
+  const styles = getComputedStyle(document.documentElement)
+  return {
+    primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 200)',
+    mutedForeground: styles.getPropertyValue('--muted-foreground').trim() || 'oklch(0.50 0.01 260)',
+    background: styles.getPropertyValue('--background').trim() || 'oklch(0.97 0.01 80)',
+  }
+}
 
 export function IntensityTrendLine({
   entries,
@@ -48,6 +49,20 @@ export function IntensityTrendLine({
 }: IntensityTrendLineProps) {
   const [showMA, setShowMA] = useState(initialShowMA)
   
+  // Get resolved theme colors
+  const chartColors = useMemo(() => getChartColors(), [])
+  
+  const chartConfig = useMemo(() => ({
+    intensity: {
+      label: 'Avg Intensity',
+      color: chartColors.primary,
+    },
+    movingAvg: {
+      label: '7-day Average',
+      color: chartColors.mutedForeground,
+    },
+  } satisfies ChartConfig), [chartColors])
+
   const { trendData, movingAvgData, avgIntensity } = useMemo(() => {
     const trend = getIntensityTrend(entries, days)
     const ma = getMovingAverage(trend, 7)
@@ -150,7 +165,7 @@ export function IntensityTrendLine({
           />
           <ReferenceLine
             y={avgIntensity}
-            stroke="hsl(var(--muted-foreground))"
+            stroke={chartColors.mutedForeground}
             strokeDasharray="5 5"
             strokeOpacity={0.5}
           />
@@ -170,7 +185,7 @@ export function IntensityTrendLine({
             stroke="var(--color-intensity)"
             strokeWidth={2}
             dot={{ fill: 'var(--color-intensity)', strokeWidth: 0, r: 4 }}
-            activeDot={{ r: 6, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+            activeDot={{ r: 6, strokeWidth: 2, stroke: chartColors.background }}
           />
         </LineChart>
       </ChartContainer>
