@@ -1,4 +1,5 @@
-import { useState, KeyboardEvent } from 'react'
+import { useState, useMemo, useEffect, KeyboardEvent } from 'react'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -27,8 +28,20 @@ interface PainEntryFormProps {
 export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readonly<PainEntryFormProps>) {
   const config = getTrackerConfig(tracker?.preset_id as TrackerPresetId | null, tracker?.generated_config)
   const isEditing = !!editEntry
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const [intensity, setIntensity] = useState([editEntry?.intensity ?? 5])
+  
+  // Compute intensity color reactively when theme changes
+  const intensityColor = useMemo(() => {
+    if (!mounted) return config.getIntensityColor(intensity[0])
+    return config.getIntensityColor(intensity[0])
+  }, [config, intensity, resolvedTheme, mounted])
   const [selectedLocations, setSelectedLocations] = useState<string[]>(editEntry?.locations ?? [])
   const [notes, setNotes] = useState(editEntry?.notes ?? '')
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>(editEntry?.triggers ?? [])
@@ -108,7 +121,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
               step={1}
               className="w-full"
               style={{
-                ['--slider-color' as string]: config.getIntensityColor(intensity[0]),
+                ['--slider-color' as string]: intensityColor,
               }}
             />
           </div>
