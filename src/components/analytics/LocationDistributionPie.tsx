@@ -27,18 +27,21 @@ interface LocationDistributionPieProps {
  * Get theme-aware color palette for pie slices
  * Uses getComputedStyle to read resolved oklch values at runtime
  */
-function getPieColors(): string[] {
+function getPieColors(): { colors: string[]; background: string } {
   const styles = getComputedStyle(document.documentElement)
-  return [
-    styles.getPropertyValue('--primary').trim(),
-    styles.getPropertyValue('--chart-2').trim(),
-    styles.getPropertyValue('--chart-3').trim(),
-    styles.getPropertyValue('--chart-4').trim(),
-    styles.getPropertyValue('--chart-5').trim(),
-    styles.getPropertyValue('--chart-1').trim(),
-    styles.getPropertyValue('--accent').trim(),
-    styles.getPropertyValue('--muted-foreground').trim(),
-  ]
+  return {
+    colors: [
+      styles.getPropertyValue('--primary').trim(),
+      styles.getPropertyValue('--chart-2').trim(),
+      styles.getPropertyValue('--chart-3').trim(),
+      styles.getPropertyValue('--chart-4').trim(),
+      styles.getPropertyValue('--chart-5').trim(),
+      styles.getPropertyValue('--chart-1').trim(),
+      styles.getPropertyValue('--accent').trim(),
+      styles.getPropertyValue('--muted-foreground').trim(),
+    ],
+    background: styles.getPropertyValue('--background').trim(),
+  }
 }
 
 export function LocationDistributionPie({
@@ -47,9 +50,10 @@ export function LocationDistributionPie({
   maxSlices = 8,
   height = 300,
 }: LocationDistributionPieProps) {
-  const { distribution, chartConfig, colors } = useMemo(() => {
+  const { distribution, chartConfig, colors, backgroundColor } = useMemo(() => {
     const dist = getLocationDistribution(entries)
-    const pieColors = getPieColors()
+    const pieColorData = getPieColors()
+    const pieColors = pieColorData.colors
     
     // Limit slices and group remainder as "Other"
     let processedDist: CategoryCount[]
@@ -81,7 +85,12 @@ export function LocationDistributionPie({
       }
     })
     
-    return { distribution: processedDist, chartConfig: config, colors: pieColors }
+    return { 
+      distribution: processedDist, 
+      chartConfig: config, 
+      colors: pieColors,
+      backgroundColor: pieColorData.background,
+    }
   }, [entries, maxSlices])
 
   if (distribution.length === 0) {
@@ -136,7 +145,7 @@ export function LocationDistributionPie({
             <Cell
               key={`cell-${index}`}
               fill={entry.fill}
-              stroke="hsl(var(--background))"
+              stroke={backgroundColor}
               strokeWidth={2}
             />
           ))}
