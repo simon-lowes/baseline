@@ -52,6 +52,48 @@ const colorThemes = [
     accent: 'bg-pink-500',
     accentStyle: 'background-color: oklch(0.60 0.18 350);',
   },
+  {
+    id: 'violet',
+    name: 'Violet',
+    description: 'Creative & Modern',
+    accent: 'bg-violet-500',
+    accentStyle: 'background-color: oklch(0.55 0.25 293);',
+  },
+  {
+    id: 'amber',
+    name: 'Amber',
+    description: 'Warm & Energetic',
+    accent: 'bg-amber-500',
+    accentStyle: 'background-color: oklch(0.77 0.19 84);',
+  },
+  {
+    id: 'indigo',
+    name: 'Indigo',
+    description: 'Professional & Bold',
+    accent: 'bg-indigo-500',
+    accentStyle: 'background-color: oklch(0.51 0.26 277);',
+  },
+  {
+    id: 'cyan',
+    name: 'Cyan',
+    description: 'Fresh & Techy',
+    accent: 'bg-cyan-500',
+    accentStyle: 'background-color: oklch(0.72 0.14 215);',
+  },
+  {
+    id: 'orange',
+    name: 'Orange',
+    description: 'Bold & Playful',
+    accent: 'bg-orange-500',
+    accentStyle: 'background-color: oklch(0.70 0.21 48);',
+  },
+  {
+    id: 'plum',
+    name: 'Plum',
+    description: 'Elegant & Rich',
+    accent: 'bg-purple-800',
+    accentStyle: 'background-color: oklch(0.50 0.22 320);',
+  },
 ] as const
 
 type ColorTheme = typeof colorThemes[number]['id']
@@ -198,31 +240,56 @@ export function ColorThemePicker() {
             {triggerButton}
           </DropdownMenuTrigger>
         )}
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuLabel>Color Theme</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {colorThemes.map((t) => (
-            <DropdownMenuItem
-              key={t.id}
-              onClick={() => handleColorChange(t.id)}
-              className="flex items-center justify-between cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                {/* Color preview dot */}
-                <div 
-                  className="w-4 h-4 rounded-full border border-border"
-                  style={{ backgroundColor: t.accentStyle.match(/oklch\([^)]+\)/)?.[0] || '' }}
-                />
-                <div>
-                  <div className="font-medium text-sm">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">{t.description}</div>
+        <DropdownMenuContent align="end" className="w-auto p-2">
+          <DropdownMenuLabel className="pb-2">Color Theme</DropdownMenuLabel>
+          <DropdownMenuSeparator className="mb-2" />
+          {/* Mobile: scrollable list, Desktop: 3x3 grid */}
+          <div className="md:hidden max-h-64 overflow-y-auto space-y-1">
+            {colorThemes.map((t) => (
+              <DropdownMenuItem
+                key={t.id}
+                onClick={() => handleColorChange(t.id)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-4 h-4 rounded-full border border-border shrink-0"
+                    style={{ backgroundColor: t.accentStyle.match(/oklch\([^)]+\)/)?.[0] || '' }}
+                  />
+                  <div>
+                    <div className="font-medium text-sm">{t.name}</div>
+                    <div className="text-xs text-muted-foreground">{t.description}</div>
+                  </div>
                 </div>
-              </div>
-              {currentColor === t.id && (
-                <Check className="h-4 w-4 text-primary" />
-              )}
-            </DropdownMenuItem>
-          ))}
+                {currentColor === t.id && (
+                  <Check className="h-4 w-4 text-primary ml-2" />
+                )}
+              </DropdownMenuItem>
+            ))}
+          </div>
+          {/* Desktop: 3x3 grid */}
+          <div className="hidden md:grid grid-cols-3 gap-1">
+            {colorThemes.map((t) => (
+              <DropdownMenuItem
+                key={t.id}
+                onClick={() => handleColorChange(t.id)}
+                className="flex flex-col items-center gap-1.5 cursor-pointer p-3 rounded-md min-w-[80px]"
+              >
+                <div className="relative">
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-border"
+                    style={{ backgroundColor: t.accentStyle.match(/oklch\([^)]+\)/)?.[0] || '' }}
+                  />
+                  {currentColor === t.id && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white drop-shadow-md" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-medium">{t.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </TooltipProvider>
