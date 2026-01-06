@@ -22,7 +22,17 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider
       attribute="class"
       defaultTheme={getInitialTheme()}
-      themes={['zinc-light', 'zinc-dark', 'nature-light', 'nature-dark', 'rose-light', 'rose-dark']}
+      themes={[
+        'zinc-light', 'zinc-dark',
+        'nature-light', 'nature-dark',
+        'rose-light', 'rose-dark',
+        'violet-light', 'violet-dark',
+        'amber-light', 'amber-dark',
+        'indigo-light', 'indigo-dark',
+        'cyan-light', 'cyan-dark',
+        'orange-light', 'orange-dark',
+        'plum-light', 'plum-dark',
+      ]}
       enableColorScheme={false}
       storageKey="baseline-theme"
     >
