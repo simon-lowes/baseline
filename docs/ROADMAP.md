@@ -101,10 +101,15 @@ Provide beautiful, insightful visualizations of tracked data with multiple chart
 - ~~Cross-tracker analytics dashboard with accordion layout~~ ✅
 - ~~Interactive drill-down from charts to entries~~ ✅
 - ~~Responsive mobile-first design~~ ✅
+- ~~Theme-reactive chart colors~~ ✅ (v3.0.1)
+  - 9 color themes with light/dark variants (Zinc, Nature, Rose, Violet, Amber, Indigo, Cyan, Orange, Plum)
+  - Heatmap calendar and trigger bar charts update instantly on theme change
+  - Centralized `useThemeAwareColors` hook for reactive CSS variable access
 
 ### Implementation Details
 
 - Analytics utilities in `src/lib/analytics-utils.ts`
+- Theme-aware colors hook in `src/hooks/use-theme-colors.ts`
 - Chart components in `src/components/analytics/`:
   - `IntensityTrendLine.tsx` - Line chart with moving average
   - `LocationDistributionPie.tsx` - Donut chart for body locations
@@ -178,7 +183,7 @@ Before major feature work, consider:
 | 1. Foundation Refactor | Medium | Critical  | 🔴 P0    | ✅ DONE |
 | 2. Preset Templates    | Medium | High      | 🟠 P1    | ✅ DONE |
 | 3. Custom Builder      | High   | High      | 🟠 P1    | ⚠️ 90%  |
-| 4. Visual Analytics    | High   | Very High | 🟠 P1    | ⚠️ 30%  |
+| 4. Visual Analytics    | High   | Very High | 🟠 P1    | ✅ DONE |
 | 5. Correlations        | Medium | Medium    | 🟡 P2    | ❌      |
 | 6. Smart Reminders     | Medium | Medium    | 🟡 P2    | ❌      |
 | 7. Export & Sharing    | Low    | High      | 🟢 P3    | ❌      |
@@ -188,9 +193,34 @@ Before major feature work, consider:
 
 ## Status
 
-- **Current Version**: v2.2 (Baseline with Custom Trackers + Disambiguation)
-- **Next Milestone**: Complete Phase 4 Visual Analytics
-- **Recent Addition**: Ambiguity detection & disambiguation for custom tracker names ✅
+- **Current Version**: v3.0.1 (Baseline with Visual Analytics + Theme Reactivity)
+- **Next Milestone**: Complete Phase 3 Custom Builder (field reordering, full field type support)
+- **Recent Additions**:
+  - 9 color themes with light/dark variants ✅
+  - Theme-reactive chart colors (heatmap calendar, trigger bars) ✅
+  - Centralized `useThemeAwareColors` hook ✅
+
+---
+
+## Future Considerations
+
+### Theme System (v3.x)
+
+- Consider extending theme reactivity to other chart types (IntensityTrendLine, LocationDistributionPie, IntensityDistributionBar)
+- Add user-customizable accent color picker (beyond the 9 presets)
+- Persist theme preference to user profile (currently localStorage only)
+- System theme auto-detection with manual override option
+
+### Performance (v3.x)
+
+- The `useThemeAwareColors` hook uses a 50ms delay to ensure CSS variables are read after DOM updates; this could be optimized with `MutationObserver` or `requestAnimationFrame`
+- Chart remounting via `key={resolvedTheme}` works but causes full re-render; consider more granular color updates for complex charts
+
+### Accessibility (v3.x)
+
+- Ensure all 9 themes meet WCAG 2.1 AA contrast requirements
+- Add high-contrast theme option for users with visual impairments
+- Test heatmap color scales for colorblind accessibility (consider adding patterns/textures)
 
 ---
 
