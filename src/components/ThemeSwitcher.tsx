@@ -1,9 +1,12 @@
 /**
  * ThemeSwitcher Component
  * 
- * Dropdown menu for switching between color themes (Zinc, Nature, Rose)
- * with a separate dark mode toggle. Persists selection in localStorage via next-themes.
- * Includes first-visit onboarding animation (pulse + tooltip).
+ * Consists of two parts:
+ * 1. Dark/Light mode toggle button (immediately visible)
+ * 2. Color theme dropdown (Zinc, Nature, Rose)
+ * 
+ * Best practice: Separate appearance mode (dark/light) from color palette choice.
+ * Includes first-visit onboarding animation on the color picker.
  */
 
 import { useTheme } from 'next-themes'
@@ -66,7 +69,70 @@ function buildTheme(color: ColorTheme, isDark: boolean): string {
   return `${color}-${isDark ? 'dark' : 'light'}`
 }
 
-export function ThemeSwitcher() {
+/**
+ * DarkModeToggle - Simple button to toggle between light and dark mode
+ * Shows Sun icon in dark mode (click to switch to light)
+ * Shows Moon icon in light mode (click to switch to dark)
+ */
+export function DarkModeToggle() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  const { color: currentColor, isDark } = parseTheme(theme)
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const toggleDarkMode = () => {
+    setTheme(buildTheme(currentColor, !isDark))
+  }
+
+  if (!mounted) {
+    // Return placeholder to avoid layout shift
+    return (
+      <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
+        <Sun className="h-4 w-4" />
+        <span className="sr-only">Toggle dark mode</span>
+      </Button>
+    )
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-9 w-9"
+            onClick={toggleDarkMode}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? (
+              <Sun className="h-4 w-4 transition-transform duration-200" />
+            ) : (
+              <Moon className="h-4 w-4 transition-transform duration-200" />
+            )}
+            <span className="sr-only">
+              {isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            </span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          {isDark ? 'Light mode' : 'Dark mode'}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+/**
+ * ColorThemePicker - Dropdown for selecting color palette (Zinc, Nature, Rose)
+ * Includes first-visit onboarding animation
+ */
+export function ColorThemePicker() {
   const { theme, setTheme } = useTheme()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -98,10 +164,6 @@ export function ThemeSwitcher() {
     setTheme(buildTheme(newColor, isDark))
   }
 
-  const toggleDarkMode = () => {
-    setTheme(buildTheme(currentColor, !isDark))
-  }
-
   const triggerButton = (
     <Button 
       variant="ghost" 
@@ -109,7 +171,7 @@ export function ThemeSwitcher() {
       className={`h-9 w-9 relative ${showOnboarding ? 'animate-pulse' : ''}`}
     >
       <Palette className="h-4 w-4" />
-      <span className="sr-only">Switch theme</span>
+      <span className="sr-only">Choose color theme</span>
       {/* Pulse ring for onboarding */}
       {showOnboarding && (
         <span className="absolute inset-0 rounded-md ring-2 ring-primary/50 animate-ping" />
@@ -161,27 +223,21 @@ export function ThemeSwitcher() {
               )}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={toggleDarkMode}
-            className="flex items-center justify-between cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              {isDark ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-              <span className="font-medium text-sm">
-                {isDark ? 'Dark Mode' : 'Light Mode'}
-              </span>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {isDark ? 'On' : 'Off'}
-            </span>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </TooltipProvider>
+  )
+}
+
+/**
+ * ThemeSwitcher - Combined component with both dark mode toggle and color picker
+ * Use this for a complete theme control in a single location
+ */
+export function ThemeSwitcher() {
+  return (
+    <div className="flex items-center gap-1">
+      <DarkModeToggle />
+      <ColorThemePicker />
+    </div>
   )
 }
