@@ -5,7 +5,8 @@
  * Supports horizontal and vertical layouts with interactive tooltips.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   BarChart,
   Bar,
@@ -43,9 +44,18 @@ export function TriggerFrequencyBar({
   height = 300,
 }: TriggerFrequencyBarProps) {
   const isMobile = useIsMobile()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   
-  // Get resolved theme colors
-  const chartColors = useMemo(() => getChartColors(), [])
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  // Get resolved theme colors - recompute when theme changes
+  const chartColors = useMemo(() => {
+    if (!mounted) return getChartColors()
+    return getChartColors()
+  }, [resolvedTheme, mounted])
   
   const chartConfig = useMemo(() => ({
     count: {

@@ -5,7 +5,8 @@
  * Supports interactive tooltips and click filtering.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   PieChart,
   Pie,
@@ -50,7 +51,19 @@ export function LocationDistributionPie({
   maxSlices = 8,
   height = 300,
 }: LocationDistributionPieProps) {
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  // Recompute colors when theme changes
   const { distribution, chartConfig, colors, backgroundColor } = useMemo(() => {
+    // Force recomputation on theme change
+    if (!mounted) {
+      // Initial render - still compute colors
+    }
     const dist = getLocationDistribution(entries)
     const pieColorData = getPieColors()
     const pieColors = pieColorData.colors
@@ -91,7 +104,7 @@ export function LocationDistributionPie({
       colors: pieColors,
       backgroundColor: pieColorData.background,
     }
-  }, [entries, maxSlices])
+  }, [entries, maxSlices, resolvedTheme, mounted])
 
   if (distribution.length === 0) {
     return (

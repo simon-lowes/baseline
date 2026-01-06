@@ -4,7 +4,8 @@
  * Shows histogram of intensity values (1-10).
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   BarChart,
   Bar,
@@ -36,8 +37,18 @@ export function IntensityDistributionBar({
   entries,
   height = 200,
 }: IntensityDistributionBarProps) {
-  // Get resolved theme colors
-  const chartColors = useMemo(() => getChartColors(), [])
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  // Get resolved theme colors - recompute when theme changes
+  const chartColors = useMemo(() => {
+    if (!mounted) return getChartColors()
+    return getChartColors()
+  }, [resolvedTheme, mounted])
   
   const chartConfig = useMemo(() => ({
     count: {
@@ -58,12 +69,12 @@ export function IntensityDistributionBar({
     )
   }
 
-  const chartData = distribution.map(item => ({
+  const chartData = useMemo(() => distribution.map(item => ({
     intensity: item.name,
     count: item.count,
     percentage: item.percentage,
     fill: getIntensityColor(parseInt(item.name)),
-  }))
+  })), [distribution, resolvedTheme, mounted])
 
   return (
     <ChartContainer config={chartConfig} className="w-full" style={{ height }}>

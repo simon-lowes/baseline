@@ -5,7 +5,8 @@
  * Supports interactive tooltips and click-through to specific entries.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   LineChart,
   Line,
@@ -48,9 +49,18 @@ export function IntensityTrendLine({
   height = 300,
 }: IntensityTrendLineProps) {
   const [showMA, setShowMA] = useState(initialShowMA)
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   
-  // Get resolved theme colors
-  const chartColors = useMemo(() => getChartColors(), [])
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  // Get resolved theme colors - recompute when theme changes
+  const chartColors = useMemo(() => {
+    if (!mounted) return getChartColors()
+    return getChartColors()
+  }, [resolvedTheme, mounted])
   
   const chartConfig = useMemo(() => ({
     intensity: {

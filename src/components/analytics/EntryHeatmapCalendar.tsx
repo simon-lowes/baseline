@@ -5,7 +5,8 @@
  * Uses react-activity-calendar for consistent, accessible display.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import { generateHeatmapData, getHeatmapColor, type HeatmapDay } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,12 @@ export function EntryHeatmapCalendar({
   days = 365,
 }: EntryHeatmapCalendarProps) {
   const isMobile = useIsMobile()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // Use fewer days on mobile for better display
   const displayDays = isMobile ? Math.min(days, 180) : days
@@ -159,7 +166,7 @@ export function EntryHeatmapCalendar({
 
             {/* Week columns */}
             <TooltipProvider delayDuration={100}>
-              <div className="flex gap-[2px]">
+              <div className="flex gap-[2px]" key={`weeks-${resolvedTheme}-${mounted}`}>
                 {weeks.map((week, weekIndex) => (
                   <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {week.map((day, dayIndex) => (
@@ -186,7 +193,7 @@ export function EntryHeatmapCalendar({
           {/* Legend */}
           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
             <span>Less</span>
-            <div className="flex gap-[2px]">
+            <div className="flex gap-[2px]" key={`legend-${resolvedTheme}-${mounted}`}>
               {[0, 1, 2, 3, 4].map(level => (
                 <div
                   key={level}
