@@ -5,9 +5,8 @@
  * Uses react-activity-calendar for consistent, accessible display.
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
-import { generateHeatmapData, getHeatmapColor, type HeatmapDay } from '@/lib/analytics-utils'
+import { useMemo } from 'react'
+import { generateHeatmapData, type HeatmapDay } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
 import { cn } from '@/lib/utils'
 import {
@@ -17,6 +16,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useThemeAwareColors } from '@/hooks/use-theme-colors'
 
 interface EntryHeatmapCalendarProps {
   entries: PainEntry[]
@@ -30,12 +30,7 @@ export function EntryHeatmapCalendar({
   days = 365,
 }: EntryHeatmapCalendarProps) {
   const isMobile = useIsMobile()
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const { heatmapColors, mounted } = useThemeAwareColors()
   
   // Use fewer days on mobile for better display
   const displayDays = isMobile ? Math.min(days, 180) : days
@@ -111,18 +106,6 @@ export function EntryHeatmapCalendar({
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const cellSize = isMobile ? 10 : 12
   const gap = 2
-
-  // Compute heatmap colors reactively when theme changes
-  const heatmapColors = useMemo(() => {
-    if (!mounted) return { 0: '', 1: '', 2: '', 3: '', 4: '' }
-    return {
-      0: getHeatmapColor(0),
-      1: getHeatmapColor(1),
-      2: getHeatmapColor(2),
-      3: getHeatmapColor(3),
-      4: getHeatmapColor(4),
-    }
-  }, [resolvedTheme, mounted])
 
   return (
     <div className="space-y-4">

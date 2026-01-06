@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import {
   ChevronLeft,
   Download,
@@ -107,6 +108,9 @@ export function AnalyticsDashboard({
   onViewAllTrackers,
   embedded = false,
 }: AnalyticsDashboardProps) {
+  // Theme tracking for forcing chart remounts on theme change
+  const { resolvedTheme } = useTheme()
+  
   // When viewing a specific tracker, lock to that tracker
   const isSingleTrackerMode = !!currentTracker
   const [selectedTracker, setSelectedTracker] = useState<string>(
@@ -480,6 +484,7 @@ export function AnalyticsDashboard({
                     timeRange={timeRange}
                     onDayClick={handleDayClick}
                     onTrendPointClick={handleTrendPointClick}
+                    themeKey={resolvedTheme}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -525,6 +530,8 @@ interface ChartContentProps {
   timeRange: number | null
   onDayClick: (date: string, entries: PainEntry[]) => void
   onTrendPointClick: (date: string, entries: PainEntry[]) => void
+  /** Theme key to force component remount when theme changes */
+  themeKey: string | undefined
 }
 
 function ChartContent({
@@ -533,6 +540,7 @@ function ChartContent({
   timeRange,
   onDayClick,
   onTrendPointClick,
+  themeKey,
 }: ChartContentProps) {
   switch (section) {
     case 'insights':
@@ -546,8 +554,10 @@ function ChartContent({
         />
       )
     case 'heatmap':
+      // Key forces remount when theme changes, ensuring fresh CSS variable reads
       return (
         <EntryHeatmapCalendar
+          key={themeKey}
           entries={entries}
           days={timeRange ?? 365}
           onDayClick={onDayClick}
@@ -558,7 +568,8 @@ function ChartContent({
     case 'locations':
       return <LocationDistributionPie entries={entries} />
     case 'triggers':
-      return <TriggerFrequencyBar entries={entries} />
+      // Key forces remount when theme changes, ensuring fresh CSS variable reads
+      return <TriggerFrequencyBar key={themeKey} entries={entries} />
     case 'hashtags':
       return <HashtagCloud entries={entries} />
     default:

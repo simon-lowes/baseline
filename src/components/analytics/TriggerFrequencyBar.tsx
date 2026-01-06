@@ -5,8 +5,7 @@
  * Supports horizontal and vertical layouts with interactive tooltips.
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
+import { useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -19,22 +18,13 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { getTriggerFrequency } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useThemeAwareColors } from '@/hooks/use-theme-colors'
 
 interface TriggerFrequencyBarProps {
   entries: PainEntry[]
   onBarClick?: (trigger: string) => void
   maxBars?: number
   height?: number
-}
-
-/**
- * Get theme-aware chart colors using getComputedStyle
- */
-function getChartColors() {
-  const styles = getComputedStyle(document.documentElement)
-  return {
-    primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 200)',
-  }
 }
 
 export function TriggerFrequencyBar({
@@ -44,25 +34,14 @@ export function TriggerFrequencyBar({
   height = 300,
 }: TriggerFrequencyBarProps) {
   const isMobile = useIsMobile()
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
-  // Get resolved theme colors - recompute when theme changes
-  const chartColors = useMemo(() => {
-    if (!mounted) return getChartColors()
-    return getChartColors()
-  }, [resolvedTheme, mounted])
+  const { chartColors } = useThemeAwareColors()
   
   const chartConfig = useMemo(() => ({
     count: {
       label: 'Count',
       color: chartColors.primary,
     },
-  } satisfies ChartConfig), [chartColors])
+  } satisfies ChartConfig), [chartColors.primary])
   
   const distribution = useMemo(() => {
     const dist = getTriggerFrequency(entries)
