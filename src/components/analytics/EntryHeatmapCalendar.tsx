@@ -112,6 +112,18 @@ export function EntryHeatmapCalendar({
   const cellSize = isMobile ? 10 : 12
   const gap = 2
 
+  // Compute heatmap colors reactively when theme changes
+  const heatmapColors = useMemo(() => {
+    if (!mounted) return { 0: '', 1: '', 2: '', 3: '', 4: '' }
+    return {
+      0: getHeatmapColor(0),
+      1: getHeatmapColor(1),
+      2: getHeatmapColor(2),
+      3: getHeatmapColor(3),
+      4: getHeatmapColor(4),
+    }
+  }, [resolvedTheme, mounted])
+
   return (
     <div className="space-y-4">
       {/* Stats summary */}
@@ -166,7 +178,7 @@ export function EntryHeatmapCalendar({
 
             {/* Week columns */}
             <TooltipProvider delayDuration={100}>
-              <div className="flex gap-[2px]" key={`weeks-${resolvedTheme}-${mounted}`}>
+              <div className="flex gap-[2px]">
                 {weeks.map((week, weekIndex) => (
                   <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {week.map((day, dayIndex) => (
@@ -174,6 +186,7 @@ export function EntryHeatmapCalendar({
                         key={`${weekIndex}-${dayIndex}`}
                         day={day}
                         size={cellSize}
+                        color={heatmapColors[day.level]}
                         onClick={() => {
                           if (day.date && onDayClick) {
                             const dayEntries = entries.filter(
@@ -193,15 +206,15 @@ export function EntryHeatmapCalendar({
           {/* Legend */}
           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
             <span>Less</span>
-            <div className="flex gap-[2px]" key={`legend-${resolvedTheme}-${mounted}`}>
-              {[0, 1, 2, 3, 4].map(level => (
+            <div className="flex gap-[2px]">
+              {([0, 1, 2, 3, 4] as const).map(level => (
                 <div
                   key={level}
                   className="rounded-sm"
                   style={{
                     width: cellSize,
                     height: cellSize,
-                    backgroundColor: getHeatmapColor(level as 0 | 1 | 2 | 3 | 4),
+                    backgroundColor: heatmapColors[level],
                   }}
                 />
               ))}
@@ -217,10 +230,11 @@ export function EntryHeatmapCalendar({
 interface DayCellProps {
   day: HeatmapDay
   size: number
+  color: string
   onClick: () => void
 }
 
-function DayCell({ day, size, onClick }: DayCellProps) {
+function DayCell({ day, size, color, onClick }: DayCellProps) {
   if (!day.date) {
     return (
       <div
@@ -251,7 +265,7 @@ function DayCell({ day, size, onClick }: DayCellProps) {
           style={{
             width: size,
             height: size,
-            backgroundColor: getHeatmapColor(day.level),
+            backgroundColor: color,
           }}
           onClick={onClick}
           disabled={day.count === 0}

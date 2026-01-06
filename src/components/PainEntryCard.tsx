@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,21 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
   const [showDetails, setShowDetails] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const isMobile = useIsMobile()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const config = getTrackerConfig(tracker?.preset_id, tracker?.generated_config)
-  const intensityColor = config.getIntensityColor(entry.intensity)
+  
+  // Compute intensity color reactively when theme changes
+  const intensityColor = useMemo(() => {
+    if (!mounted) return config.getIntensityColor(entry.intensity)
+    return config.getIntensityColor(entry.intensity)
+  }, [config, entry.intensity, resolvedTheme, mounted])
+  
   const intensityLabel = config.getIntensityLabel(entry.intensity)
 
   const handleDelete = () => {
