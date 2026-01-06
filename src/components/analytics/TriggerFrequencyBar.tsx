@@ -34,8 +34,11 @@ export function TriggerFrequencyBar({
   height = 300,
 }: TriggerFrequencyBarProps) {
   const isMobile = useIsMobile()
+  // Get theme-aware colors that update reactively when theme changes
   const { chartColors } = useThemeAwareColors()
   
+  // Chart config uses the reactive primary color from the hook
+  // The color is read fresh on each render/remount
   const chartConfig = useMemo(() => ({
     count: {
       label: 'Count',
@@ -106,7 +109,7 @@ export function TriggerFrequencyBar({
             {chartData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill="var(--color-count)"
+                fill={chartColors.primary}
                 fillOpacity={0.8 + (index * 0.02)}
               />
             ))}
@@ -158,7 +161,7 @@ export function TriggerFrequencyBar({
           {chartData.map((entry, index) => (
             <Cell
               key={`cell-${index}`}
-              fill="var(--color-count)"
+              fill={chartColors.primary}
               fillOpacity={0.8 + (index * 0.02)}
             />
           ))}
