@@ -607,9 +607,10 @@ function SidebarMenuSkeleton({
   showIcon?: boolean
 }) {
   // Random width between 50 to 90%.
+  // Note: Math.random() is appropriate here as this is purely cosmetic (skeleton loading animation)
+  // and does not require cryptographically secure randomness.
   const width = useMemo(() => {
-    const randomValue = crypto.getRandomValues(new Uint32Array(1))[0] / (0xFFFFFFFF + 1)
-    return `${Math.floor(randomValue * 40) + 50}%`
+    return `${Math.floor(Math.random() * 40) + 50}%`
   }, [])
 
   return (
