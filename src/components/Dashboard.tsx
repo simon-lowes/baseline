@@ -6,10 +6,17 @@
  */
 
 import { useEffect, useState, useRef, useCallback, type FocusEvent, type TouchEvent } from 'react';
-import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3, TrendingUp, TrendingDown, Minus, MoreVertical, Settings } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { EditTrackerDialog } from '@/components/tracker/EditTrackerDialog';
 import {
   Dialog,
   DialogContent,
@@ -96,6 +103,11 @@ export function Dashboard({
       disambiguationQuestions.every((_, index) => Boolean(disambiguationAnswers[index]?.trim())));
   const isMobile = useIsMobile();
   const [deleting, setDeleting] = useState(false);
+
+  // Edit tracker fields state
+  const [editFieldsDialogOpen, setEditFieldsDialogOpen] = useState(false);
+  const [trackerToEdit, setTrackerToEdit] = useState<Tracker | null>(null);
+
   const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
     if (!isMobile) return;
     const target = event.currentTarget;
@@ -880,8 +892,33 @@ export function Dashboard({
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             // Fall back to Activity icon if image fails to load
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = `<div class="p-2 rounded-lg" style="background-color: ${tracker.color}15"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${tracker.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg></div>`;
+                            const img = e.currentTarget;
+                            const parent = img.parentElement;
+                            if (!parent) return;
+
+                            // Clear parent and create fallback element safely
+                            parent.innerHTML = '';
+
+                            const fallbackDiv = document.createElement('div');
+                            fallbackDiv.className = 'p-2 rounded-lg';
+                            fallbackDiv.style.backgroundColor = `${tracker.color}15`;
+
+                            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                            svg.setAttribute('width', '20');
+                            svg.setAttribute('height', '20');
+                            svg.setAttribute('viewBox', '0 0 24 24');
+                            svg.setAttribute('fill', 'none');
+                            svg.setAttribute('stroke', tracker.color);
+                            svg.setAttribute('stroke-width', '2');
+                            svg.setAttribute('stroke-linecap', 'round');
+                            svg.setAttribute('stroke-linejoin', 'round');
+
+                            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            path.setAttribute('d', 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2');
+
+                            svg.appendChild(path);
+                            fallbackDiv.appendChild(svg);
+                            parent.appendChild(fallbackDiv);
                           }}
                         />
                       </div>
@@ -947,18 +984,46 @@ export function Dashboard({
                       )}
                     </div>
                     
-                    {/* Delete button - visible on hover (desktop) or touch (mobile) */}
-                    <button
-                      onClick={(e) => openDeleteDialog(e, tracker)}
-                      className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-all duration-300 focus:opacity-100 ${
-                        touchActive 
-                          ? 'opacity-100' 
-                          : 'opacity-0 group-hover:opacity-100'
-                      }`}
-                      aria-label={`Delete ${tracker.name}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* Actions menu - visible on hover (desktop) or touch (mobile) */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all duration-300 focus:opacity-100 ${
+                            touchActive
+                              ? 'opacity-100'
+                              : 'opacity-0 group-hover:opacity-100'
+                          }`}
+                          aria-label={`${tracker.name} options`}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        {((tracker as any)?.schema_version === 2) && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTrackerToEdit(tracker);
+                              setEditFieldsDialogOpen(true);
+                            }}
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            Edit Fields
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteDialog(e, tracker);
+                          }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardContent>
               </Card>
@@ -1091,6 +1156,45 @@ export function Dashboard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Tracker Fields Dialog */}
+      <EditTrackerDialog
+        tracker={trackerToEdit}
+        open={editFieldsDialogOpen}
+        onClose={() => {
+          setEditFieldsDialogOpen(false);
+          setTrackerToEdit(null);
+        }}
+        onSave={async (fields) => {
+          if (!trackerToEdit) return;
+
+          try {
+            // Update tracker with new fields
+            const updatedConfig = {
+              ...trackerToEdit.generated_config,
+              fields,
+            } as any; // Cast to any since we're extending GeneratedTrackerConfig
+
+            const result = await trackerService.updateTracker(trackerToEdit.id, {
+              generated_config: updatedConfig,
+            });
+
+            if (result.data) {
+              toast.success('Fields updated successfully');
+              // Reload trackers to reflect changes
+              const trackerResult = await trackerService.getTrackers();
+              if (trackerResult.data) {
+                // Update local state if needed - depends on parent component handling
+              }
+            } else if (result.error) {
+              toast.error('Failed to update fields');
+            }
+          } catch (error) {
+            console.error('Error updating tracker fields:', error);
+            toast.error('Failed to update fields');
+          }
+        }}
+      />
     </div>
   );
 }

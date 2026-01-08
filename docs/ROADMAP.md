@@ -1,4 +1,4 @@
-# Product Roadmap: From Chronic Pain Diary to Baseline
+# Product Roadmap: Baseline
 
 ## Vision
 
@@ -8,118 +8,32 @@ Transform the Chronic Pain Diary into **Baseline** — a flexible, user-centric 
 
 ---
 
-## Phase 1: Foundation Refactor (Current → v2.0) ✅ COMPLETE
+## Current Status
 
-### Goal
-
-~~Rename and restructure the app to support multiple tracking types while maintaining backward compatibility for existing pain diary users.~~
-
-### Completed Items
-
-- ~~Rename the app to "Baseline" throughout the codebase~~ ✅
-- ~~Refactor the data model to support multiple "tracker types" per user~~ ✅
-- ~~Create a new `trackers` table where each user can have multiple trackers~~ ✅
-- ~~Each tracker has: id, user_id, name, type (preset or custom), icon, color, created_at~~ ✅
-- ~~Migrate existing tracker_entries to belong to a default "Chronic Pain" tracker~~ ✅
-- ~~Update the UI to show a tracker selector/switcher~~ ✅
-- ~~Keep all existing pain diary functionality working~~ ✅
-- ~~Integrate **shadcn/ui** for the design system~~ ✅
-  - ~~Install and configure Tailwind CSS + shadcn/ui~~ ✅
-  - ~~Replace core UI elements with shadcn components (Button, Input, Card, Dialog)~~ ✅
-  - ~~Ensure consistent theming and accessibility~~ ✅
+- **Current Version**: v3.0.1 (Baseline with Visual Analytics + Theme Reactivity)
+- **Completed Phases**: 1, 2, 4 (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
+- **In Progress**: Phase 3 Custom Builder (90% complete)
 
 ---
 
-## Phase 2: Preset Tracker Templates (v2.1) ✅ COMPLETE
+## Phase 3: Custom Tracker Builder (v2.2) ⚠️ 90% COMPLETE
 
 ### Goal
 
-~~Offer curated preset trackers for common use cases with pre-configured fields, categories, and suggested keywords.~~
-
-### Completed Items
-
-- ~~Create a `tracker_templates` system with presets:~~ ✅
-  - ~~CHRONIC PAIN~~ ✅
-  - ~~MENSTRUAL CYCLE~~ ✅
-  - ~~MOOD & MENTAL HEALTH~~ ✅
-  - ~~SLEEP~~ ✅
-  - ~~MEDICATION & SUPPLEMENTS~~ ✅
-  - ~~EXERCISE & MOVEMENT~~ ✅
-
-- ~~Create an onboarding flow:~~ ✅
-  - ~~Welcome screen explaining the app~~ ✅
-  - ~~"What would you like to track?" with preset cards~~ ✅
-  - ~~Allow selecting multiple presets~~ ✅
-  - ~~Option to "Create Custom Tracker"~~ ✅
-
-- ~~Template data structure implemented~~ ✅
-- ~~Category and hashtag suggestion components~~ ✅
-
----
-
-## Phase 3: Custom Tracker Builder (v2.2) ✅ MOSTLY COMPLETE
-
-### Goal
-
-~~Empower users to create completely custom trackers with their own fields, categories, and keywords.~~
-
-### Completed Items
-
-- ~~Custom Tracker Creation Wizard~~ ✅
-- ~~AI Keyword Generation (via Gemini edge functions)~~ ✅
-- ~~Dynamic form renderer that builds the entry form from field definitions~~ ✅
-- ~~Ambiguity detection for tracker names~~ ✅
-- ~~Disambiguation UI with interpretation selection~~ ✅
-- ~~Spell-check / typo detection (Levenshtein distance)~~ ✅
+Empower users to create completely custom trackers with their own fields, categories, and keywords.
 
 ### Remaining Items
 
 - Field Builder with drag-to-reorder (partial)
-- Full custom field type coverage (Number scale, Single select, Multi-select, Text, Time, Duration, Yes/No toggle, Emoji picker)
-
----
-
-## Phase 4: Visual Analytics Dashboard (v3.0) ✅ COMPLETE
-
-### Goal
-
-Provide beautiful, insightful visualizations of tracked data with multiple chart types and trend analysis.
-
-### Completed Items
-
-- ~~Dashboard Overview with summary cards~~ ✅
-- ~~Recent entries feed~~ ✅
-- ~~Basic chart components (using Recharts)~~ ✅
-- ~~Time range controls~~ ✅
-- ~~LINE CHARTS with intensity trend over time~~ ✅
-- ~~BAR CHARTS for trigger frequency & intensity distribution~~ ✅
-- ~~PIE/DONUT CHARTS for location distribution~~ ✅
-- ~~HEATMAP CALENDAR (GitHub-style activity calendar)~~ ✅
-- ~~Hashtag cloud visualization~~ ✅
-- ~~Insights Engine (pattern detection, trend analysis, streaks, anomaly detection, trigger correlations, peak day analysis)~~ ✅
-- ~~Export Options (PNG, CSV, PDF)~~ ✅
-- ~~Cross-tracker analytics dashboard with accordion layout~~ ✅
-- ~~Interactive drill-down from charts to entries~~ ✅
-- ~~Responsive mobile-first design~~ ✅
-- ~~Theme-reactive chart colors~~ ✅ (v3.0.1)
-  - 9 color themes with light/dark variants (Zinc, Nature, Rose, Violet, Amber, Indigo, Cyan, Orange, Plum)
-  - Heatmap calendar and trigger bar charts update instantly on theme change
-  - Centralized `useThemeAwareColors` hook for reactive CSS variable access
-
-### Implementation Details
-
-- Analytics utilities in `src/lib/analytics-utils.ts`
-- Theme-aware colors hook in `src/hooks/use-theme-colors.ts`
-- Chart components in `src/components/analytics/`:
-  - `IntensityTrendLine.tsx` - Line chart with moving average
-  - `LocationDistributionPie.tsx` - Donut chart for body locations
-  - `TriggerFrequencyBar.tsx` - Bar chart with horizontal/vertical layouts
-  - `IntensityDistributionBar.tsx` - Histogram of intensity levels
-  - `HashtagCloud.tsx` - Weighted tag cloud
-  - `EntryHeatmapCalendar.tsx` - GitHub-style contribution calendar
-  - `InsightsPanel.tsx` - AI-generated pattern insights
-  - `AnalyticsDashboard.tsx` - Main dashboard with all visualizations
-- Export powered by html2canvas + jsPDF
+- Full custom field type coverage:
+  - Number scale
+  - Single select
+  - Multi-select
+  - Text
+  - Time
+  - Duration
+  - Yes/No toggle
+  - Emoji picker
 
 ---
 
@@ -165,40 +79,21 @@ _(No changes - not yet implemented)_
 
 ## Technical Debt to Address
 
-Before major feature work, consider:
-
-1. ~~**Code splitting**~~ - Partially addressed (lazy loading in some areas)
-2. ~~**Testing**~~ - Unit tests added (Vitest), E2E tests added (Playwright) ✅
-3. ~~**Error boundaries**~~ - Some error handling added ✅
-4. **Offline support** - Service worker for offline entry creation ❌
-5. **Accessibility** - WCAG 2.1 AA compliance audit ❌
-6. **Performance** - Virtualized lists for large entry counts ❌
+- **Offline support** - Service worker for offline entry creation ❌
+- **Accessibility** - WCAG 2.1 AA compliance audit ❌
+- **Performance** - Virtualized lists for large entry counts ❌
 
 ---
 
 ## Priority Matrix
 
-| Phase                  | Effort | Impact    | Priority | Status  |
-| ---------------------- | ------ | --------- | -------- | ------- |
-| 1. Foundation Refactor | Medium | Critical  | 🔴 P0    | ✅ DONE |
-| 2. Preset Templates    | Medium | High      | 🟠 P1    | ✅ DONE |
-| 3. Custom Builder      | High   | High      | 🟠 P1    | ⚠️ 90%  |
-| 4. Visual Analytics    | High   | Very High | 🟠 P1    | ✅ DONE |
-| 5. Correlations        | Medium | Medium    | 🟡 P2    | ❌      |
-| 6. Smart Reminders     | Medium | Medium    | 🟡 P2    | ❌      |
-| 7. Export & Sharing    | Low    | High      | 🟢 P3    | ❌      |
-| 8. Publish to Blog     | High   | Medium    | 🟢 P3    | ❌      |
-
----
-
-## Status
-
-- **Current Version**: v3.0.1 (Baseline with Visual Analytics + Theme Reactivity)
-- **Next Milestone**: Complete Phase 3 Custom Builder (field reordering, full field type support)
-- **Recent Additions**:
-  - 9 color themes with light/dark variants ✅
-  - Theme-reactive chart colors (heatmap calendar, trigger bars) ✅
-  - Centralized `useThemeAwareColors` hook ✅
+| Phase               | Effort | Impact | Priority | Status |
+| ------------------- | ------ | ------ | -------- | ------ |
+| 3. Custom Builder   | High   | High   | 🟠 P1    | ⚠️ 90% |
+| 5. Correlations     | Medium | Medium | 🟡 P2    | ❌     |
+| 6. Smart Reminders  | Medium | Medium | 🟡 P2    | ❌     |
+| 7. Export & Sharing | Low    | High   | 🟢 P3    | ❌     |
+| 8. Publish to Blog  | High   | Medium | 🟢 P3    | ❌     |
 
 ---
 

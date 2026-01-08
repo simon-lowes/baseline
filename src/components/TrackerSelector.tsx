@@ -55,6 +55,11 @@ import { generateTrackerConfig, getGenericConfig, checkAmbiguity } from '@/servi
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { debug } from '@/lib/logger';
+import { useFieldSuggestions } from '@/hooks/use-field-suggestions';
+import { FieldSuggestionCard } from '@/components/fields/FieldSuggestionCard';
+import { FieldList } from '@/components/fields/FieldList';
+import { FieldConfigPanel } from '@/components/fields/FieldConfigPanel';
+import type { TrackerField } from '@/types/tracker-fields';
 
 interface TrackerSelectorProps {
   currentTracker: Tracker | null;
@@ -62,7 +67,7 @@ interface TrackerSelectorProps {
   className?: string;
 }
 
-type GenerationStep = 'input' | 'checking' | 'disambiguate' | 'generating' | 'needs-description' | 'error';
+type GenerationStep = 'input' | 'checking' | 'disambiguate' | 'generating' | 'needs-description' | 'configure-fields' | 'error';
 
 /**
  * Get dialog title based on generation step
@@ -76,6 +81,9 @@ function getDialogTitle(step: GenerationStep): string {
   }
   if (step === 'needs-description') {
     return 'Describe Your Tracker';
+  }
+  if (step === 'configure-fields') {
+    return 'Configure Custom Fields';
   }
   if (step === 'error') {
     return 'Generation Issue';
@@ -95,6 +103,9 @@ function getDialogDescription(step: GenerationStep, trackerName: string): string
   }
   if (step === 'needs-description') {
     return `We couldn't find a definition for "${trackerName}". For the best experience, please describe what you want to track.`;
+  }
+  if (step === 'configure-fields') {
+    return `AI has suggested some useful fields for tracking "${trackerName}". Accept, customize, or skip each suggestion.`;
   }
   if (step === 'error') {
     return 'There was an issue generating the configuration. You can try again, provide a description, or use a generic setup.';
@@ -189,12 +200,25 @@ function DialogFooterButtons({
     );
   }
 
+  if (generationStep === 'configure-fields') {
+    return (
+      <>
+        <Button variant="outline" onClick={resetCreateDialog}>
+          Skip for Now
+        </Button>
+        <Button onClick={resetCreateDialog}>
+          Done
+        </Button>
+      </>
+    );
+  }
+
   if (generationStep === 'error') {
     const handleRetry = userDescription.trim() ? handleCreateWithDescription : handleCreateTracker;
     return (
       <>
-        <Button 
-          onClick={handleRetry} 
+        <Button
+          onClick={handleRetry}
           disabled={creating}
         >
           {creating ? (
@@ -380,6 +404,18 @@ function DialogContentArea({
     );
   }
 
+  if (generationStep === 'configure-fields') {
+    return (
+      <div className="grid gap-4 py-4">
+        <div className="p-4 bg-muted rounded-lg">
+          <p className="text-sm text-center">
+            Your tracker has been created! You can now add custom fields by clicking the menu (⋮) on your tracker card and selecting "Edit Fields".
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (generationStep === 'error') {
     return (
       <div className="grid gap-4 py-4">
@@ -501,6 +537,17 @@ export function TrackerSelector({
   const [deleteDrawerOpen, setDeleteDrawerOpen] = useState(false);
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Field configuration states
+  const [newlyCreatedTracker, setNewlyCreatedTracker] = useState<Tracker | null>(null);
+  const [editingField, setEditingField] = useState<TrackerField | null>(null);
+  const [showFieldPanel, setShowFieldPanel] = useState(false);
+
+  // Use field suggestions hook
+  const fieldSuggestions = useFieldSuggestions(
+    newlyCreatedTracker?.name || '',
+    newlyCreatedTracker?.user_description || undefined
+  );
 
   const descriptionReady =
     userDescription.trim().length > 0 ||
@@ -652,9 +699,20 @@ export function TrackerSelector({
       } else if (result.data) {
         toast.success(`Created "${result.data.name}" tracker with AI-powered context`);
         setTrackers(prev => [...prev, result.data!]);
-        onTrackerChange(result.data);
-        resetCreateDialog();
-        
+        setNewlyCreatedTracker(result.data);
+
+        // Update tracker to schema version 2 for custom fields
+        await trackerService.updateTracker(result.data.id, {
+          generated_config: { ...result.data.generated_config, schema_version: 2 } as any,
+        });
+
+        // Fetch field suggestions from AI
+        await fieldSuggestions.fetchSuggestions();
+
+        // Transition to field configuration step instead of closing
+        setGenerationStep('configure-fields');
+        setCreating(false);
+
         // Generate image asynchronously (don't block UI)
         try {
           const { generateTrackerImage, updateTrackerImage } = await import('@/services/imageGenerationService');
@@ -667,6 +725,7 @@ export function TrackerSelector({
           console.warn('Failed to generate tracker image:', error);
           // Don't show error to user - image generation is non-critical
         }
+        return; // Don't close dialog yet - let user configure fields
       }
     } catch (error) {
       console.error('[handleCreateTracker] ❌ EXCEPTION CAUGHT:', error);
@@ -901,6 +960,11 @@ export function TrackerSelector({
   }
 
   function resetCreateDialog() {
+    // If we have a newly created tracker, select it before closing
+    if (newlyCreatedTracker) {
+      onTrackerChange(newlyCreatedTracker);
+    }
+
     setCreateDialogOpen(false);
     setNewTrackerName('');
     setUserDescription('');
@@ -911,6 +975,7 @@ export function TrackerSelector({
     setSelectedInterpretation(null);
     setClarifyingQuestions([]);
     setClarifyingAnswers([]);
+    setNewlyCreatedTracker(null);
   }
 
   async function handleDeleteTracker() {

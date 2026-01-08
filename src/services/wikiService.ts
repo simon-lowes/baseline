@@ -31,15 +31,32 @@ async function fetchCategories(term: string, max: number = 6): Promise<string[] 
   const url = `${ACTION_API}?origin=*&action=query&prop=categories&cllimit=${max}&format=json&titles=${encodeURIComponent(term)}`;
   const res = await fetch(url, { method: 'GET' });
   if (!res.ok) return undefined;
-  const data = await res.json();
-  const pages = data?.query?.pages;
-  if (!pages || typeof pages !== 'object') return undefined;
-  const firstPage = Object.values(pages)[0] as any;
-  const cats = firstPage?.categories;
-  if (!Array.isArray(cats)) return undefined;
-  return cats
-    .map((c: any) => c?.title?.replace(/^Category:/, ''))
-    .filter((c: string | undefined) => typeof c === 'string');
+
+  try {
+    const data = await res.json();
+    const pages = data?.query?.pages;
+    if (!pages || typeof pages !== 'object') return undefined;
+
+    const firstPage = Object.values(pages)[0];
+    if (!firstPage || typeof firstPage !== 'object') return undefined;
+
+    const cats = (firstPage as Record<string, unknown>).categories;
+    if (!Array.isArray(cats)) return undefined;
+
+    return cats
+      .map((c: unknown) => {
+        if (typeof c === 'object' && c !== null && 'title' in c) {
+          const title = (c as Record<string, unknown>).title;
+          if (typeof title === 'string') {
+            return title.replace(/^Category:/, '');
+          }
+        }
+        return undefined;
+      })
+      .filter((c): c is string => typeof c === 'string');
+  } catch {
+    return undefined; // JSON parse error or invalid structure
+  }
 }
 
 /**

@@ -94,10 +94,19 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
     }
     
     const data = await response.json();
+
+    // Validate response structure
+    if (!Array.isArray(data) || data.length === 0) {
+      return null; // Invalid or empty response
+    }
+
     const entry = data[0];
-    
+    if (!entry || typeof entry !== 'object') {
+      return null; // Invalid entry
+    }
+
     // Extract ALL definitions from ALL meanings (up to 5) for better context
-    const meanings = entry.meanings ?? [];
+    const meanings = Array.isArray(entry.meanings) ? entry.meanings : [];
     const allDefinitions = extractAllDefinitions(meanings, 5);
     
     // Also keep first definition for backwards compatibility

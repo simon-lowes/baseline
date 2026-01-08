@@ -7,6 +7,14 @@ import type { TrackerPort, TrackerResult } from '@/ports/TrackerPort';
 import type { Tracker, CreateTrackerInput, UpdateTrackerInput } from '@/types/tracker';
 import { supabaseClient } from './supabaseClient';
 
+/**
+ * Validates hex color format (#RRGGBB)
+ * Prevents XSS and ensures database constraint compliance
+ */
+function validateHexColor(color: string): boolean {
+  return /^#[0-9A-Fa-f]{6}$/.test(color);
+}
+
 export const supabaseTracker: TrackerPort = {
   async getTrackers(): Promise<TrackerResult<Tracker[]>> {
     try {
@@ -100,6 +108,12 @@ export const supabaseTracker: TrackerPort = {
         return { data: null, error: new Error('Custom trackers require a generated configuration.') };
       }
 
+      // Validate color format to prevent XSS and ensure database constraint compliance
+      const color = input.color ?? '#6366f1';
+      if (!validateHexColor(color)) {
+        return { data: null, error: new Error('Color must be a valid hex color code in #RRGGBB format') };
+      }
+
       // Server-side guard: prevent creating ambiguous-named trackers without user confirmation
       const AMBIGUOUS_TERMS = [
         'flying','hockey','curling','reading','drinking','smoking','shooting','chilling','running','driving',
@@ -116,7 +130,7 @@ export const supabaseTracker: TrackerPort = {
         type: input.type ?? 'custom',
         preset_id: input.preset_id ?? null,
         icon: input.icon ?? 'activity',
-        color: input.color ?? '#6366f1',
+        color: color,
         is_default: input.is_default ?? false,
       };
       if (input.generated_config !== undefined) payload.generated_config = input.generated_config;
@@ -202,6 +216,11 @@ export const supabaseTracker: TrackerPort = {
 
   async updateTracker(id: string, input: UpdateTrackerInput): Promise<TrackerResult<Tracker>> {
     try {
+      // Validate color if provided
+      if (input.color && !validateHexColor(input.color)) {
+        return { data: null, error: new Error('Color must be a valid hex color code in #RRGGBB format') };
+      }
+
       const { data, error } = await supabaseClient
         .from('trackers')
         .update(input)
