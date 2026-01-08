@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
+import { v4 as uuidv4 } from 'uuid'
 
 import { PainEntry, BODY_LOCATIONS } from '@/types/pain-entry'
 import type { Tracker, TrackerPresetId } from '@/types/tracker'
@@ -275,7 +276,7 @@ function App() {
     }
 
     const newEntry: PainEntry = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: uuidv4(),
       user_id: user.id,
       tracker_id: currentTracker.id,
       timestamp: Date.now(),

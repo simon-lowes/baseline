@@ -1,32 +1,122 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate-limiter.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Secure CORS configuration
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    Deno.env.get('ALLOWED_ORIGIN'), // Production domain from env
+  ].filter(Boolean);
+
+  const isAllowed = allowedOrigins.some(allowed => origin.startsWith(allowed as string));
+
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : '',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
+}
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  console.log('=== Generate Tracker Image Start ===');
-  
+  // JWT Authentication
+  const authHeader = req.headers.get('authorization') || '';
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+
+  if (!match) {
+    console.error('Missing or invalid Authorization header');
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userToken = match[1];
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase environment variables');
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  // Verify JWT token with Supabase Auth
+  const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseServiceKey,
+    },
+  });
+
+  if (!userResp.ok) {
+    console.error('Invalid or expired token');
+    return new Response(
+      JSON.stringify({ error: 'Invalid or expired token' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userData = await userResp.json();
+  console.log('Authenticated user:', userData.id);
+
+  // Rate limiting - 10 image generations per hour per user
+  const rateLimit = checkRateLimit(userData.id, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+  });
+
+  const rateLimitHeaders = getRateLimitHeaders(rateLimit, {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    console.warn('Rate limit exceeded for user:', userData.id);
+    return new Response(
+      JSON.stringify({
+        error: 'Rate limit exceeded. Please try again later.',
+        resetAt: new Date(rateLimit.resetAt).toISOString(),
+      }),
+      {
+        status: 429,
+        headers: { ...corsHeaders, ...rateLimitHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   try {
     const body = await req.json();
-    console.log('Request body:', JSON.stringify(body));
-    
     const { trackerName, trackerId } = body;
-    
+
     if (!trackerName || !trackerId) {
-      console.log('Missing required fields');
       throw new Error('trackerName and trackerId are required');
     }
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    console.log('API key present:', !!GEMINI_API_KEY);
     
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY not configured');
@@ -54,12 +144,14 @@ Style requirements:
 The icon should visually represent the concept of "${trackerName}" in a simple, recognizable way that users will understand at a glance.`;
 
     // Call Google Gemini API for image generation using gemini-2.5-flash-image (Nano Banana)
-    console.log('Calling Gemini Image API for tracker:', trackerName);
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY
+        },
         body: JSON.stringify({
           contents: [{
             parts: [{
@@ -74,17 +166,12 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
       }
     );
 
-    console.log('Gemini Image API response status:', response.status);
-    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini Image API error response:', errorText);
-      throw new Error(`Gemini Image API error: ${response.status} - ${errorText.substring(0, 200)}`);
+      console.error('Gemini Image API error:', response.status);
+      throw new Error(`Gemini Image API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Gemini image response candidates:', data.candidates?.length);
-    console.log('Gemini response structure:', JSON.stringify(data, null, 2).substring(0, 500));
     
     // Find the first part that contains image data (inlineData with image mimeType)
     const parts = data.candidates?.[0]?.content?.parts || [];
@@ -98,21 +185,17 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
     }
     
     if (!imageData || !imageData.data) {
-      console.error('Response parts:', JSON.stringify(parts, null, 2).substring(0, 1000));
-      throw new Error('No image data in Gemini response - parts: ' + parts.length);
+      throw new Error('No image data in Gemini response');
     }
-
-    console.log('Image data received, mime type:', imageData.mimeType);
 
     // Convert base64 to Uint8Array
     const imageBytes = Uint8Array.from(atob(imageData.data), c => c.charCodeAt(0));
-    
+
     // Generate filename with timestamp to ensure uniqueness
     const timestamp = new Date().getTime();
     const filename = `tracker-${trackerId}-${timestamp}.${imageData.mimeType.split('/')[1]}`;
-    
+
     // Upload to Supabase Storage
-    console.log('Uploading to Supabase Storage:', filename);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('tracker-images')
       .upload(filename, imageBytes, {
@@ -121,11 +204,9 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      console.error('Storage upload error:', uploadError.message);
       throw new Error(`Failed to upload image: ${uploadError.message}`);
     }
-
-    console.log('Image uploaded successfully:', uploadData.path);
 
     // Generate signed URL (valid for 1 year)
     const { data: signedUrlData, error: urlError } = await supabase.storage
@@ -133,11 +214,9 @@ The icon should visually represent the concept of "${trackerName}" in a simple, 
       .createSignedUrl(uploadData.path, 31536000);
 
     if (urlError) {
-      console.error('Signed URL error:', urlError);
+      console.error('Signed URL error:', urlError.message);
       throw new Error(`Failed to create signed URL: ${urlError.message}`);
     }
-
-    console.log('Signed URL generated successfully');
 
     return new Response(JSON.stringify({ 
       imageUrl: signedUrlData.signedUrl,

@@ -11,6 +11,8 @@ import { X, Check, Hash } from '@phosphor-icons/react'
 import type { Tracker, TrackerPresetId } from '@/types/tracker'
 import type { PainEntry } from '@/types/pain-entry'
 import { getTrackerConfig } from '@/types/tracker-config'
+import { DynamicFieldForm } from '@/components/fields/DynamicFieldForm'
+import type { FieldValues, TrackerField } from '@/types/tracker-fields'
 
 interface PainEntryFormProps {
   tracker: Tracker | null
@@ -21,6 +23,7 @@ interface PainEntryFormProps {
     notes: string
     triggers: string[]
     hashtags: string[]
+    field_values?: FieldValues
   }) => void
   onCancel: () => void
 }
@@ -30,12 +33,24 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
   const isEditing = !!editEntry
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  
+
+  // Check schema version - v2 uses custom fields
+  const schemaVersion = (tracker as any)?.schema_version || 1
+  const isCustomFieldsTracker = schemaVersion === 2
+  const customFields: TrackerField[] = isCustomFieldsTracker
+    ? ((tracker?.generated_config as any)?.fields || [])
+    : []
+
   useEffect(() => {
     setMounted(true)
   }, [])
-  
+
   const [intensity, setIntensity] = useState([editEntry?.intensity ?? 5])
+
+  // Custom fields state
+  const [fieldValues, setFieldValues] = useState<FieldValues>(
+    (editEntry as any)?.field_values || {}
+  )
   
   // Compute intensity color reactively when theme changes
   const intensityColor = useMemo(() => {
@@ -87,7 +102,8 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
   }
 
   const handleSubmit = () => {
-    if (selectedLocations.length === 0) {
+    // For schema v1, require locations
+    if (!isCustomFieldsTracker && selectedLocations.length === 0) {
       return
     }
 
@@ -97,9 +113,80 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
       notes,
       triggers: selectedTriggers,
       hashtags,
+      field_values: isCustomFieldsTracker ? fieldValues : undefined,
     })
   }
 
+  // Render schema v2 (custom fields) form
+  if (isCustomFieldsTracker) {
+    return (
+      <Card className="border-none shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl font-semibold">
+            {isEditing ? `Edit ${tracker?.name} Entry` : `Log ${tracker?.name}`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <DynamicFieldForm
+            fields={customFields}
+            values={fieldValues}
+            onChange={setFieldValues}
+          />
+
+          <div className="space-y-3">
+            <Label className="text-base font-medium">
+              <Hash size={16} className="inline mr-1" />
+              Hashtags (Optional)
+            </Label>
+            <div className="flex flex-wrap items-center gap-2 p-2 border rounded-md bg-background min-h-[42px]">
+              {hashtags.map(tag => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="gap-1 pl-2 pr-1"
+                >
+                  #{tag}
+                  <button
+                    type="button"
+                    onClick={() => removeHashtag(tag)}
+                    className="hover:bg-muted rounded-full p-0.5"
+                  >
+                    <X size={12} />
+                  </button>
+                </Badge>
+              ))}
+              <Input
+                type="text"
+                placeholder={hashtags.length === 0 ? "Type hashtag and press Enter..." : "Add more..."}
+                value={hashtagInput}
+                onChange={e => setHashtagInput(e.target.value)}
+                onKeyDown={handleHashtagKeyDown}
+                onBlur={() => hashtagInput && addHashtag(hashtagInput)}
+                className="flex-1 min-w-[120px] border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Press Enter or comma to add a hashtag. Use hashtags to categorize and find entries quickly.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              onClick={handleSubmit}
+              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {isEditing ? 'Save Changes' : 'Save Entry'}
+            </Button>
+            <Button onClick={onCancel} variant="outline" className="flex-1">
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Render schema v1 (legacy fixed fields) form
   return (
     <Card className="border-none shadow-lg">
       <CardHeader>

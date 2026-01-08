@@ -369,37 +369,18 @@ export const supabaseAuth: AuthPort = {
   },
 
   async checkUserExists(email: string): Promise<{ exists: boolean; error: Error | null }> {
-    // Use signInWithPassword with a deliberately wrong password
-    // This is SIDE-EFFECT FREE - it never creates users
+    // Security: This function has been disabled to prevent user enumeration attacks.
+    // Revealing whether an email is registered allows attackers to:
+    // 1. Enumerate valid user accounts
+    // 2. Target specific users for phishing/social engineering
+    // 3. Build lists of registered emails for spam
     //
-    // Possible responses:
-    // - "Invalid login credentials" = user doesn't exist OR password wrong (can't distinguish easily)
-    // - "Email not confirmed" = user EXISTS but hasn't confirmed email
-    // - Success = user exists and we somehow guessed the password (very unlikely)
-    try {
-      const { error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password: '__invalid_password__',
-      });
-
-      if (!error) {
-        // Unexpected success implies the account exists (and password matched, extremely unlikely)
-        return { exists: true, error: null };
-      }
-
-      const message = error.message?.toLowerCase() ?? '';
-      if (message.includes('email not confirmed')) {
-        return { exists: true, error: null };
-      }
-
-      if (message.includes('invalid login credentials')) {
-        // Could be wrong password or missing user; report as "unknown"
-        return { exists: false, error: null };
-      }
-
-      return { exists: false, error: new Error(error.message) };
-    } catch (err) {
-      return { exists: false, error: err instanceof Error ? err : new Error('Unknown error') };
-    }
+    // Best practice: Always return a generic response that doesn't reveal user existence.
+    // If you need to check user existence for legitimate purposes, use server-side
+    // logic with proper authentication and rate limiting.
+    return {
+      exists: false,
+      error: new Error('User enumeration check disabled for security reasons'),
+    };
   },
 };
