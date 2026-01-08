@@ -1,31 +1,42 @@
-Thanks for helping make GitHub safe for everyone.
-
-# Security
-
-GitHub takes the security of our software products and services seriously, including all of the open source code repositories managed through our GitHub organizations, such as [GitHub](https://github.com/GitHub).
-
-Even though [open source repositories are outside of the scope of our bug bounty program](https://bounty.github.com/index.html#scope) and therefore not eligible for bounty rewards, we will ensure that your finding gets passed along to the appropriate maintainers for remediation. 
+# Security Policy
 
 ## Reporting Security Issues
 
-If you believe you have found a security vulnerability in any GitHub-owned repository, please report it to us through coordinated disclosure.
+If you discover a security vulnerability in Baseline, please report it responsibly.
 
 **Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-Instead, please send an email to opensource-security[@]github.com.
+Instead, please email: **52527080+simon-lowes@users.noreply.github.com**
 
-Please include as much of the information listed below as you can to help us better understand and resolve the issue:
+Please include as much of the following information as possible:
 
-  * The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+- Type of issue (e.g., SQL injection, XSS, authentication bypass, data exposure)
+- Full paths of affected source file(s)
+- Location of the affected code (tag/branch/commit or direct URL)
+- Any special configuration required to reproduce the issue
+- Step-by-step instructions to reproduce the issue
+- Proof-of-concept or exploit code (if possible)
+- Impact of the issue and how an attacker might exploit it
 
-This information will help us triage your report more quickly.
+This information helps me understand and address the issue more quickly.
 
-## Policy
+## Supported Versions
 
-See [GitHub's Safe Harbor Policy](https://docs.github.com/en/site-policy/security-policies/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
+| Version | Supported          |
+| ------- | ------------------ |
+| 3.x     | :white_check_mark: |
+| < 3.0   | :x:                |
+
+## Security Measures
+
+Baseline implements several security measures:
+
+- Row Level Security (RLS) policies in Supabase
+- Secure authentication via Supabase Auth
+- Environment variable protection for sensitive credentials
+- Input validation and sanitization
+- HTTPS-only communication with backend services
+
+## Response Time
+
+I will acknowledge receipt of your vulnerability report within 48 hours and provide a more detailed response within 7 days.
