@@ -962,6 +962,7 @@ export function Dashboard({
                   revealedId={revealedTrackerId}
                   onReveal={setRevealedTrackerId}
                   showEditAction={hasEditableFields}
+                  onTap={() => onTrackerSelect(tracker)}
                   onEdit={() => {
                     setTrackerToEdit(tracker);
                     setEditFieldsDialogOpen(true);
@@ -971,10 +972,7 @@ export function Dashboard({
                     setDeleteDialogOpen(true);
                   }}
                 >
-                  <Card
-                    className="cursor-pointer transition-all group"
-                    onClick={() => onTrackerSelect(tracker)}
-                  >
+                  <Card className="transition-all group">
                     {cardContent}
                   </Card>
                 </SwipeableTrackerCard>

@@ -6,7 +6,6 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useDrag } from '@use-gesture/react';
 import { Trash2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +14,7 @@ interface SwipeableTrackerCardProps {
   children: React.ReactNode;
   onEdit?: () => void;
   onDelete: () => void;
+  onTap: () => void;
   showEditAction?: boolean;
   trackerId: string;
   /** ID of the currently revealed card (controlled externally for single-reveal behavior) */
@@ -23,24 +23,31 @@ interface SwipeableTrackerCardProps {
   onReveal: (id: string | null) => void;
 }
 
-const SWIPE_THRESHOLD = 80; // Pixels to trigger full reveal
+const SWIPE_THRESHOLD = 60; // Pixels to trigger full reveal
 const ACTION_WIDTH = 120; // Width of action buttons area
+const TAP_THRESHOLD = 10; // Max movement for a tap
 
 export function SwipeableTrackerCard({
   children,
   onEdit,
   onDelete,
+  onTap,
   showEditAction = false,
   trackerId,
   revealedId,
   onReveal,
 }: SwipeableTrackerCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
-  const hapticTriggeredRef = useRef(false);
+
+  // Touch tracking
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const hasDraggedRef = useRef(false);
+  const startOffsetRef = useRef(0);
 
   const isRevealed = revealedId === trackerId;
 
@@ -69,85 +76,101 @@ export function SwipeableTrackerCard({
     };
   }, []);
 
-  // Handle long press
-  const handleLongPressStart = useCallback(() => {
-    longPressTimeoutRef.current = setTimeout(() => {
-      triggerHaptic();
-      setShowContextMenu(true);
-    }, 500);
-  }, [triggerHaptic]);
+  // Handle touch start
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+    };
+    hasDraggedRef.current = false;
+    startOffsetRef.current = offsetX;
 
-  const handleLongPressEnd = useCallback(() => {
+    // Start long press timer
+    longPressTimeoutRef.current = setTimeout(() => {
+      if (!hasDraggedRef.current) {
+        triggerHaptic();
+        setShowContextMenu(true);
+      }
+    }, 500);
+  }, [offsetX, triggerHaptic]);
+
+  // Handle touch move
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    // If vertical movement is greater, let the page scroll
+    if (Math.abs(deltaY) > Math.abs(deltaX) && !hasDraggedRef.current) {
+      return;
+    }
+
+    // Cancel long press once we start moving horizontally
+    if (Math.abs(deltaX) > TAP_THRESHOLD) {
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
+      hasDraggedRef.current = true;
+      setIsDragging(true);
+    }
+
+    if (hasDraggedRef.current) {
+      // Calculate new offset
+      let newOffset = startOffsetRef.current + deltaX;
+
+      // Clamp: can't go more right than 0, can't go more left than -ACTION_WIDTH
+      newOffset = Math.max(-ACTION_WIDTH - 20, Math.min(10, newOffset));
+
+      setOffsetX(newOffset);
+    }
+  }, []);
+
+  // Handle touch end
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Cancel long press
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
       longPressTimeoutRef.current = null;
     }
-  }, []);
 
-  // Gesture binding
-  const bind = useDrag(
-    ({ down, movement: [mx], direction: [dx], velocity: [vx], cancel, first, last }) => {
-      // Cancel long press when dragging starts
-      if (first) {
-        handleLongPressEnd();
-        setIsDragging(true);
-        hapticTriggeredRef.current = false;
-      }
+    if (!touchStartRef.current) return;
 
-      // Only allow horizontal swipes (left)
-      if (mx > 10) {
-        // Trying to swipe right - if already revealed, close it
-        if (isRevealed && !down) {
-          onReveal(null);
-        }
-        return;
-      }
+    const wasDragging = hasDraggedRef.current;
+    setIsDragging(false);
 
-      // Calculate the target offset
-      const baseOffset = isRevealed ? -ACTION_WIDTH : 0;
-      let newOffset = baseOffset + mx;
-
-      // Clamp the offset
-      newOffset = Math.max(-ACTION_WIDTH - 20, Math.min(20, newOffset)); // Small overscroll allowed
-
-      if (down) {
-        // While dragging
-        setOffsetX(newOffset);
-
-        // Trigger haptic when crossing threshold (only once per gesture)
-        if (!hapticTriggeredRef.current && newOffset < -SWIPE_THRESHOLD) {
-          triggerHaptic();
-          hapticTriggeredRef.current = true;
-        }
+    if (wasDragging) {
+      // Determine final state based on position
+      if (offsetX < -SWIPE_THRESHOLD) {
+        // Reveal actions
+        onReveal(trackerId);
+        setOffsetX(-ACTION_WIDTH);
+        triggerHaptic();
       } else {
-        // On release
-        setIsDragging(false);
+        // Hide actions
+        onReveal(null);
+        setOffsetX(0);
+      }
+    } else {
+      // This was a tap
+      const touchDuration = Date.now() - touchStartRef.current.time;
 
-        // Check velocity for quick swipes
-        const isQuickSwipe = Math.abs(vx) > 0.3 && dx < 0;
-
-        // Determine final state
-        if (isQuickSwipe || newOffset < -SWIPE_THRESHOLD) {
-          // Reveal actions
-          onReveal(trackerId);
-          setOffsetX(-ACTION_WIDTH);
-        } else if (newOffset > -SWIPE_THRESHOLD / 2 || dx > 0) {
-          // Hide actions
+      if (touchDuration < 500 && !showContextMenu) {
+        // Short tap - if revealed, close. Otherwise, navigate.
+        if (isRevealed) {
           onReveal(null);
-          setOffsetX(0);
         } else {
-          // Snap back to current state
-          setOffsetX(isRevealed ? -ACTION_WIDTH : 0);
+          onTap();
         }
       }
-    },
-    {
-      axis: 'x',
-      filterTaps: true,
-      threshold: 10,
-      pointer: { touch: true },
     }
-  );
+
+    touchStartRef.current = null;
+  }, [offsetX, isRevealed, onReveal, trackerId, onTap, showContextMenu, triggerHaptic]);
 
   // Handle tap outside to close
   useEffect(() => {
@@ -218,14 +241,15 @@ export function SwipeableTrackerCard({
         </Button>
       </div>
 
-      {/* Swipeable card */}
+      {/* Swipeable card wrapper with background to cover action buttons */}
       <div
-        {...bind()}
-        onTouchStart={handleLongPressStart}
-        onTouchEnd={handleLongPressEnd}
-        onTouchCancel={handleLongPressEnd}
+        ref={cardRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         className={cn(
-          "relative touch-pan-y",
+          "relative bg-card",
           isDragging ? "cursor-grabbing" : "cursor-pointer"
         )}
         style={{
