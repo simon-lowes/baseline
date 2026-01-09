@@ -207,6 +207,7 @@ export function SwipeableTrackerCard({
     <div
       ref={containerRef}
       className="relative overflow-hidden rounded-xl"
+      style={{ overscrollBehaviorX: 'none' }}
     >
       {/* Action buttons (behind the card) - only rendered when swiping */}
       {showActions && (
@@ -265,12 +266,13 @@ export function SwipeableTrackerCard({
           }
         }}
         className={cn(
-          "relative bg-card",
+          "relative bg-card touch-pan-y",
           isDragging ? "cursor-grabbing" : "cursor-pointer"
         )}
         style={{
           transform: `translateX(${offsetX}px)`,
           transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {children}
