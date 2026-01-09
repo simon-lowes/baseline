@@ -1162,7 +1162,7 @@ export function Dashboard({
       {/* Conversational Tracker Builder Dialog */}
       <Dialog open={showConversationalBuilder} onOpenChange={setShowConversationalBuilder}>
         <DialogContent className={cn(
-          "p-0 overflow-hidden",
+          "p-0 flex flex-col",
           isMobile
             ? "top-auto bottom-0 left-0 right-0 translate-x-0 translate-y-0 w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-t-2xl rounded-b-none"
             : "sm:max-w-lg max-h-[80vh]"
