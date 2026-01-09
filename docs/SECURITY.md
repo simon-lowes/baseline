@@ -3,7 +3,7 @@
 **Project:** Baseline Health Tracker
 **Last Audit:** 9 January 2026
 **Security Expert:** Claude (AI Security Advisor)
-**Version:** 1.2.0 (Data Export feature added)
+**Version:** 1.5.0 (Audit trail for data changes)
 
 > This is the authoritative security reference for the project. It should be consulted before any code changes that touch authentication, authorization, data handling, or external integrations.
 
@@ -126,7 +126,7 @@ if (error || !user) {
 
 - **Magic Link Security**: Email delivery depends on SMTP provider (Resend)
 - **Password Reset**: Same email delivery dependency
-- **Dev/E2E Bypass**: `?dev=true` and `?e2e=true` bypass auth in development - **ensure not accessible in production**
+- **Dev/E2E Bypass**: ✅ FIXED - `?dev=true` and `?e2e=true` now only work in development builds (`import.meta.env.DEV`)
 
 ---
 
@@ -229,18 +229,20 @@ The database has self-healing capabilities via `run_database_maintenance()`:
 
 ### 5.1 Edge Functions Inventory
 
-| Function | JWT Required | Purpose |
-|----------|--------------|---------|
-| `generate-tracker-config` | No | AI config generation |
-| `generate-tracker-image` | No | AI image generation |
-| `generate-tracker-fields` | No | AI field suggestions |
-| `validate-tracker-fields` | No | Field validation |
-| `check-ambiguity` | No | Ambiguity detection |
-| `datamuse-lookup` | No | Synonym lookup |
-| `create-default-tracker` | Yes* | Creates default tracker |
-| `db-maintenance` | Yes | Manual maintenance trigger |
+| Function | JWT Required | Rate Limit | Purpose |
+|----------|--------------|------------|---------|
+| `generate-tracker-config` | ✅ Yes | 20/hour | AI config generation |
+| `generate-tracker-image` | ✅ Yes | 10/hour | AI image generation |
+| `generate-tracker-fields` | ✅ Yes | 20/hour | AI field suggestions |
+| `validate-tracker-fields` | ✅ Yes | - | Field validation |
+| `check-ambiguity` | ✅ Yes | 30/hour | Ambiguity detection |
+| `datamuse-lookup` | No | - | Synonym lookup (free external API) |
+| `create-default-tracker` | ✅ Yes* | - | Creates default tracker |
+| `db-maintenance` | ✅ Yes | - | Manual maintenance trigger |
 
 *Uses Bearer token validation, not Supabase JWT middleware
+
+**Note:** All AI-related functions now require JWT authentication and have rate limiting to prevent API cost abuse.
 
 ### 5.2 CORS Configuration
 
@@ -259,11 +261,25 @@ const allowedOrigins = [
 
 ### 5.3 Rate Limiting
 
-**Current Implementation:** In-memory rate limiting in `_shared/rate-limiter.ts`
+**Current Implementation:** Distributed rate limiting using Supabase database
 
-**Limitation:** Only works per-instance. Multi-instance deployments can bypass.
+**Files:**
+- `supabase/functions/_shared/distributed-rate-limiter.ts` - Rate limit utility
+- `supabase/migrations/*_create_rate_limits_table.sql` - Database schema
 
-**Recommendation:** Consider Deno KV or Redis for distributed rate limiting.
+**How It Works:**
+- Rate limit state is persisted in the `rate_limits` table
+- The `check_rate_limit()` database function atomically checks and increments counters
+- State persists across function restarts and multiple instances
+- Automatic cleanup of expired rate limit records
+
+**Rate Limits by Endpoint:**
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `generate-tracker-config` | 20 | 1 hour |
+| `generate-tracker-image` | 10 | 1 hour |
+| `generate-tracker-fields` | 20 | 1 hour |
+| `check-ambiguity` | 30 | 1 hour |
 
 ### 5.4 Input Validation
 
@@ -285,6 +301,7 @@ const allowedOrigins = [
 | dangerouslySetInnerHTML | ✅ Safe | Only 1 usage in `chart.tsx` for CSS variables |
 | User-generated HTML | ✅ Not used | No HTML rendering from user input |
 | Input validation | ✅ Controlled | All forms use controlled React components |
+| Content Security Policy | ✅ Implemented | CSP meta tag in `index.html` |
 
 ### 6.2 CSRF Prevention
 
@@ -488,15 +505,75 @@ supabase/.temp/
 
 ### 10.3 Security Logging
 
-**Currently Logged:**
+**Current Implementation:** Centralized security event logging to Supabase database
+
+**Files:**
+- `supabase/functions/_shared/security-logger.ts` - Logging utility
+- `supabase/migrations/*_create_security_events_table.sql` - Database schema
+
+**Events Logged:**
+| Event Type | Severity | Description |
+|------------|----------|-------------|
+| `auth_failure` | Medium | Missing or invalid auth header |
+| `auth_invalid_token` | Medium | Expired or invalid JWT token |
+| `rate_limit_exceeded` | High | User exceeded rate limit |
+| `injection_detected` | High | Potential prompt injection detected |
+| `suspicious_input` | Medium | Suspicious input patterns |
+| `cors_violation` | Low | CORS origin not in whitelist |
+
+**Also Logged:**
 - Database maintenance actions (`maintenance_log`)
 - Auth events (Supabase Auth logs)
 - Edge Function errors (Supabase Functions logs)
 
-**Recommended Additions:**
-- Failed authentication attempts
-- Rate limit violations
-- Suspicious input patterns
+**Retention:** Security events are retained for 90 days and automatically cleaned up.
+
+### 10.4 Audit Trail
+
+**Current Implementation:** Database triggers log all INSERT, UPDATE, DELETE operations on sensitive tables.
+
+**Files:**
+- `supabase/migrations/*_create_audit_log_table.sql` - Database schema and triggers
+
+**How It Works:**
+- The `audit_trigger_fn()` function fires on INSERT, UPDATE, DELETE
+- Old and new data are captured as JSONB
+- For UPDATE operations, only the changed fields are tracked
+- User ID is captured from `auth.uid()` for attribution
+
+**Tables Audited:**
+| Table | Events Captured |
+|-------|-----------------|
+| `trackers` | INSERT, UPDATE, DELETE |
+| `tracker_entries` | INSERT, UPDATE, DELETE |
+| `profiles` | INSERT, UPDATE, DELETE |
+
+**Audit Log Schema:**
+```sql
+audit_log (
+  id UUID PRIMARY KEY,
+  table_name TEXT,           -- Which table was modified
+  record_id UUID,            -- Which record was modified
+  action TEXT,               -- INSERT, UPDATE, or DELETE
+  old_data JSONB,            -- Previous state (UPDATE/DELETE)
+  new_data JSONB,            -- New state (INSERT/UPDATE)
+  changed_fields TEXT[],     -- List of changed fields (UPDATE only)
+  changed_by UUID,           -- User who made the change
+  changed_at TIMESTAMPTZ     -- When the change occurred
+)
+```
+
+**Access Control:**
+- Users can only view audit logs for changes they made (RLS policy)
+- Service role has full access for admin purposes
+
+**Retention:** Audit logs are retained for 365 days by default. Use `cleanup_audit_logs(retention_days)` for manual cleanup.
+
+**Use Cases:**
+1. **Forensic Analysis**: Investigate what changed and when during security incidents
+2. **User Transparency**: Show users history of changes to their data
+3. **Compliance**: Maintain audit trail for regulatory requirements
+4. **Debugging**: Track down when and how data issues were introduced
 
 ---
 
@@ -575,19 +652,25 @@ supabase/.temp/
 | Priority | Improvement | Effort | Status |
 |----------|-------------|--------|--------|
 | High | Fix prompt injection vulnerabilities | 2-4 hours | ✅ Complete |
-| High | Add Content Security Policy headers | 1-2 hours | Not Started |
-| Medium | Implement distributed rate limiting | 4-8 hours | Not Started |
-| Medium | Add security event logging | 4-8 hours | Not Started |
+| High | Add Content Security Policy headers | 1-2 hours | ✅ Complete |
+| High | Add JWT auth to AI edge functions | 2-4 hours | ✅ Complete |
+| High | Fix dev/e2e auth bypass in production | 1-2 hours | ✅ Complete |
+| Medium | Implement distributed rate limiting | 4-8 hours | ✅ Complete |
+| Medium | Add security event logging | 4-8 hours | ✅ Complete |
 | Low | Add 2FA support | 8-16 hours | Not Started |
-| Low | Add audit trail for data changes | 8-16 hours | Not Started |
+| Low | Add audit trail for data changes | 8-16 hours | ✅ Complete |
 
 ### 13.2 Security Debt Tracking
 
 | Item | Introduced | Reason | Status |
 |------|------------|--------|--------|
 | Prompt injection | Initial AI integration | Rapid development | ✅ Fixed (v1.1.0) |
-| In-memory rate limiting | Initial release | Simplicity | ⚠️ Monitor, upgrade if needed |
-| Dev mode auth bypass | Development | Testing convenience | ⚠️ Ensure blocked in production |
+| In-memory rate limiting | Initial release | Simplicity | ✅ Fixed (v1.4.0) - Distributed via Supabase |
+| Dev mode auth bypass | Development | Testing convenience | ✅ Fixed (v1.3.0) - Only runs in DEV builds |
+| Unauthenticated AI endpoints | Initial AI integration | Simplicity | ✅ Fixed (v1.3.0) - JWT required |
+| Missing CSP headers | Initial release | Oversight | ✅ Fixed (v1.3.0) |
+| No security event logging | Initial release | Simplicity | ✅ Fixed (v1.4.0) - Events logged to DB |
+| No audit trail | Initial release | Simplicity | ✅ Fixed (v1.5.0) - Triggers on sensitive tables |
 
 ### 13.3 Security Review Triggers
 
@@ -640,6 +723,9 @@ A security review should be triggered when:
 | 1.0.0 | 9 Jan 2026 | Initial comprehensive security audit |
 | 1.1.0 | 9 Jan 2026 | Prompt injection fixes applied to edge functions |
 | 1.2.0 | 9 Jan 2026 | Added Data Export security documentation (Phase 7) |
+| 1.3.0 | 9 Jan 2026 | Critical security fixes: dev/e2e bypass blocked in production, JWT auth added to AI endpoints, CSP headers implemented |
+| 1.4.0 | 9 Jan 2026 | Distributed rate limiting (Supabase-backed), security event logging with database persistence |
+| 1.5.0 | 9 Jan 2026 | Audit trail for data changes with triggers on trackers, tracker_entries, and profiles tables |
 
 ---
 

@@ -26,6 +26,8 @@ interface SwipeableTrackerCardProps {
 const SWIPE_THRESHOLD = 60; // Pixels to trigger full reveal
 const ACTION_WIDTH = 120; // Width of action buttons area
 const TAP_THRESHOLD = 10; // Max movement for a tap
+const LONG_PRESS_DURATION = 600; // ms to hold before long-press triggers
+const SETTLE_TIME = 30; // ms of no movement required before accepting tap
 
 export function SwipeableTrackerCard({
   children,
@@ -48,6 +50,7 @@ export function SwipeableTrackerCard({
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const hasDraggedRef = useRef(false);
   const startOffsetRef = useRef(0);
+  const lastMoveTimeRef = useRef<number>(0);
 
   const isRevealed = revealedId === trackerId;
 
@@ -86,6 +89,7 @@ export function SwipeableTrackerCard({
     };
     hasDraggedRef.current = false;
     startOffsetRef.current = offsetX;
+    lastMoveTimeRef.current = 0; // Reset movement tracking
 
     // Start long press timer
     longPressTimeoutRef.current = setTimeout(() => {
@@ -93,7 +97,7 @@ export function SwipeableTrackerCard({
         triggerHaptic();
         setShowContextMenu(true);
       }
-    }, 500);
+    }, LONG_PRESS_DURATION);
   }, [offsetX, triggerHaptic]);
 
   // Handle touch move
@@ -104,22 +108,30 @@ export function SwipeableTrackerCard({
     const deltaX = touch.clientX - touchStartRef.current.x;
     const deltaY = touch.clientY - touchStartRef.current.y;
 
-    // If vertical movement is greater, let the page scroll
-    if (Math.abs(deltaY) > Math.abs(deltaX) && !hasDraggedRef.current) {
-      return;
-    }
+    // Track when movement occurs (for settling time calculation)
+    lastMoveTimeRef.current = Date.now();
 
-    // Cancel long press once we start moving horizontally
-    if (Math.abs(deltaX) > TAP_THRESHOLD) {
+    // Cancel long press on ANY movement (vertical OR horizontal) beyond threshold
+    // This prevents accidental long-press triggers when scrolling
+    if (Math.abs(deltaX) > TAP_THRESHOLD || Math.abs(deltaY) > TAP_THRESHOLD) {
       if (longPressTimeoutRef.current) {
         clearTimeout(longPressTimeoutRef.current);
         longPressTimeoutRef.current = null;
       }
       hasDraggedRef.current = true;
+    }
+
+    // If vertical movement is greater, let the page scroll (don't process as swipe)
+    if (Math.abs(deltaY) > Math.abs(deltaX) && !isDragging) {
+      return;
+    }
+
+    // Only start visual swipe dragging on horizontal movement
+    if (Math.abs(deltaX) > TAP_THRESHOLD && !isDragging) {
       setIsDragging(true);
     }
 
-    if (hasDraggedRef.current) {
+    if (isDragging) {
       // Calculate new offset
       let newOffset = startOffsetRef.current + deltaX;
 
@@ -128,7 +140,7 @@ export function SwipeableTrackerCard({
 
       setOffsetX(newOffset);
     }
-  }, []);
+  }, [isDragging]);
 
   // Handle touch end
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -156,10 +168,17 @@ export function SwipeableTrackerCard({
         setOffsetX(0);
       }
     } else {
-      // This was a tap
+      // This was a tap - check conditions before firing
       const touchDuration = Date.now() - touchStartRef.current.time;
+      const timeSinceMove = lastMoveTimeRef.current > 0
+        ? Date.now() - lastMoveTimeRef.current
+        : Infinity; // No movement recorded, accept as valid tap
 
-      if (touchDuration < 500 && !showContextMenu) {
+      // Only accept tap if:
+      // 1. Short duration (less than long-press threshold)
+      // 2. Settled for at least SETTLE_TIME (not mid-scroll)
+      // 3. Context menu not showing
+      if (touchDuration < LONG_PRESS_DURATION && timeSinceMove > SETTLE_TIME && !showContextMenu) {
         // Short tap - if revealed, close. Otherwise, navigate.
         if (isRevealed) {
           onReveal(null);
