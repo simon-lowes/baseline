@@ -48,6 +48,7 @@ import { generateTrackerConfig, checkAmbiguity } from '@/services/configGenerati
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { debug } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface TrackerStats {
   entryCount: number;
