@@ -80,6 +80,15 @@ export function FieldConfigPanel({ field, open, onClose, onSave }: FieldConfigPa
       case 'toggle':
         setConfig({ type: 'toggle' })
         break
+      case 'time':
+        setConfig({ type: 'time', use24Hour: false })
+        break
+      case 'duration':
+        setConfig({ type: 'duration', showSeconds: false })
+        break
+      case 'emoji':
+        setConfig({ type: 'emoji', options: ['😊', '😐', '😢', '😴', '🤒'] })
+        break
     }
   }
 
@@ -128,6 +137,9 @@ export function FieldConfigPanel({ field, open, onClose, onSave }: FieldConfigPa
                 <SelectItem value="multi_select">Multiple Select</SelectItem>
                 <SelectItem value="text">Text</SelectItem>
                 <SelectItem value="toggle">Toggle (Yes/No)</SelectItem>
+                <SelectItem value="time">Time</SelectItem>
+                <SelectItem value="duration">Duration</SelectItem>
+                <SelectItem value="emoji">Emoji</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -141,6 +153,9 @@ export function FieldConfigPanel({ field, open, onClose, onSave }: FieldConfigPa
           )}
           {fieldType === 'text' && <TextConfig config={config} setConfig={setConfig} />}
           {fieldType === 'toggle' && <ToggleConfig config={config} setConfig={setConfig} />}
+          {fieldType === 'time' && <TimeConfigComponent config={config} setConfig={setConfig} />}
+          {fieldType === 'duration' && <DurationConfigComponent config={config} setConfig={setConfig} />}
+          {fieldType === 'emoji' && <EmojiConfigComponent config={config} setConfig={setConfig} />}
         </div>
 
         <div className="flex gap-2">
@@ -316,6 +331,162 @@ function ToggleConfig({
           onChange={(e) => setConfig({ ...config, offLabel: e.target.value })}
           placeholder="No"
         />
+      </div>
+    </div>
+  )
+}
+
+// Time Configuration
+function TimeConfigComponent({
+  config,
+  setConfig,
+}: {
+  config: Partial<FieldConfig>
+  setConfig: (config: Partial<FieldConfig>) => void
+}) {
+  const cfg = config as { use24Hour?: boolean }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="use24Hour">Use 24-hour format</Label>
+        <Switch
+          id="use24Hour"
+          checked={cfg.use24Hour || false}
+          onCheckedChange={(checked) => setConfig({ ...config, use24Hour: checked })}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {cfg.use24Hour ? 'Times will display as 14:30' : 'Times will display as 2:30 PM'}
+      </p>
+    </div>
+  )
+}
+
+// Duration Configuration
+function DurationConfigComponent({
+  config,
+  setConfig,
+}: {
+  config: Partial<FieldConfig>
+  setConfig: (config: Partial<FieldConfig>) => void
+}) {
+  const cfg = config as { showSeconds?: boolean }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="showSeconds">Include seconds</Label>
+        <Switch
+          id="showSeconds"
+          checked={cfg.showSeconds || false}
+          onCheckedChange={(checked) => setConfig({ ...config, showSeconds: checked })}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {cfg.showSeconds ? 'Format: hours, minutes, seconds' : 'Format: hours and minutes'}
+      </p>
+    </div>
+  )
+}
+
+// Emoji Configuration
+const EMOJI_PRESETS = {
+  mood: ['😊', '😃', '😐', '😢', '😡', '😴', '🤔', '😌'],
+  health: ['🤒', '🤢', '🤕', '💪', '😷', '🩹', '💊', '🏥'],
+  activity: ['🏃', '🚶', '🧘', '🏋️', '🚴', '🏊', '⚽', '🎾'],
+  weather: ['☀️', '🌤️', '☁️', '🌧️', '⛈️', '❄️', '🌡️', '💨'],
+}
+
+function EmojiConfigComponent({
+  config,
+  setConfig,
+}: {
+  config: Partial<FieldConfig>
+  setConfig: (config: Partial<FieldConfig>) => void
+}) {
+  const cfg = config as { options: string[] }
+  const options = cfg.options || []
+
+  const toggleEmoji = (emoji: string) => {
+    if (options.includes(emoji)) {
+      setConfig({ ...config, options: options.filter((e) => e !== emoji) })
+    } else {
+      setConfig({ ...config, options: [...options, emoji] })
+    }
+  }
+
+  const addPreset = (preset: keyof typeof EMOJI_PRESETS) => {
+    const newEmojis = EMOJI_PRESETS[preset].filter((e) => !options.includes(e))
+    setConfig({ ...config, options: [...options, ...newEmojis] })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Quick Add</Label>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => addPreset('mood')}>
+            Mood
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => addPreset('health')}>
+            Health
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => addPreset('activity')}>
+            Activity
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => addPreset('weather')}>
+            Weather
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Selected Emojis ({options.length})</Label>
+        <div className="flex flex-wrap gap-1 p-2 border rounded min-h-[48px]">
+          {options.length === 0 ? (
+            <span className="text-sm text-muted-foreground">Click emojis below to add</span>
+          ) : (
+            options.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => toggleEmoji(emoji)}
+                className="text-2xl hover:bg-destructive/20 rounded p-1 transition-colors"
+                title="Click to remove"
+              >
+                {emoji}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Available Emojis</Label>
+        <div className="space-y-3">
+          {Object.entries(EMOJI_PRESETS).map(([category, emojis]) => (
+            <div key={category}>
+              <p className="text-xs text-muted-foreground capitalize mb-1">{category}</p>
+              <div className="flex flex-wrap gap-1">
+                {emojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => toggleEmoji(emoji)}
+                    className={`text-2xl rounded p-1 transition-colors ${
+                      options.includes(emoji)
+                        ? 'bg-primary/20 ring-2 ring-primary'
+                        : 'hover:bg-muted'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

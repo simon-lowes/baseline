@@ -63,6 +63,56 @@ Offer curated preset trackers for common use cases with pre-configured fields, c
 - Ambiguity detection for tracker names ✅
 - Disambiguation UI with interpretation selection ✅
 - Spell-check / typo detection (Levenshtein distance) ✅
+- Conversational Gemini-powered tracker builder ✅
+  - Multi-turn conversation flow with Gemini
+  - Intelligent question generation based on context
+  - Confidence-based completion detection
+  - "Anything else?" final confirmation step
+- AI-generated tracker images (Gemini 2.5 Flash) ✅
+- Tracker naming from selected interpretation (e.g., "Sleep Debt" not "Debt") ✅
+- Tracker deletion with proper navigation to dashboard ✅
+- CORS security hardening (exact origin matching) ✅
+- Edge function deployment for all AI features ✅
+
+---
+
+## Phase 3b: Advanced Field Builder ✅ COMPLETE
+
+### Goal
+
+Extend the custom tracker builder with advanced field types and drag-to-reorder capability.
+
+### Completed Items
+
+- Drag-to-reorder fields with grip handles (dnd-kit) ✅
+- Number scale field type (slider with min/max/step) ✅
+- Single select field type (radio buttons) ✅
+- Multi-select field type (checkboxes) ✅
+- Text field type (single line or multiline) ✅
+- Toggle field type (Yes/No with custom labels) ✅
+- Time picker field type ✅
+  - 12-hour format with AM/PM selector
+  - 24-hour format option
+- Duration picker field type ✅
+  - Hours and minutes inputs
+  - Optional seconds input
+- Emoji picker field type ✅
+  - Preset categories: mood, health, activity, weather
+  - Custom emoji selection
+  - Visual grid selector in forms
+- Field configuration panel with type-specific settings ✅
+- Backend validation for all field types (edge function) ✅
+
+### Implementation Details
+
+- Field type definitions in `src/types/tracker-fields.ts`
+- Field components in `src/components/fields/`:
+  - `TimeField.tsx` - Time picker with 12/24 hour support
+  - `DurationField.tsx` - Duration input (hours/minutes/seconds)
+  - `EmojiField.tsx` - Visual emoji grid selector
+  - `FieldConfigPanel.tsx` - Configuration UI for all field types
+  - `DynamicFieldForm.tsx` - Runtime form renderer
+  - `FieldList.tsx` - Drag-to-reorder field list
 
 ---
 
@@ -110,6 +160,95 @@ Provide beautiful, insightful visualizations of tracked data with multiple chart
 
 ---
 
+## Phase 5: Interlinked Tracker Insights (v3.1) ✅ COMPLETE
+
+### Goal
+
+Help users discover how their trackers are interlinked—revealing patterns like how sleep quality affects next-day pain levels, or how exercise impacts mood over time.
+
+### Completed Items
+
+- Correlation engine with Pearson correlation coefficient ✅
+- Lag effect analysis (0-3 day delays) ✅
+  - Tests correlations with time shifts (e.g., sleep today → pain tomorrow)
+  - Automatically finds optimal lag for strongest correlation
+- Timeline overlay visualization ✅
+  - Multiple trackers on one chart
+  - Normalized 0-100% scale for comparison
+  - Theme-aware colors
+- Interlink insights panel ✅
+  - Human-readable insight cards
+  - Correlation strength indicators (strong/moderate/weak)
+  - Lag day badges ("Next day", "2-day delay")
+  - Actionable suggestions for strong correlations
+- Manual pair selector ✅
+  - Auto-suggested pairs from detected correlations
+  - Custom pair selection with dropdowns
+  - Limit of 5 manual pairs
+- Data threshold enforcement ✅
+  - 30 days minimum before showing insights
+  - Progress bar showing data collection status
+- Both auto-detection AND user-selected pairs ✅
+- Hidden in single-tracker mode (only shows in "All Trackers" view) ✅
+
+### Implementation Details
+
+- Correlation utilities in `src/lib/interlink-utils.ts`
+- Data hook in `src/hooks/use-interlink-data.ts`
+- Components in `src/components/analytics/`:
+  - `InterlinkInsightsPanel.tsx` - Pattern discovery display
+  - `InterlinkTimelineChart.tsx` - Multi-tracker overlay
+  - `InterlinkPairSelector.tsx` - Manual pair selection UI
+- Integrated into `AnalyticsDashboard.tsx` as "Interlinked Insights" accordion section
+
+---
+
+## Phase 7: Data Export & Doctor Reports (v4.0) ✅ COMPLETE
+
+### Goal
+
+Enable users to export their tracking data as CSV for personal analysis or as professional PDF reports for healthcare providers.
+
+### Completed Items
+
+- Export dialog with format selection ✅
+  - CSV or PDF format choice
+  - Date range picker with presets (7d, 30d, 90d, 1y, all, custom)
+  - Entry count preview for selected range
+- CSV export functionality ✅
+  - Schema v1 support (fixed fields: intensity, locations, triggers)
+  - Schema v2 support (custom fields from field_values JSONB)
+  - Auto-detection of tracker schema version
+  - Daily summary CSV option
+- PDF report generation ✅
+  - Professional A4 layout for healthcare providers
+  - Summary statistics section
+  - Optional chart inclusion (trend, heatmap)
+  - Optional insights section
+  - Watermarked footer with generation date
+- Chart capture utilities ✅
+  - html2canvas integration for chart screenshots
+  - Data attributes on chart sections for targeting
+- Integration into Analytics Dashboard ✅
+  - "Export Data..." option in export dropdown
+  - Quick export options preserved (CSV, PNG, PDF screenshot)
+
+### Implementation Details
+
+- Type definitions in `src/types/export.ts`
+- Export components in `src/components/export/`:
+  - `DateRangePicker.tsx` - Date range selection with presets
+  - `ExportDialog.tsx` - Main export modal
+  - `index.ts` - Barrel export
+- Export utilities in `src/lib/export/`:
+  - `csv-export.ts` - CSV generation for both schema versions
+  - `pdf-report.ts` - Professional PDF report generator
+  - `report-charts.ts` - Chart capture utilities
+  - `index.ts` - Barrel export
+- Integrated into `AnalyticsDashboard.tsx` with `handleAdvancedExport` callback
+
+---
+
 ## Technical Debt Addressed
 
 - **Code splitting** - Partially addressed (lazy loading in some areas)
@@ -118,4 +257,4 @@ Provide beautiful, insightful visualizations of tracked data with multiple chart
 
 ---
 
-_Archived: January 2026_
+_Last updated: January 9, 2026 (Phase 7 complete)_

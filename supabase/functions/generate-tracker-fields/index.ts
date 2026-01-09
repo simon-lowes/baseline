@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate-limiter.ts';
+import { sanitizeForPrompt } from '../_shared/prompt-sanitizer.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -137,17 +138,26 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    // Build prompt with context
+    // Sanitize user inputs to prevent prompt injection (see docs/SECURITY.md Section 9.1)
+    const sanitizedName = sanitizeForPrompt(trackerName, { maxLength: 50 });
+    const sanitizedContext = sanitizeForPrompt(context || 'General health tracking', { maxLength: 200 });
+    if (sanitizedName.injectionDetected || sanitizedContext.injectionDetected) {
+      console.warn('Potential prompt injection detected in input');
+    }
+    const safeTrackerName = sanitizedName.value;
+    const safeContext = sanitizedContext.value;
+
+    // Build prompt with sanitized context
     const previousFieldNames = previousSuggestions?.map((s: any) => s.label).join(', ') || 'none';
 
     const prompt = `You are helping design custom fields for a health/wellness tracking app.
 
-Tracker name: "${trackerName}"
-Context: ${context || 'General health tracking'}
+Tracker name: ${safeTrackerName}
+Context: ${safeContext}
 Previously suggested fields: ${previousFieldNames}
 
 Generate 3-5 useful custom fields for this tracker. Each field should:
-- Be relevant and practical for tracking "${trackerName}"
+- Be relevant and practical for tracking ${safeTrackerName}
 - NOT duplicate any previously suggested fields
 - Use appropriate field types (number_scale, single_select, multi_select, text, toggle)
 - Include clear reasoning for why this field is useful

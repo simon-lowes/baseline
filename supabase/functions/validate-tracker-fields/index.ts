@@ -26,7 +26,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
 const MAX_FIELDS = 20;
 const MAX_OPTIONS = 50;
 const MAX_LABEL_LENGTH = 100;
-const VALID_FIELD_TYPES = ['number_scale', 'single_select', 'multi_select', 'text', 'toggle'];
+const VALID_FIELD_TYPES = ['number_scale', 'single_select', 'multi_select', 'text', 'toggle', 'time', 'duration', 'emoji'];
 
 interface TrackerField {
   id: string;
@@ -211,6 +211,12 @@ function validateFieldConfig(type: string, config: any, fieldIndex: number): any
       return validateTextConfig(config, fieldIndex);
     case 'toggle':
       return validateToggleConfig(config, fieldIndex);
+    case 'time':
+      return validateTimeConfig(config, fieldIndex);
+    case 'duration':
+      return validateDurationConfig(config, fieldIndex);
+    case 'emoji':
+      return validateEmojiConfig(config, fieldIndex);
     default:
       throw new Error(`Field ${fieldIndex}: unknown type ${type}`);
   }
@@ -314,4 +320,65 @@ function validateToggleConfig(config: any, fieldIndex: number) {
   }
 
   return validated;
+}
+
+function validateTimeConfig(config: any, fieldIndex: number) {
+  const { use24Hour } = config;
+
+  const validated: any = { type: 'time' };
+
+  if (use24Hour !== undefined) {
+    if (typeof use24Hour !== 'boolean') {
+      throw new Error(`Field ${fieldIndex}: use24Hour must be a boolean`);
+    }
+    validated.use24Hour = use24Hour;
+  }
+
+  return validated;
+}
+
+function validateDurationConfig(config: any, fieldIndex: number) {
+  const { showSeconds } = config;
+
+  const validated: any = { type: 'duration' };
+
+  if (showSeconds !== undefined) {
+    if (typeof showSeconds !== 'boolean') {
+      throw new Error(`Field ${fieldIndex}: showSeconds must be a boolean`);
+    }
+    validated.showSeconds = showSeconds;
+  }
+
+  return validated;
+}
+
+function validateEmojiConfig(config: any, fieldIndex: number) {
+  const { options } = config;
+
+  if (!Array.isArray(options)) {
+    throw new Error(`Field ${fieldIndex}: options must be an array`);
+  }
+
+  if (options.length === 0) {
+    throw new Error(`Field ${fieldIndex}: emoji options cannot be empty`);
+  }
+
+  if (options.length > 20) {
+    throw new Error(`Field ${fieldIndex}: maximum 20 emoji options allowed`);
+  }
+
+  // Filter to valid emoji strings only
+  const sanitizedOptions = options
+    .filter((opt: any) => typeof opt === 'string' && opt.trim())
+    .map((opt: string) => opt.trim())
+    .slice(0, 20);
+
+  if (sanitizedOptions.length === 0) {
+    throw new Error(`Field ${fieldIndex}: no valid emoji options provided`);
+  }
+
+  return {
+    type: 'emoji',
+    options: sanitizedOptions,
+  };
 }
