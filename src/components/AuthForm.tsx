@@ -100,6 +100,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true); // Default to checked for convenience
   
   // Email confirmation state
   const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('magicLink');
@@ -134,6 +135,17 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
 
       if (error) {
         throw error;
+      }
+
+      // Store session persistence preference
+      // If "remember me" is checked, store flag in sessionStorage (clears on browser close)
+      // This flag's PRESENCE indicates this is an active session that should persist
+      // When browser closes (sessionStorage clears), flag disappears -> next load signs out
+      if (rememberMe) {
+        localStorage.setItem('baseline-remember-session', 'true');
+      } else {
+        localStorage.removeItem('baseline-remember-session');
+        sessionStorage.setItem('baseline-active-session', 'true');
       }
 
       toast.success('Welcome back!');
@@ -341,8 +353,19 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         {emailInput}
         {passwordInput}
 
-        {/* Forgot password link */}
-        <div className="flex justify-end">
+        {/* Remember me + Forgot password row */}
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors select-none">
+              Keep me logged in for 7 days
+            </span>
+          </label>
           <button
             type="button"
             onClick={() => goToStage('forgotPassword')}
