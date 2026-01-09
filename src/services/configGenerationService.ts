@@ -9,6 +9,7 @@ import { lookupWord } from './dictionaryService';
 import { supabaseClient } from '@/adapters/supabase/supabaseClient';
 import { debug, info, warn, error as logError } from '@/lib/logger';
 import type { GeneratedTrackerConfig, AmbiguityCheckResult, TrackerInterpretation } from '@/types/generated-config';
+import type { ConversationalConfigResult, ConversationHistoryEntry } from '@/types/conversation-state';
 import { fetchWikipediaContext } from './wikiService';
 import { fetchDatamuseRelated } from './datamuseService';
 
@@ -36,6 +37,10 @@ function isLikelyGenericConfig(config: GeneratedTrackerConfig | undefined): bool
   return looksGenericLocations || looksGenericTriggers;
 }
 
+/**
+ * @deprecated Use generateTrackerConfigConversational for AI-generated questions.
+ * Kept for backward compatibility with non-conversational flows.
+ */
 function buildClarifyingQuestions(trackerName: string, selectedInterpretation?: string): string[] {
   const base = selectedInterpretation
     ? `When you say "${trackerName}" (${selectedInterpretation}), what exactly do you want to track?`
@@ -536,4 +541,164 @@ export function getGenericConfig(trackerName: string): GeneratedTrackerConfig {
     triggers: ['Stress', 'Weather', 'Diet', 'Sleep', 'Activity', 'Medication', 'Other'],
     suggestedHashtags: ['tracking', 'health', 'wellness', 'log'],
   };
+}
+
+/**
+ * Helper to gather all context sources for tracker generation
+ */
+async function gatherTrackerContext(trackerName: string): Promise<{
+  definition?: string;
+  allDefinitions?: string[];
+  wikiSummary?: string;
+  wikiCategories?: string[];
+  relatedTerms?: string[];
+}> {
+  const results: {
+    definition?: string;
+    allDefinitions?: string[];
+    wikiSummary?: string;
+    wikiCategories?: string[];
+    relatedTerms?: string[];
+  } = {};
+
+  // Parallel fetch all context sources
+  const [dictResult, wikiResult, datamuseResult] = await Promise.allSettled([
+    lookupWord(trackerName),
+    fetchWikipediaContext(trackerName),
+    fetchDatamuseRelated(trackerName, 12),
+  ]);
+
+  if (dictResult.status === 'fulfilled' && dictResult.value) {
+    results.definition = dictResult.value.definition;
+    results.allDefinitions = dictResult.value.allDefinitions;
+  }
+
+  if (wikiResult.status === 'fulfilled' && wikiResult.value) {
+    results.wikiSummary = wikiResult.value.summary;
+    results.wikiCategories = wikiResult.value.categories;
+  }
+
+  if (datamuseResult.status === 'fulfilled' && datamuseResult.value?.terms) {
+    results.relatedTerms = datamuseResult.value.terms;
+  }
+
+  return results;
+}
+
+/**
+ * Generate tracker config with conversation history context (conversational mode)
+ *
+ * This function supports the conversational tracker builder flow where
+ * Gemini asks ONE question at a time and builds context iteratively.
+ *
+ * @param trackerName - The name of the tracker
+ * @param selectedInterpretation - Optional interpretation from disambiguation
+ * @param conversationHistory - Array of previous Q&A pairs
+ * @returns Either a follow-up question or final config
+ *
+ * @example
+ * ```ts
+ * // First call - might return a question
+ * const result1 = await generateTrackerConfigConversational('Debt');
+ * // { needsQuestion: true, question: 'Are you tracking...?', confidence: 0.4 }
+ *
+ * // Second call with history - might return config
+ * const result2 = await generateTrackerConfigConversational('Debt', undefined, [
+ *   { question: 'Are you tracking...?', answer: 'Financial debt I owe' }
+ * ]);
+ * // { needsQuestion: false, config: {...}, confidence: 0.9 }
+ * ```
+ */
+export async function generateTrackerConfigConversational(
+  trackerName: string,
+  selectedInterpretation?: string,
+  conversationHistory?: ConversationHistoryEntry[]
+): Promise<ConversationalConfigResult> {
+  // Skip AI in E2E mode for deterministic tests
+  if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+    debug('[generateTrackerConfigConversational] E2E mode - returning generic config');
+    return {
+      needsQuestion: false,
+      confidence: 1.0,
+      config: getGenericConfig(trackerName),
+    };
+  }
+
+  try {
+    // Gather context from dictionary, Wikipedia, and Datamuse
+    const context = await gatherTrackerContext(trackerName);
+
+    debug('[generateTrackerConfigConversational] Calling edge function with', conversationHistory?.length ?? 0, 'history entries');
+
+    const { data, error } = await supabaseClient.functions.invoke('generate-tracker-config', {
+      body: {
+        trackerName,
+        selectedInterpretation,
+        conversationHistory,
+        ...context,
+      },
+    });
+
+    if (error) {
+      logError('[generateTrackerConfigConversational] Edge function error:', error);
+      return {
+        needsQuestion: false,
+        confidence: 0,
+        error: error.message || 'Failed to generate configuration',
+      };
+    }
+
+    if (data?.error) {
+      return {
+        needsQuestion: false,
+        confidence: 0,
+        error: data.error,
+      };
+    }
+
+    // Handle needs_clarification response
+    if (data?.needs_clarification) {
+      const question = Array.isArray(data.questions) ? data.questions[0] : undefined;
+      debug('[generateTrackerConfigConversational] Needs clarification, question:', question);
+      return {
+        needsQuestion: true,
+        question,
+        confidence: data.confidence ?? 0.5,
+        finalQuestion: data.final_question ?? false,
+      };
+    }
+
+    // Validate config exists and isn't generic
+    if (data?.config) {
+      if (isLikelyGenericConfig(data.config)) {
+        debug('[generateTrackerConfigConversational] Config is too generic, asking for more detail');
+        return {
+          needsQuestion: true,
+          question: `What specific aspects of "${trackerName}" would you like to track? For example, timing, intensity, categories, or triggers.`,
+          confidence: 0.3,
+          finalQuestion: (conversationHistory?.length ?? 0) >= 2,
+        };
+      }
+
+      debug('[generateTrackerConfigConversational] Config generated successfully');
+      return {
+        needsQuestion: false,
+        confidence: data.confidence ?? 0.9,
+        config: data.config,
+      };
+    }
+
+    return {
+      needsQuestion: false,
+      confidence: 0,
+      error: 'No configuration or question returned from AI',
+    };
+  } catch (error) {
+    logError('[generateTrackerConfigConversational] Exception:', error);
+    return {
+      needsQuestion: false,
+      confidence: 0,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }

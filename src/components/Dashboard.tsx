@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EditTrackerDialog } from '@/components/tracker/EditTrackerDialog';
+import { ConversationalTrackerBuilder } from '@/components/tracker/ConversationalTrackerBuilder';
 import {
   Dialog,
   DialogContent,
@@ -84,6 +85,9 @@ export function Dashboard({
   const [creatingPreset, setCreatingPreset] = useState<TrackerPresetId | null>(null);
   const [trackerToDelete, setTrackerToDelete] = useState<Tracker | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Conversational tracker builder state
+  const [showConversationalBuilder, setShowConversationalBuilder] = useState(false);
 
   // Disambiguation modal state for quick-create flow
   const [disambiguateOpen, setDisambiguateOpen] = useState(false);
@@ -768,59 +772,17 @@ export function Dashboard({
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      <form onSubmit={handleCustomSubmit} className="flex gap-2">
-        <Input
-          value={customName}
-          onChange={(e) => setCustomName(e.target.value)}
-          onFocus={handleMobileFieldFocus}
-          placeholder="e.g., Migraines, Diet, Gratitude..."
-          disabled={creating}
-          className="flex-1"
-        />
-        <Button type="submit" disabled={creating || !customName.trim()}>
-          {creating ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Sparkles className="w-4 h-4" />
-          )}
-        </Button>
-      </form>
-
-      {(customNeedsDescription || customQuestions.length > 0) && (
-        <div className="grid gap-3">
-          {customQuestions.length > 0 && (
-            <div className="grid gap-3">
-              <p className="text-sm text-muted-foreground">Answer a few quick questions:</p>
-              {customQuestions.map((question, index) => (
-                <div key={question} className="grid gap-2">
-                  <p className="text-sm text-muted-foreground">{question}</p>
-                  <Input
-                    value={customAnswers[index] ?? ''}
-                    onFocus={handleMobileFieldFocus}
-                    onChange={(e) => {
-                      const next = [...customAnswers];
-                      next[index] = e.target.value;
-                      setCustomAnswers(next);
-                    }}
-                    placeholder="Your answer..."
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="grid gap-2">
-            <Label htmlFor="custom-description">Add a brief description</Label>
-            <Textarea
-              id="custom-description"
-              value={customDescription}
-              onFocus={handleMobileFieldFocus}
-              onChange={(e) => setCustomDescription(e.target.value)}
-              placeholder="What exactly do you want to track? Any specific details?"
-              rows={3}
-            />
-          </div>
-        </div>
-      )}
+      <Button
+        variant="outline"
+        onClick={() => {
+          setCreateDialogOpen(false);
+          setShowConversationalBuilder(true);
+        }}
+        className="w-full gap-2"
+      >
+        <Sparkles className="w-4 h-4" />
+        Create with AI Assistant
+      </Button>
     </>
   );
 
@@ -1195,6 +1157,51 @@ export function Dashboard({
           }
         }}
       />
+
+      {/* Conversational Tracker Builder Dialog */}
+      <Dialog open={showConversationalBuilder} onOpenChange={setShowConversationalBuilder}>
+        <DialogContent className={cn(
+          "p-0 overflow-hidden",
+          isMobile
+            ? "top-auto bottom-0 left-0 right-0 translate-x-0 translate-y-0 w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-t-2xl rounded-b-none"
+            : "sm:max-w-lg max-h-[80vh]"
+        )}>
+          <ConversationalTrackerBuilder
+            onComplete={async (config, name) => {
+              try {
+                // Create tracker with generated config
+                const result = await trackerService.createTracker({
+                  name,
+                  type: 'custom',
+                  icon: 'activity',
+                  color: '#6366f1',
+                  is_default: false,
+                  generated_config: config,
+                });
+
+                if (result.data) {
+                  toast.success(`${name} tracker created!`);
+                  setShowConversationalBuilder(false);
+                  onTrackerCreated(result.data);
+
+                  // Generate image asynchronously (fire and forget)
+                  import('@/services/imageGenerationService').then(({ generateTrackerImageAsync }) => {
+                    generateTrackerImageAsync(name, result.data!.id).catch((err) => {
+                      console.warn('Image generation failed:', err);
+                    });
+                  });
+                } else if (result.error) {
+                  toast.error(`Failed to create tracker: ${result.error.message}`);
+                }
+              } catch (error) {
+                console.error('Error creating tracker:', error);
+                toast.error('Failed to create tracker');
+              }
+            }}
+            onCancel={() => setShowConversationalBuilder(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
