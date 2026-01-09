@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Baseline</title>
     <meta name="description" content="Know your baseline, spot the changes. Track pain, mood, and any metric that matters." />
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com https://api.datamuse.com https://en.wikipedia.org; frame-ancestors 'none';" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,18 +16,7 @@
 
 <body>
     <div id="root"></div>
-    <!-- E2E: provide a lightweight helper for opening create dialog before the app mounts -->
-    <script>
-      try {
-        if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
-          window.__openCreateDialog = function() {
-            try { window.__pendingOpenCreateDialog = true; window.dispatchEvent(new CustomEvent('e2e-open-create-dialog')); } catch (e) { /* ignore */ }
-          };
-        }
-      } catch (e) {
-        // no-op
-      }
-    </script>
+    <!-- SECURITY: E2E helpers removed from production HTML. E2E mode is only available in development builds via appRuntime.ts -->
     <script type="module" src="/src/main.tsx"></script>
 </body>
 

@@ -1,5 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { sanitizeForPrompt, sanitizeExternalResponse } from '../_shared/prompt-sanitizer.ts';
+import { checkDistributedRateLimit, getDistributedRateLimitHeaders } from '../_shared/distributed-rate-limiter.ts';
+import { createSecurityLogger } from '../_shared/security-logger.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -124,14 +126,100 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase environment variables');
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  // Create security logger for this request
+  const securityLog = createSecurityLogger(supabaseUrl, supabaseServiceKey, req, 'check-ambiguity');
+
+  // JWT Authentication - SECURITY: Required to prevent unauthorized API usage
+  const authHeader = req.headers.get('authorization') || '';
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+
+  if (!match) {
+    console.error('Missing or invalid Authorization header');
+    await securityLog.authFailure('Missing or invalid Authorization header');
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userToken = match[1];
+
+  // Verify JWT token with Supabase Auth
+  const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseServiceKey,
+    },
+  });
+
+  if (!userResp.ok) {
+    console.error('Invalid or expired token');
+    await securityLog.invalidToken();
+    return new Response(
+      JSON.stringify({ error: 'Invalid or expired token' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userData = await userResp.json();
+  console.log('Authenticated user:', userData.id);
+
+  // Distributed rate limiting - 30 ambiguity checks per hour per user
+  const rateLimitConfig = { maxRequests: 30, windowSeconds: 3600 };
+  const rateLimit = await checkDistributedRateLimit(
+    supabaseUrl,
+    supabaseServiceKey,
+    userData.id,
+    'check-ambiguity',
+    rateLimitConfig
+  );
+
+  const rateLimitHeaders = getDistributedRateLimitHeaders(rateLimit, rateLimitConfig);
+
+  if (!rateLimit.allowed) {
+    console.warn('Rate limit exceeded for user:', userData.id);
+    await securityLog.rateLimitExceeded(userData.id, rateLimitConfig.maxRequests);
+    return new Response(
+      JSON.stringify({
+        error: 'Rate limit exceeded. Please try again later.',
+        resetAt: rateLimit.resetAt.toISOString(),
+      }),
+      {
+        status: 429,
+        headers: { ...corsHeaders, ...rateLimitHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   console.log('=== Check Ambiguity Start ===');
-  
+
   try {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
-    
+
     const { trackerName, allDefinitions, relatedTerms, wikiSummary, wikiCategories } = body;
-    
+
     if (!trackerName) {
       throw new Error('trackerName is required');
     }
@@ -146,6 +234,7 @@ Deno.serve(async (req: Request) => {
     const sanitizedName = sanitizeForPrompt(trackerName, { maxLength: 50 });
     if (sanitizedName.injectionDetected) {
       console.warn('Potential prompt injection detected in trackerName:', trackerName);
+      await securityLog.injectionDetected(userData.id, trackerName);
     }
     const safeTrackerName = sanitizedName.value;
 

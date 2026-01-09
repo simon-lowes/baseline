@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate-limiter.ts';
+import { checkDistributedRateLimit, getDistributedRateLimitHeaders } from '../_shared/distributed-rate-limiter.ts';
+import { createSecurityLogger } from '../_shared/security-logger.ts';
 import { sanitizeForPrompt } from '../_shared/prompt-sanitizer.ts';
 
 // Secure CORS configuration
@@ -43,22 +44,6 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // JWT Authentication
-  const authHeader = req.headers.get('authorization') || '';
-  const match = authHeader.match(/^Bearer\s+(.*)$/i);
-
-  if (!match) {
-    console.error('Missing or invalid Authorization header');
-    return new Response(
-      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
-      {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  }
-
-  const userToken = match[1];
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -73,6 +58,27 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // Create security logger for this request
+  const securityLog = createSecurityLogger(supabaseUrl, supabaseServiceKey, req, 'generate-tracker-fields');
+
+  // JWT Authentication
+  const authHeader = req.headers.get('authorization') || '';
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+
+  if (!match) {
+    console.error('Missing or invalid Authorization header');
+    await securityLog.authFailure('Missing or invalid Authorization header');
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userToken = match[1];
+
   // Verify JWT token with Supabase Auth
   const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
     method: 'GET',
@@ -84,6 +90,7 @@ Deno.serve(async (req: Request) => {
 
   if (!userResp.ok) {
     console.error('Invalid or expired token');
+    await securityLog.invalidToken();
     return new Response(
       JSON.stringify({ error: 'Invalid or expired token' }),
       {
@@ -96,23 +103,25 @@ Deno.serve(async (req: Request) => {
   const userData = await userResp.json();
   console.log('Authenticated user:', userData.id);
 
-  // Rate limiting - 20 field generations per hour per user
-  const rateLimit = checkRateLimit(userData.id, {
-    maxRequests: 20,
-    windowMs: 60 * 60 * 1000, // 1 hour
-  });
+  // Distributed rate limiting - 20 field generations per hour per user
+  const rateLimitConfig = { maxRequests: 20, windowSeconds: 3600 };
+  const rateLimit = await checkDistributedRateLimit(
+    supabaseUrl,
+    supabaseServiceKey,
+    userData.id,
+    'generate-tracker-fields',
+    rateLimitConfig
+  );
 
-  const rateLimitHeaders = getRateLimitHeaders(rateLimit, {
-    maxRequests: 20,
-    windowMs: 60 * 60 * 1000,
-  });
+  const rateLimitHeaders = getDistributedRateLimitHeaders(rateLimit, rateLimitConfig);
 
   if (!rateLimit.allowed) {
     console.warn('Rate limit exceeded for user:', userData.id);
+    await securityLog.rateLimitExceeded(userData.id, rateLimitConfig.maxRequests);
     return new Response(
       JSON.stringify({
         error: 'Rate limit exceeded. Please try again later.',
-        resetAt: new Date(rateLimit.resetAt).toISOString(),
+        resetAt: rateLimit.resetAt.toISOString(),
       }),
       {
         status: 429,
@@ -143,6 +152,7 @@ Deno.serve(async (req: Request) => {
     const sanitizedContext = sanitizeForPrompt(context || 'General health tracking', { maxLength: 200 });
     if (sanitizedName.injectionDetected || sanitizedContext.injectionDetected) {
       console.warn('Potential prompt injection detected in input');
+      await securityLog.injectionDetected(userData.id, sanitizedName.injectionDetected ? trackerName : context);
     }
     const safeTrackerName = sanitizedName.value;
     const safeContext = sanitizedContext.value;

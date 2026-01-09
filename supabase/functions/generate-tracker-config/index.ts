@@ -1,4 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { checkDistributedRateLimit, getDistributedRateLimitHeaders } from '../_shared/distributed-rate-limiter.ts';
+import { createSecurityLogger } from '../_shared/security-logger.ts';
+import { sanitizeForPrompt, sanitizeExternalResponse } from '../_shared/prompt-sanitizer.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -31,8 +34,94 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('Missing Supabase environment variables');
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  // Create security logger for this request
+  const securityLog = createSecurityLogger(supabaseUrl, supabaseServiceKey, req, 'generate-tracker-config');
+
+  // JWT Authentication - SECURITY: Required to prevent unauthorized API usage
+  const authHeader = req.headers.get('authorization') || '';
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+
+  if (!match) {
+    console.error('Missing or invalid Authorization header');
+    await securityLog.authFailure('Missing or invalid Authorization header');
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userToken = match[1];
+
+  // Verify JWT token with Supabase Auth
+  const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseServiceKey,
+    },
+  });
+
+  if (!userResp.ok) {
+    console.error('Invalid or expired token');
+    await securityLog.invalidToken();
+    return new Response(
+      JSON.stringify({ error: 'Invalid or expired token' }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const userData = await userResp.json();
+  console.log('Authenticated user:', userData.id);
+
+  // Distributed rate limiting - 20 config generations per hour per user
+  const rateLimitConfig = { maxRequests: 20, windowSeconds: 3600 };
+  const rateLimit = await checkDistributedRateLimit(
+    supabaseUrl,
+    supabaseServiceKey,
+    userData.id,
+    'generate-tracker-config',
+    rateLimitConfig
+  );
+
+  const rateLimitHeaders = getDistributedRateLimitHeaders(rateLimit, rateLimitConfig);
+
+  if (!rateLimit.allowed) {
+    console.warn('Rate limit exceeded for user:', userData.id);
+    await securityLog.rateLimitExceeded(userData.id, rateLimitConfig.maxRequests);
+    return new Response(
+      JSON.stringify({
+        error: 'Rate limit exceeded. Please try again later.',
+        resetAt: rateLimit.resetAt.toISOString(),
+      }),
+      {
+        status: 429,
+        headers: { ...corsHeaders, ...rateLimitHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
   console.log('=== Generate Tracker Config Start ===');
-  
+
   try {
     const body = await req.json();
     console.log('Request body:', JSON.stringify(body));
@@ -67,53 +156,82 @@ Deno.serve(async (req: Request) => {
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     console.log('API key present:', !!GEMINI_API_KEY);
-    
+
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY not configured');
     }
-    
-    // Build context block from all signals
+
+    // SECURITY: Sanitize all user inputs to prevent prompt injection (see docs/SECURITY.md Section 9.1)
+    const sanitizedName = sanitizeForPrompt(trackerName, { maxLength: 50 });
+    if (sanitizedName.injectionDetected) {
+      console.warn('Potential prompt injection detected in trackerName:', trackerName);
+      await securityLog.injectionDetected(userData.id, trackerName);
+    }
+    const safeTrackerName = sanitizedName.value;
+
+    // Build context block from all signals - sanitize external API responses
     const lines: string[] = [];
     if (selectedInterpretation) {
-      lines.push(`• User selected interpretation: ${selectedInterpretation}`);
+      lines.push(`• User selected interpretation: ${sanitizeExternalResponse(selectedInterpretation, 200)}`);
     }
     if (userDescription) {
-      lines.push(`• User description: ${userDescription}`);
+      const sanitizedDesc = sanitizeForPrompt(userDescription, { maxLength: 500 });
+      if (sanitizedDesc.injectionDetected) {
+        console.warn('Potential prompt injection detected in userDescription');
+        await securityLog.injectionDetected(userData.id, userDescription);
+      }
+      lines.push(`• User description: ${sanitizedDesc.value}`);
     }
     if (allDefinitions?.length) {
+      const safeDefinitions = allDefinitions
+        .slice(0, 5)
+        .map((d: string) => sanitizeExternalResponse(d, 200));
       lines.push(
         '• Dictionary definitions:',
-        ...allDefinitions.map((d: string, i: number) => `   ${i + 1}. ${d}`)
+        ...safeDefinitions.map((d: string, i: number) => `   ${i + 1}. ${d}`)
       );
     } else if (definition) {
-      lines.push(`• Dictionary definition: ${definition}`);
+      lines.push(`• Dictionary definition: ${sanitizeExternalResponse(definition, 200)}`);
     }
     if (wikiSummary) {
-      lines.push(`• Wikipedia summary: ${wikiSummary}`);
+      lines.push(`• Wikipedia summary: ${sanitizeExternalResponse(wikiSummary, 300)}`);
     }
     if (wikiCategories?.length) {
-      lines.push(`• Wikipedia categories: ${wikiCategories.join(', ')}`);
+      const safeCategories = wikiCategories.slice(0, 10).map((c: string) => sanitizeExternalResponse(c, 50));
+      lines.push(`• Wikipedia categories: ${safeCategories.join(', ')}`);
     }
     if (relatedTerms?.length) {
-      lines.push(`• Related terms (Datamuse): ${relatedTerms.join(', ')}`);
+      const safeTerms = relatedTerms.slice(0, 10).map((t: string) => sanitizeExternalResponse(t, 30));
+      lines.push(`• Related terms (Datamuse): ${safeTerms.join(', ')}`);
     }
     if (lines.length === 0) {
-      lines.push(`• No external context found. Infer the most likely health/wellness meaning of "${trackerName}" that a person would track.`);
+      lines.push(`• No external context found. Infer the most likely health/wellness meaning of "${safeTrackerName}" that a person would track.`);
     }
     const contextSection = lines.join('\n');
 
-    // Build conversation history section if provided
+    // Build conversation history section if provided - sanitize user answers
     const questionCount = conversationHistory?.length ?? 0;
+    let injectionInConversation = false;
     const conversationSection = conversationHistory?.length
-      ? `\nPrevious conversation:\n${conversationHistory.map((h, i) => `Q${i + 1}: ${h.question}\nA${i + 1}: ${h.answer}`).join('\n\n')}`
+      ? `\nPrevious conversation:\n${conversationHistory.map((h, i) => {
+          const sanitizedAnswer = sanitizeForPrompt(h.answer, { maxLength: 500 });
+          if (sanitizedAnswer.injectionDetected) {
+            console.warn(`Potential prompt injection detected in conversation answer ${i + 1}`);
+            injectionInConversation = true;
+          }
+          return `Q${i + 1}: ${h.question}\nA${i + 1}: ${sanitizedAnswer.value}`;
+        }).join('\n\n')}`
       : '';
+    if (injectionInConversation) {
+      await securityLog.injectionDetected(userData.id, 'conversation_answer');
+    }
 
     // Adjust confidence threshold based on conversation depth
     // Each answered question adds ~0.15 confidence
     const confidenceBoost = Math.min(0.15 * questionCount, 0.35);
     const isConversationalMode = questionCount > 0;
     
-    const prompt = `You are helping configure a health/wellness tracking app through ${isConversationalMode ? 'a conversation' : 'analysis'}. The user wants to create a custom tracker called "${trackerName}".
+    const prompt = `You are helping configure a health/wellness tracking app through ${isConversationalMode ? 'a conversation' : 'analysis'}. The user wants to create a custom tracker called "${safeTrackerName}".
 
 Context signals:
 ${contextSection}
@@ -166,7 +284,7 @@ Avoid vague prompts like "tell me more". Example questions:
 - "How long do episodes typically last?"
 - "Which situations trigger it (turning head, standing up, screens, exercise, travel)?"
 
-Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${trackerName}" in a health/wellness app.
+Generate a JSON configuration for this tracker. The configuration should be contextually appropriate for tracking "${safeTrackerName}" in a health/wellness app.
 
 For Shape A, the config MUST be this exact structure:
 {
@@ -270,9 +388,9 @@ Make it medically/scientifically informed but accessible to regular users.`;
     if (looksGenericLocations || looksGenericTriggers) {
       // In conversational mode, ask a single focused question
       const questions = isConversationalMode
-        ? [`What specific aspects of "${trackerName}" would you like to track? For example, timing, categories, triggers, or measurements.`]
+        ? [`What specific aspects of "${safeTrackerName}" would you like to track? For example, timing, categories, triggers, or measurements.`]
         : [
-            `When you say "${trackerName}", what exactly do you want to track?`,
+            `When you say "${safeTrackerName}", what exactly do you want to track?`,
             'What situations, positions, or activities usually trigger it?',
             'What specific categories should the tracker include (types, contexts, or patterns)?',
           ];

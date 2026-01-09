@@ -63,8 +63,9 @@ export const kv: KvPort = localKv;
  */
 // Expose auth implementation. In local development (no Supabase env) provide a lightweight dev auth
 // so the app can be used without configuring Supabase. For E2E we still allow ?e2e=true to use the special testAuth.
+// SECURITY: Dev/E2E modes are ONLY available in development builds (import.meta.env.DEV)
 let _auth: AuthPort;
-if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true'))) {
+if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
   console.log('[appRuntime] DEV mode detected - using devAuth');
   const devUser = { id: 'dev-user', email: 'dev@example.com' };
   _auth = {
@@ -90,7 +91,8 @@ if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'un
 }
 
 // E2E override (explicit via ?e2e=true) - take precedence
-if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+// SECURITY: E2E mode is ONLY available in development builds (import.meta.env.DEV)
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
   console.log('[appRuntime] E2E mode detected - using testAuth');
   // Provide a lightweight test auth that reports a signed-in test user so E2E flows can exercise authenticated UI
   const testUser = { id: 'e2e-user', email: 'e2e@example.com' };
@@ -120,7 +122,8 @@ export const auth: AuthPort = _auth;
  * in-memory adapter for tracker_entries to avoid Supabase UUID parsing errors for test-generated IDs.
  */
 let _db: DbPort = supabaseDb;
-if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+// SECURITY: E2E mode is ONLY available in development builds (import.meta.env.DEV)
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
   console.log('[appRuntime] E2E mode detected - using in-memory DB adapter for tracker_entries');
   _db = {
     async select(table: string, options) {
@@ -181,7 +184,8 @@ export const db: DbPort = _db;
 let _tracker: TrackerPort = supabaseTracker;
 
 // DEV mode: in-memory tracker for local development (no Supabase env)
-if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true'))) {
+// SECURITY: Dev mode is ONLY available in development builds (import.meta.env.DEV)
+if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
   console.log('[appRuntime] DEV mode detected - using in-memory dev tracker');
   const DEV_KEY = '__baseline_dev_trackers';
   let devStore: Tracker[] = [];
@@ -287,7 +291,8 @@ if ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'un
 }
 
 // In E2E mode, provide a lightweight in-memory tracker implementation so tests can run without external DB
-if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
+// SECURITY: E2E mode is ONLY available in development builds (import.meta.env.DEV)
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
   console.log('[appRuntime] E2E mode detected - using in-memory test tracker');
   // Persist E2E store across page reloads using localStorage so tests can navigate without losing state
   const E2E_KEY = '__baseline_e2e_trackers';
@@ -402,7 +407,8 @@ if (typeof window !== 'undefined' && window.location.search.includes('e2e=true')
 export const tracker: TrackerPort = _tracker;
 
 // Expose a small dev helper when running in dev mode so tests can create trackers directly
-if (typeof window !== 'undefined' && window.location.search.includes('dev=true')) {
+// SECURITY: Dev helper is ONLY available in development builds (import.meta.env.DEV)
+if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.search.includes('dev=true')) {
   try {
     (window as any).__dev = (window as any).__dev || {};
     (window as any).__dev.createTracker = async (input: any) => {
