@@ -6,7 +6,7 @@
  * Includes AI-powered context generation for custom trackers.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Plus, ChevronDown, Check, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -545,6 +545,10 @@ export function TrackerSelector({
   const [editingField, setEditingField] = useState<TrackerField | null>(null);
   const [showFieldPanel, setShowFieldPanel] = useState(false);
 
+  // Capture whether we should auto-select a tracker on mount
+  // This prevents the race condition where currentTracker changes during async loadTrackers
+  const shouldAutoSelectRef = useRef(!currentTracker);
+
   // Use field suggestions hook
   const fieldSuggestions = useFieldSuggestions(
     newlyCreatedTracker?.name || '',
@@ -578,11 +582,13 @@ export function TrackerSelector({
       if (result.data) {
         debug('[TrackerSelector] Loaded', result.data.length, 'trackers');
         setTrackers(result.data);
-        
-        // If no current tracker selected, select the default
-        if (!currentTracker && result.data.length > 0) {
+
+        // Only auto-select if there was no tracker when component mounted
+        // Using ref prevents race condition where currentTracker changes during async load
+        if (shouldAutoSelectRef.current && result.data.length > 0) {
           const defaultTracker = result.data.find(t => t.is_default) || result.data[0];
           onTrackerChange(defaultTracker);
+          shouldAutoSelectRef.current = false; // Only auto-select once
         }
       } else if (result.error) {
         console.error('[TrackerSelector] Error loading trackers:', result.error);
