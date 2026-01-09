@@ -252,14 +252,24 @@ export function ConversationalTrackerBuilder({
   }, [answerInput, state, dispatch]);
 
   /**
+   * Get the effective tracker name - use interpretation label if selected, otherwise original name
+   */
+  const getEffectiveTrackerName = useCallback(() => {
+    if (state.selectedInterpretation && state.selectedInterpretation.value !== 'other') {
+      return state.selectedInterpretation.label;
+    }
+    return state.trackerName;
+  }, [state.selectedInterpretation, state.trackerName]);
+
+  /**
    * Handle skip final note
    */
   const handleSkipFinal = useCallback(() => {
     dispatch({ type: 'SKIP_FINAL' });
     if (state.generatedConfig) {
-      onComplete(state.generatedConfig, state.trackerName);
+      onComplete(state.generatedConfig, getEffectiveTrackerName());
     }
-  }, [state.generatedConfig, state.trackerName, dispatch, onComplete]);
+  }, [state.generatedConfig, getEffectiveTrackerName, dispatch, onComplete]);
 
   /**
    * Handle final note submission
@@ -294,10 +304,11 @@ export function ConversationalTrackerBuilder({
 
       dispatch({ type: 'START_GENERATING' });
 
+      const effectiveName = getEffectiveTrackerName();
       if (result.config) {
-        onComplete(result.config, state.trackerName);
+        onComplete(result.config, effectiveName);
       } else if (state.generatedConfig) {
-        onComplete(state.generatedConfig, state.trackerName);
+        onComplete(state.generatedConfig, effectiveName);
       }
     } catch (error) {
       dispatch({
@@ -305,7 +316,7 @@ export function ConversationalTrackerBuilder({
         error: error instanceof Error ? error.message : 'Failed to create tracker',
       });
     }
-  }, [finalNote, state, dispatch, onComplete, handleSkipFinal]);
+  }, [finalNote, state, dispatch, onComplete, handleSkipFinal, getEffectiveTrackerName]);
 
   /**
    * Handle key press for inputs
