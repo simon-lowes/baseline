@@ -10,7 +10,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
     Deno.env.get('ALLOWED_ORIGIN'),
   ].filter(Boolean);
 
-  const isAllowed = allowedOrigins.some(allowed => origin.startsWith(allowed as string));
+  const isAllowed = allowedOrigins.some(allowed => allowed && origin === allowed);
 
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : '',
