@@ -64,6 +64,7 @@ import type { TrackerField } from '@/types/tracker-fields';
 interface TrackerSelectorProps {
   currentTracker: Tracker | null;
   onTrackerChange: (tracker: Tracker) => void;
+  onTrackerDeleted?: (trackerId: string) => void;
   className?: string;
 }
 
@@ -508,10 +509,11 @@ function DialogContentArea({
   );
 }
 
-export function TrackerSelector({ 
-  currentTracker, 
-  onTrackerChange, 
-  className 
+export function TrackerSelector({
+  currentTracker,
+  onTrackerChange,
+  onTrackerDeleted,
+  className
 }: Readonly<TrackerSelectorProps>) {
   const isMobile = useIsMobile();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
@@ -980,26 +982,22 @@ export function TrackerSelector({
 
   async function handleDeleteTracker() {
     if (!trackerToDelete) return;
-    
+
     setDeleting(true);
     const result = await trackerService.deleteTracker(trackerToDelete.id);
-    
+
     if (result.error) {
       toast.error(`Failed to delete: ${result.error.message}`);
     } else {
       toast.success(`Deleted "${trackerToDelete.name}" tracker`);
       setTrackers(prev => prev.filter(t => t.id !== trackerToDelete.id));
-      
-      // If we deleted the current tracker, switch to another one
-      if (currentTracker?.id === trackerToDelete.id) {
-        const remaining = trackers.filter(t => t.id !== trackerToDelete.id);
-        if (remaining.length > 0) {
-          const newDefault = remaining.find(t => t.is_default) || remaining[0];
-          onTrackerChange(newDefault);
-        }
+
+      // Notify parent to handle navigation and state update
+      if (onTrackerDeleted) {
+        onTrackerDeleted(trackerToDelete.id);
       }
     }
-    
+
     setDeleting(false);
     setDeleteDialogOpen(false);
     setTrackerToDelete(null);
