@@ -200,46 +200,51 @@ export function SwipeableTrackerCard({
     setShowContextMenu(false);
   }, []);
 
+  // Only show action buttons when card is being swiped or revealed
+  const showActions = offsetX < 0 || isDragging;
+
   return (
     <div
       ref={containerRef}
       className="relative overflow-hidden rounded-xl"
     >
-      {/* Action buttons (behind the card) */}
-      <div
-        className="absolute inset-y-0 right-0 flex items-stretch"
-        style={{ width: ACTION_WIDTH }}
-      >
-        {showEditAction && (
+      {/* Action buttons (behind the card) - only rendered when swiping */}
+      {showActions && (
+        <div
+          className="absolute inset-y-0 right-0 flex items-stretch"
+          style={{ width: ACTION_WIDTH }}
+        >
+          {showEditAction && (
+            <Button
+              variant="ghost"
+              className="flex-1 h-full rounded-none bg-muted hover:bg-muted/80 flex flex-col items-center justify-center gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReveal(null);
+                onEdit?.();
+              }}
+            >
+              <Settings className="h-5 w-5" />
+              <span className="text-xs">Edit</span>
+            </Button>
+          )}
           <Button
             variant="ghost"
-            className="flex-1 h-full rounded-none bg-muted hover:bg-muted/80 flex flex-col items-center justify-center gap-1"
+            className={cn(
+              "flex-1 h-full rounded-none bg-destructive hover:bg-destructive/90 text-destructive-foreground flex flex-col items-center justify-center gap-1",
+              !showEditAction && "rounded-r-xl"
+            )}
             onClick={(e) => {
               e.stopPropagation();
               onReveal(null);
-              onEdit?.();
+              onDelete();
             }}
           >
-            <Settings className="h-5 w-5" />
-            <span className="text-xs">Edit</span>
+            <Trash2 className="h-5 w-5" />
+            <span className="text-xs">Delete</span>
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          className={cn(
-            "flex-1 h-full rounded-none bg-destructive hover:bg-destructive/90 text-destructive-foreground flex flex-col items-center justify-center gap-1",
-            !showEditAction && "rounded-r-xl"
-          )}
-          onClick={(e) => {
-            e.stopPropagation();
-            onReveal(null);
-            onDelete();
-          }}
-        >
-          <Trash2 className="h-5 w-5" />
-          <span className="text-xs">Delete</span>
-        </Button>
-      </div>
+        </div>
+      )}
 
       {/* Swipeable card wrapper with background to cover action buttons */}
       <div
