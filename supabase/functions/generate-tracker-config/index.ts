@@ -43,7 +43,19 @@ Deno.serve(async (req: Request) => {
       wikiSummary,
       wikiCategories,
       relatedTerms,
-    } = body;
+      // NEW: Conversation history for iterative questioning
+      conversationHistory,
+    } = body as {
+      trackerName: string;
+      definition?: string;
+      allDefinitions?: string[];
+      userDescription?: string;
+      selectedInterpretation?: string;
+      wikiSummary?: string;
+      wikiCategories?: string[];
+      relatedTerms?: string[];
+      conversationHistory?: Array<{ question: string; answer: string }>;
+    };
     
     if (!trackerName) {
       console.log('Missing tracker name');
@@ -86,13 +98,33 @@ Deno.serve(async (req: Request) => {
       lines.push(`• No external context found. Infer the most likely health/wellness meaning of "${trackerName}" that a person would track.`);
     }
     const contextSection = lines.join('\n');
+
+    // Build conversation history section if provided
+    const questionCount = conversationHistory?.length ?? 0;
+    const conversationSection = conversationHistory?.length
+      ? `\nPrevious conversation:\n${conversationHistory.map((h, i) => `Q${i + 1}: ${h.question}\nA${i + 1}: ${h.answer}`).join('\n\n')}`
+      : '';
+
+    // Adjust confidence threshold based on conversation depth
+    // Each answered question adds ~0.15 confidence
+    const confidenceBoost = Math.min(0.15 * questionCount, 0.35);
+    const isConversationalMode = questionCount > 0;
     
-    const prompt = `You are helping configure a health/wellness tracking app. The user wants to create a custom tracker called "${trackerName}".
+    const prompt = `You are helping configure a health/wellness tracking app through ${isConversationalMode ? 'a conversation' : 'analysis'}. The user wants to create a custom tracker called "${trackerName}".
 
 Context signals:
 ${contextSection}
+${conversationSection}
 
-CRITICAL INTERPRETATION RULES:
+${isConversationalMode ? `CONVERSATION MODE ACTIVE:
+- Questions answered so far: ${questionCount}
+- Base confidence: 0.4 + ${confidenceBoost.toFixed(2)} from conversation = ${(0.4 + confidenceBoost).toFixed(2)}
+- If you have gathered enough context to generate SPECIFIC (non-generic) config, output Shape A
+- Otherwise, ask exactly ONE follow-up question (not multiple) that builds on the conversation
+- Do NOT repeat questions about topics already answered
+- Set "final_question": true if this question will likely give you enough context
+
+` : ''}CRITICAL INTERPRETATION RULES:
 1. If a selectedInterpretation is provided above, use ONLY that interpretation - ignore all other definitions.
 2. Otherwise, choose the interpretation most relevant to health, wellness, or activity tracking that a PERSON would do.
 3. IGNORE dictionary definitions about baseball, cricket, or other sports terminology that uses the word differently (e.g., "fly out" in baseball is NOT what someone means by "Flying" tracker).
@@ -119,12 +151,13 @@ Shape B (needs more info):
 {
   "needs_clarification": true,
   "confidence": 0.0-1.0,
-  "questions": ["question 1", "question 2", "question 3"],
+  "final_question": boolean, // true if answering this should provide enough context
+  "questions": ["single contextual question"],
   "reason": "short reason why more detail is needed"
 }
 
 If confidence < 0.7 OR you would output generic categories/triggers, return Shape B.
-For questions, ask 2-4 concrete, narrow questions that directly enable specific categories/triggers.
+${isConversationalMode ? `In conversational mode, ask exactly ONE focused question that builds on previous answers.` : `For initial clarification, ask 1-3 concrete, narrow questions.`}
 Avoid vague prompts like "tell me more". Example questions:
 - "Is this about symptoms (dizziness/vertigo) or an activity (spinning class)?"
 - "How long do episodes typically last?"
@@ -232,15 +265,19 @@ Make it medically/scientifically informed but accessible to regular users.`;
     const looksGenericLocations = locLabels.length <= 3 || locLabels.every((l: string) => genericLocations.includes(l));
     const looksGenericTriggers = trigLabels.length <= 4 && trigLabels.every((t: string) => genericTriggers.includes(t));
     if (looksGenericLocations || looksGenericTriggers) {
-      const questions = [
-        `When you say "${trackerName}", what exactly do you want to track?`,
-        'What situations, positions, or activities usually trigger it?',
-        'What specific categories should the tracker include (types, contexts, or patterns)?',
-      ];
+      // In conversational mode, ask a single focused question
+      const questions = isConversationalMode
+        ? [`What specific aspects of "${trackerName}" would you like to track? For example, timing, categories, triggers, or measurements.`]
+        : [
+            `When you say "${trackerName}", what exactly do you want to track?`,
+            'What situations, positions, or activities usually trigger it?',
+            'What specific categories should the tracker include (types, contexts, or patterns)?',
+          ];
       return new Response(
         JSON.stringify({
           needs_clarification: true,
-          confidence: 0.3,
+          confidence: 0.3 + confidenceBoost,
+          final_question: questionCount >= 2, // If we've asked 2+ questions and still generic, next one should be final
           questions,
           reason: 'Generated configuration was too generic.',
         }),
