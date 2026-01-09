@@ -340,8 +340,8 @@ export function ConversationalTrackerBuilder({
       </div>
 
       {/* Conversation area */}
-      <ScrollArea ref={scrollRef} className="flex-1 overflow-hidden">
-        <div className="p-4 space-y-4">
+      <ScrollArea ref={scrollRef} className="flex-1 min-h-0">
+        <div className="p-4 space-y-4 pb-6">
           <AnimatePresence mode="popLayout">
             {/* Initial prompt */}
             {state.phase === 'idle' && (
