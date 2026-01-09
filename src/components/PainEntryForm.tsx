@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, KeyboardEvent } from 'react'
+import { useState, useMemo, useEffect, KeyboardEvent, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,6 +13,17 @@ import type { PainEntry } from '@/types/pain-entry'
 import { getTrackerConfig } from '@/types/tracker-config'
 import { DynamicFieldForm } from '@/components/fields/DynamicFieldForm'
 import type { FieldValues, TrackerField } from '@/types/tracker-fields'
+import { useFormDraft } from '@/hooks/useFormDraft'
+
+/** Draft data structure for form persistence */
+interface EntryDraft {
+  intensity: number
+  fieldValues: FieldValues
+  locations: string[]
+  notes: string
+  triggers: string[]
+  hashtags: string[]
+}
 
 interface PainEntryFormProps {
   tracker: Tracker | null
@@ -41,27 +52,58 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
     ? ((tracker?.generated_config as any)?.fields || [])
     : []
 
+  // Draft persistence - only for new entries (not when editing existing)
+  const draftKey = tracker?.id ? `baseline-draft-entry-${tracker.id}` : null
+  const defaultDraft: EntryDraft = {
+    intensity: editEntry?.intensity ?? 5,
+    fieldValues: (editEntry as any)?.field_values || {},
+    locations: editEntry?.locations ?? [],
+    notes: editEntry?.notes ?? '',
+    triggers: editEntry?.triggers ?? [],
+    hashtags: editEntry?.hashtags ?? [],
+  }
+
+  const { saveDraft, clearDraft, getInitialData, hadDraft } = useFormDraft<EntryDraft>(
+    draftKey || 'baseline-draft-entry-temp',
+    defaultDraft
+  )
+
+  // Get initial form values (from draft if exists, otherwise from editEntry or defaults)
+  const initialValues = isEditing ? defaultDraft : getInitialData()
+
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  const [intensity, setIntensity] = useState([editEntry?.intensity ?? 5])
+  const [intensity, setIntensity] = useState([initialValues.intensity])
 
   // Custom fields state
-  const [fieldValues, setFieldValues] = useState<FieldValues>(
-    (editEntry as any)?.field_values || {}
-  )
-  
+  const [fieldValues, setFieldValues] = useState<FieldValues>(initialValues.fieldValues)
+
   // Compute intensity color reactively when theme changes
   const intensityColor = useMemo(() => {
     if (!mounted) return config.getIntensityColor(intensity[0])
     return config.getIntensityColor(intensity[0])
   }, [config, intensity, resolvedTheme, mounted])
-  const [selectedLocations, setSelectedLocations] = useState<string[]>(editEntry?.locations ?? [])
-  const [notes, setNotes] = useState(editEntry?.notes ?? '')
-  const [selectedTriggers, setSelectedTriggers] = useState<string[]>(editEntry?.triggers ?? [])
-  const [hashtags, setHashtags] = useState<string[]>(editEntry?.hashtags ?? [])
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(initialValues.locations)
+  const [notes, setNotes] = useState(initialValues.notes)
+  const [selectedTriggers, setSelectedTriggers] = useState<string[]>(initialValues.triggers)
+  const [hashtags, setHashtags] = useState<string[]>(initialValues.hashtags)
   const [hashtagInput, setHashtagInput] = useState('')
+
+  // Save draft whenever form values change (for new entries only)
+  useEffect(() => {
+    if (!isEditing && draftKey) {
+      saveDraft({
+        intensity: intensity[0],
+        fieldValues,
+        locations: selectedLocations,
+        notes,
+        triggers: selectedTriggers,
+        hashtags,
+      })
+    }
+  }, [intensity, fieldValues, selectedLocations, notes, selectedTriggers, hashtags, isEditing, draftKey, saveDraft])
 
   const toggleLocation = (location: string) => {
     setSelectedLocations(prev =>
@@ -101,11 +143,20 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
     }
   }
 
+  const handleCancel = useCallback(() => {
+    // Clear draft when user explicitly cancels
+    clearDraft()
+    onCancel()
+  }, [clearDraft, onCancel])
+
   const handleSubmit = () => {
     // For schema v1, require locations
     if (!isCustomFieldsTracker && selectedLocations.length === 0) {
       return
     }
+
+    // Clear draft on successful submission
+    clearDraft()
 
     onSubmit({
       intensity: intensity[0],
@@ -177,7 +228,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
             >
               {isEditing ? 'Save Changes' : 'Save Entry'}
             </Button>
-            <Button onClick={onCancel} variant="outline" className="flex-1">
+            <Button onClick={handleCancel} variant="outline" className="flex-1">
               Cancel
             </Button>
           </div>
@@ -273,6 +324,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
             onChange={e => setNotes(e.target.value)}
             rows={4}
             className="resize-none"
+            spellCheck={true}
           />
         </div>
 
@@ -343,7 +395,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
           >
             {isEditing ? 'Save Changes' : 'Save Entry'}
           </Button>
-          <Button onClick={onCancel} variant="outline" className="flex-1">
+          <Button onClick={handleCancel} variant="outline" className="flex-1">
             Cancel
           </Button>
         </div>
