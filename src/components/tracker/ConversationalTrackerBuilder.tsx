@@ -62,15 +62,22 @@ export function ConversationalTrackerBuilder({
   const [answerInput, setAnswerInput] = useState('');
   const [finalNote, setFinalNote] = useState('');
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change or disambiguation options appear
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+    // Small delay to allow DOM to render, especially important for mobile
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]');
+        if (viewport) {
+          viewport.scrollTo({
+            top: viewport.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
       }
-    }
-  }, [state.messages, state.phase]);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [state.messages, state.phase, state.interpretations]);
 
   // Focus appropriate input when phase changes
   useEffect(() => {
@@ -382,7 +389,7 @@ export function ConversationalTrackerBuilder({
                 key="disambiguate"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
+                className="space-y-4 pb-16"
               >
                 <ChatBubble role="ai">
                   {state.disambiguationReason ||
