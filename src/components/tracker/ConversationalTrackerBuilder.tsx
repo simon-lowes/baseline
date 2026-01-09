@@ -167,7 +167,14 @@ export function ConversationalTrackerBuilder({
         timestamp: Date.now(),
       };
 
-      await askNextQuestion(state.trackerName, interp, [...state.messages, newMessage]);
+      try {
+        await askNextQuestion(state.trackerName, interp, [...state.messages, newMessage]);
+      } catch (error) {
+        dispatch({
+          type: 'GENERATION_ERROR',
+          error: error instanceof Error ? error.message : 'Failed to process selection',
+        });
+      }
     },
     [state.trackerName, state.messages, dispatch, askNextQuestion]
   );
@@ -182,7 +189,14 @@ export function ConversationalTrackerBuilder({
       description: '',
     };
     dispatch({ type: 'SELECT_SOMETHING_ELSE' });
-    await askNextQuestion(state.trackerName, otherInterp, state.messages);
+    try {
+      await askNextQuestion(state.trackerName, otherInterp, state.messages);
+    } catch (error) {
+      dispatch({
+        type: 'GENERATION_ERROR',
+        error: error instanceof Error ? error.message : 'Failed to process selection',
+      });
+    }
   }, [state.trackerName, state.messages, dispatch, askNextQuestion]);
 
   /**
@@ -206,27 +220,34 @@ export function ConversationalTrackerBuilder({
     const updatedMessages = [...state.messages, newMessage];
     const history = buildConversationHistory(updatedMessages);
 
-    const result = await generateTrackerConfigConversational(
-      state.trackerName,
-      state.selectedInterpretation?.value !== 'other'
-        ? `${state.selectedInterpretation?.label}: ${state.selectedInterpretation?.description}`
-        : undefined,
-      history
-    );
+    try {
+      const result = await generateTrackerConfigConversational(
+        state.trackerName,
+        state.selectedInterpretation?.value !== 'other'
+          ? `${state.selectedInterpretation?.label}: ${state.selectedInterpretation?.description}`
+          : undefined,
+        history
+      );
 
-    if (result.error) {
-      dispatch({ type: 'GENERATION_ERROR', error: result.error });
-      return;
-    }
+      if (result.error) {
+        dispatch({ type: 'GENERATION_ERROR', error: result.error });
+        return;
+      }
 
-    if (result.needsQuestion && result.question) {
+      if (result.needsQuestion && result.question) {
+        dispatch({
+          type: 'ASK_QUESTION',
+          question: result.question,
+          confidence: result.confidence,
+        });
+      } else if (result.config) {
+        dispatch({ type: 'GEMINI_CONFIDENT', config: result.config });
+      }
+    } catch (error) {
       dispatch({
-        type: 'ASK_QUESTION',
-        question: result.question,
-        confidence: result.confidence,
+        type: 'GENERATION_ERROR',
+        error: error instanceof Error ? error.message : 'Failed to process answer',
       });
-    } else if (result.config) {
-      dispatch({ type: 'GEMINI_CONFIDENT', config: result.config });
     }
   }, [answerInput, state, dispatch]);
 
@@ -262,20 +283,27 @@ export function ConversationalTrackerBuilder({
     const updatedMessages = [...state.messages, newMessage];
     const history = buildConversationHistory(updatedMessages);
 
-    const result = await generateTrackerConfigConversational(
-      state.trackerName,
-      state.selectedInterpretation?.value !== 'other'
-        ? `${state.selectedInterpretation?.label}: ${state.selectedInterpretation?.description}`
-        : undefined,
-      history
-    );
+    try {
+      const result = await generateTrackerConfigConversational(
+        state.trackerName,
+        state.selectedInterpretation?.value !== 'other'
+          ? `${state.selectedInterpretation?.label}: ${state.selectedInterpretation?.description}`
+          : undefined,
+        history
+      );
 
-    dispatch({ type: 'START_GENERATING' });
+      dispatch({ type: 'START_GENERATING' });
 
-    if (result.config) {
-      onComplete(result.config, state.trackerName);
-    } else if (state.generatedConfig) {
-      onComplete(state.generatedConfig, state.trackerName);
+      if (result.config) {
+        onComplete(result.config, state.trackerName);
+      } else if (state.generatedConfig) {
+        onComplete(state.generatedConfig, state.trackerName);
+      }
+    } catch (error) {
+      dispatch({
+        type: 'GENERATION_ERROR',
+        error: error instanceof Error ? error.message : 'Failed to create tracker',
+      });
     }
   }, [finalNote, state, dispatch, onComplete, handleSkipFinal]);
 

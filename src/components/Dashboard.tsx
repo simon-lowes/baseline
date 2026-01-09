@@ -963,7 +963,7 @@ export function Dashboard({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        {((tracker as any)?.schema_version === 2) && (
+                        {('schema_version' in tracker && tracker.schema_version === 2) && (
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1133,10 +1133,10 @@ export function Dashboard({
 
           try {
             // Update tracker with new fields
-            const updatedConfig = {
+            const updatedConfig: GeneratedTrackerConfig & { fields: typeof fields } = {
               ...trackerToEdit.generated_config,
               fields,
-            } as any; // Cast to any since we're extending GeneratedTrackerConfig
+            };
 
             const result = await trackerService.updateTracker(trackerToEdit.id, {
               generated_config: updatedConfig,
