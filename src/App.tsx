@@ -499,9 +499,10 @@ function App() {
 
   const handleTrackerDeleted = useCallback((trackerId: string) => {
     setTrackers(prev => prev.filter(t => t.id !== trackerId))
-    // If deleted the current tracker, reset
+    // If deleted the current tracker, reset and go to dashboard
     if (currentTracker?.id === trackerId) {
       setCurrentTracker(null)
+      setCurrentView('dashboard')
     }
   }, [currentTracker?.id])
 
@@ -662,6 +663,7 @@ function App() {
                 <TrackerSelector
                   currentTracker={currentTracker}
                   onTrackerChange={handleTrackerSelect}
+                  onTrackerDeleted={handleTrackerDeleted}
                 />
               </div>
               <Button
