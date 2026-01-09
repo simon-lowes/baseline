@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EditTrackerDialog } from '@/components/tracker/EditTrackerDialog';
 import { ConversationalTrackerBuilder } from '@/components/tracker/ConversationalTrackerBuilder';
+import { SwipeableTrackerCard } from '@/components/tracker/SwipeableTrackerCard';
 import {
   Dialog,
   DialogContent,
@@ -113,6 +114,9 @@ export function Dashboard({
   const [editFieldsDialogOpen, setEditFieldsDialogOpen] = useState(false);
   const [trackerToEdit, setTrackerToEdit] = useState<Tracker | null>(null);
 
+  // Swipeable card state (mobile) - tracks which card has actions revealed
+  const [revealedTrackerId, setRevealedTrackerId] = useState<string | null>(null);
+
   const handleMobileFieldFocus = useCallback((event: FocusEvent<HTMLElement>) => {
     if (!isMobile) return;
     const target = event.currentTarget;
@@ -177,38 +181,6 @@ export function Dashboard({
     document.body.style.removeProperty('overflow');
     document.body.style.removeProperty('padding-right');
   }, [createDialogOpen, disambiguateOpen, deleteDialogOpen]);
-  
-  // Touch visibility state for delete icons on mobile
-  const [touchActive, setTouchActive] = useState(false);
-  const touchFadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const TOUCH_FADE_DELAY = 3000; // 3 seconds before icons fade out
-  
-  // Handle touch events to show delete icons on mobile
-  const handleTouchStart = useCallback(() => {
-    // Clear any pending fade-out
-    if (touchFadeTimeoutRef.current) {
-      clearTimeout(touchFadeTimeoutRef.current);
-      touchFadeTimeoutRef.current = null;
-    }
-    setTouchActive(true);
-  }, []);
-  
-  const handleTouchEnd = useCallback(() => {
-    // Set delayed fade-out when touch ends
-    touchFadeTimeoutRef.current = setTimeout(() => {
-      setTouchActive(false);
-      touchFadeTimeoutRef.current = null;
-    }, TOUCH_FADE_DELAY);
-  }, []);
-  
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (touchFadeTimeoutRef.current) {
-        clearTimeout(touchFadeTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Test-only: expose a function to open the create dialog when running E2E locally
   useEffect(() => {
@@ -828,142 +800,131 @@ export function Dashboard({
         </div>
 
         {/* Tracker cards grid */}
-        <div 
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchEnd}
-        >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {trackers.map((tracker) => {
             const trackerStats = stats[tracker.id];
             const isLoading = loadingStats && !trackerStats;
+            const hasEditableFields = 'schema_version' in tracker && tracker.schema_version === 2;
 
-            return (
-              <Card
-                key={tracker.id}
-                className="cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md group"
-                onClick={() => onTrackerSelect(tracker)}
-              >
-                <CardContent className="p-4 space-y-3">
-                  {/* Icon/Image and name */}
-                  <div className="flex items-start gap-3">
-                    {tracker.image_url ? (
-                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
-                        <img 
-                          src={tracker.image_url} 
-                          alt={`${tracker.name} icon`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // Fall back to Activity icon if image fails to load
-                            const img = e.currentTarget;
-                            const parent = img.parentElement;
-                            if (!parent) return;
+            // Card content shared between mobile and desktop
+            const cardContent = (
+              <CardContent className="p-4 space-y-3">
+                {/* Icon/Image and name */}
+                <div className="flex items-start gap-3">
+                  {tracker.image_url ? (
+                    <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
+                      <img
+                        src={tracker.image_url}
+                        alt={`${tracker.name} icon`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fall back to Activity icon if image fails to load
+                          const img = e.currentTarget;
+                          const parent = img.parentElement;
+                          if (!parent) return;
 
-                            // Clear parent and create fallback element safely
-                            parent.innerHTML = '';
+                          // Clear parent and create fallback element safely
+                          parent.innerHTML = '';
 
-                            const fallbackDiv = document.createElement('div');
-                            fallbackDiv.className = 'p-2 rounded-lg';
-                            fallbackDiv.style.backgroundColor = `${tracker.color}15`;
+                          const fallbackDiv = document.createElement('div');
+                          fallbackDiv.className = 'p-2 rounded-lg';
+                          fallbackDiv.style.backgroundColor = `${tracker.color}15`;
 
-                            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                            svg.setAttribute('width', '20');
-                            svg.setAttribute('height', '20');
-                            svg.setAttribute('viewBox', '0 0 24 24');
-                            svg.setAttribute('fill', 'none');
-                            svg.setAttribute('stroke', tracker.color);
-                            svg.setAttribute('stroke-width', '2');
-                            svg.setAttribute('stroke-linecap', 'round');
-                            svg.setAttribute('stroke-linejoin', 'round');
+                          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                          svg.setAttribute('width', '20');
+                          svg.setAttribute('height', '20');
+                          svg.setAttribute('viewBox', '0 0 24 24');
+                          svg.setAttribute('fill', 'none');
+                          svg.setAttribute('stroke', tracker.color);
+                          svg.setAttribute('stroke-width', '2');
+                          svg.setAttribute('stroke-linecap', 'round');
+                          svg.setAttribute('stroke-linejoin', 'round');
 
-                            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                            path.setAttribute('d', 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2');
+                          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                          path.setAttribute('d', 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2');
 
-                            svg.appendChild(path);
-                            fallbackDiv.appendChild(svg);
-                            parent.appendChild(fallbackDiv);
-                          }}
-                        />
+                          svg.appendChild(path);
+                          fallbackDiv.appendChild(svg);
+                          parent.appendChild(fallbackDiv);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="p-2 rounded-lg transition-colors"
+                      style={{ backgroundColor: `${tracker.color}15` }}
+                    >
+                      <Activity
+                        className="w-5 h-5"
+                        style={{ color: tracker.color }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3
+                      className="font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors"
+                      title={tracker.name}
+                    >
+                      {tracker.name}
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-end justify-between">
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Loading...</span>
                       </div>
                     ) : (
-                      <div 
-                        className="p-2 rounded-lg transition-colors"
-                        style={{ backgroundColor: `${tracker.color}15` }}
-                      >
-                        <Activity 
-                          className="w-5 h-5" 
-                          style={{ color: tracker.color }} 
-                        />
-                      </div>
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {trackerStats?.entryCount ?? 0} {(trackerStats?.entryCount ?? 0) === 1 ? 'entry' : 'entries'}
+                          </span>
+                          {/* Trend indicator */}
+                          {trackerStats?.trend && (
+                            <span
+                              className={`flex items-center gap-0.5 text-xs ${
+                                trackerStats.trend === 'up' ? 'text-amber-500' :
+                                trackerStats.trend === 'down' ? 'text-green-500' :
+                                'text-muted-foreground'
+                              }`}
+                              title={
+                                trackerStats.trend === 'up' ? 'Intensity trending up' :
+                                trackerStats.trend === 'down' ? 'Intensity trending down' :
+                                'Intensity stable'
+                              }
+                            >
+                              {trackerStats.trend === 'up' && <TrendingUp className="w-3 h-3" />}
+                              {trackerStats.trend === 'down' && <TrendingDown className="w-3 h-3" />}
+                              {trackerStats.trend === 'stable' && <Minus className="w-3 h-3" />}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs">
+                          {formatLastEntry(trackerStats?.lastEntryDate ?? null)}
+                        </p>
+                      </>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <h3 
-                        className="font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors"
-                        title={tracker.name}
-                      >
-                        {tracker.name}
-                      </h3>
-                    </div>
                   </div>
 
-                  {/* Stats and delete */}
-                  <div className="flex items-end justify-between">
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Loading...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <span>
-                              {trackerStats?.entryCount ?? 0} {(trackerStats?.entryCount ?? 0) === 1 ? 'entry' : 'entries'}
-                            </span>
-                            {/* Trend indicator */}
-                            {trackerStats?.trend && (
-                              <span 
-                                className={`flex items-center gap-0.5 text-xs ${
-                                  trackerStats.trend === 'up' ? 'text-amber-500' :
-                                  trackerStats.trend === 'down' ? 'text-green-500' :
-                                  'text-muted-foreground'
-                                }`}
-                                title={
-                                  trackerStats.trend === 'up' ? 'Intensity trending up' :
-                                  trackerStats.trend === 'down' ? 'Intensity trending down' :
-                                  'Intensity stable'
-                                }
-                              >
-                                {trackerStats.trend === 'up' && <TrendingUp className="w-3 h-3" />}
-                                {trackerStats.trend === 'down' && <TrendingDown className="w-3 h-3" />}
-                                {trackerStats.trend === 'stable' && <Minus className="w-3 h-3" />}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs">
-                            {formatLastEntry(trackerStats?.lastEntryDate ?? null)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* Actions menu - visible on hover (desktop) or touch (mobile) */}
+                  {/* Desktop only: Actions menu - visible on hover */}
+                  {!isMobile && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           onClick={(e) => e.stopPropagation()}
-                          className={`p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all duration-300 focus:opacity-100 ${
-                            touchActive
-                              ? 'opacity-100'
-                              : 'opacity-0 group-hover:opacity-100'
-                          }`}
+                          className="p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-accent transition-all duration-300 focus:opacity-100 opacity-0 group-hover:opacity-100"
                           aria-label={`${tracker.name} options`}
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        {('schema_version' in tracker && tracker.schema_version === 2) && (
+                        {hasEditableFields && (
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -987,8 +948,47 @@ export function Dashboard({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                </CardContent>
+                  )}
+                </div>
+              </CardContent>
+            );
+
+            // Mobile: Use swipeable card with swipe-to-reveal actions
+            if (isMobile) {
+              return (
+                <SwipeableTrackerCard
+                  key={tracker.id}
+                  trackerId={tracker.id}
+                  revealedId={revealedTrackerId}
+                  onReveal={setRevealedTrackerId}
+                  showEditAction={hasEditableFields}
+                  onEdit={() => {
+                    setTrackerToEdit(tracker);
+                    setEditFieldsDialogOpen(true);
+                  }}
+                  onDelete={() => {
+                    setTrackerToDelete(tracker);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Card
+                    className="cursor-pointer transition-all group"
+                    onClick={() => onTrackerSelect(tracker)}
+                  >
+                    {cardContent}
+                  </Card>
+                </SwipeableTrackerCard>
+              );
+            }
+
+            // Desktop: Standard card with hover menu
+            return (
+              <Card
+                key={tracker.id}
+                className="cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md group"
+                onClick={() => onTrackerSelect(tracker)}
+              >
+                {cardContent}
               </Card>
             );
           })}

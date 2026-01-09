@@ -62,9 +62,11 @@ export function ConversationalTrackerBuilder({
   const [answerInput, setAnswerInput] = useState('');
   const [finalNote, setFinalNote] = useState('');
 
-  // Auto-scroll to bottom when messages change or disambiguation options appear
+  // Auto-scroll to bottom only when new messages are added (conversation flow)
   useEffect(() => {
-    // Small delay to allow DOM to render, especially important for mobile
+    // Only auto-scroll when messages change, not on phase changes
+    if (state.messages.length === 0) return;
+
     const timer = setTimeout(() => {
       if (scrollRef.current) {
         const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]');
@@ -77,7 +79,7 @@ export function ConversationalTrackerBuilder({
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [state.messages, state.phase, state.interpretations]);
+  }, [state.messages.length]);
 
   // Focus appropriate input when phase changes
   useEffect(() => {
