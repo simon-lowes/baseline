@@ -1,4 +1,4 @@
-export type FieldType = 'number_scale' | 'single_select' | 'multi_select' | 'text' | 'toggle'
+export type FieldType = 'number_scale' | 'single_select' | 'multi_select' | 'text' | 'toggle' | 'time' | 'duration' | 'emoji'
 
 export interface NumberScaleConfig {
   type: 'number_scale'
@@ -30,7 +30,22 @@ export interface ToggleConfig {
   offLabel?: string
 }
 
-export type FieldConfig = NumberScaleConfig | SingleSelectConfig | MultiSelectConfig | TextConfig | ToggleConfig
+export interface TimeConfig {
+  type: 'time'
+  use24Hour?: boolean
+}
+
+export interface DurationConfig {
+  type: 'duration'
+  showSeconds?: boolean
+}
+
+export interface EmojiConfig {
+  type: 'emoji'
+  options: string[]
+}
+
+export type FieldConfig = NumberScaleConfig | SingleSelectConfig | MultiSelectConfig | TextConfig | ToggleConfig | TimeConfig | DurationConfig | EmojiConfig
 
 export interface TrackerField {
   id: string

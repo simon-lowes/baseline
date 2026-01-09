@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate-limiter.ts';
+import { sanitizeForPrompt } from '../_shared/prompt-sanitizer.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -130,9 +131,16 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Create image prompt - simple title-based approach (Option A)
-    const imagePrompt = `Create a minimal, clean, flat design icon for a health tracking app. The icon represents "${trackerName}". 
-    
+    // Sanitize user input to prevent prompt injection (see docs/SECURITY.md Section 9.1)
+    const sanitized = sanitizeForPrompt(trackerName, { maxLength: 50 });
+    if (sanitized.injectionDetected) {
+      console.warn('Potential prompt injection detected in trackerName:', trackerName);
+    }
+    const safeTrackerName = sanitized.value;
+
+    // Create image prompt with sanitized input
+    const imagePrompt = `Create a minimal, clean, flat design icon for a health tracking app. The icon represents: ${safeTrackerName}
+
 Style requirements:
 - Square 1:1 aspect ratio
 - Minimal flat design
@@ -143,8 +151,8 @@ Style requirements:
 - Single solid background color
 - Icon should be centered and fill most of the square
 - Use healthcare-appropriate colors (blues, greens, or neutral tones)
-    
-The icon should visually represent the concept of "${trackerName}" in a simple, recognizable way that users will understand at a glance.`;
+
+The icon should visually represent the concept of ${safeTrackerName} in a simple, recognizable way that users will understand at a glance.`;
 
     // Call Google Gemini API for image generation using gemini-2.5-flash-image (Nano Banana)
     const response = await fetch(

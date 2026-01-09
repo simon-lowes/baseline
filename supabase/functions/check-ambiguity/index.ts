@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { sanitizeForPrompt, sanitizeExternalResponse } from '../_shared/prompt-sanitizer.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -141,24 +142,43 @@ Deno.serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY not configured');
     }
     
-    // Build context for ambiguity check
+    // Sanitize user input to prevent prompt injection (see docs/SECURITY.md Section 9.1)
+    const sanitizedName = sanitizeForPrompt(trackerName, { maxLength: 50 });
+    if (sanitizedName.injectionDetected) {
+      console.warn('Potential prompt injection detected in trackerName:', trackerName);
+    }
+    const safeTrackerName = sanitizedName.value;
+
+    // Build context for ambiguity check - sanitize external API responses
     const ctx: string[] = [];
     if (allDefinitions && allDefinitions.length > 0) {
-      ctx.push('Dictionary definitions:', ...allDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`));
+      // Sanitize external API data before including in prompt
+      const safeDefinitions = allDefinitions
+        .slice(0, 5) // Limit to 5 definitions
+        .map((d: string) => sanitizeExternalResponse(d, 200));
+      ctx.push('Dictionary definitions:', ...safeDefinitions.map((d: string, i: number) => `${i + 1}. ${d}`));
     }
-    if (wikiSummary) ctx.push(`Wikipedia summary: ${wikiSummary}`);
-    if (wikiCategories?.length) ctx.push(`Wikipedia categories: ${wikiCategories.join(', ')}`);
-    if (relatedTerms?.length) ctx.push(`Related terms: ${relatedTerms.join(', ')}`);
-    if (ctx.length === 0) ctx.push(`No external context found. Use your knowledge of "${trackerName}".`);
+    if (wikiSummary) {
+      ctx.push(`Wikipedia summary: ${sanitizeExternalResponse(wikiSummary, 300)}`);
+    }
+    if (wikiCategories?.length) {
+      const safeCategories = wikiCategories.slice(0, 10).map((c: string) => sanitizeExternalResponse(c, 50));
+      ctx.push(`Wikipedia categories: ${safeCategories.join(', ')}`);
+    }
+    if (relatedTerms?.length) {
+      const safeTerms = relatedTerms.slice(0, 10).map((t: string) => sanitizeExternalResponse(t, 30));
+      ctx.push(`Related terms: ${safeTerms.join(', ')}`);
+    }
+    if (ctx.length === 0) ctx.push(`No external context found. Use your knowledge of ${safeTrackerName}.`);
     const definitionContext = ctx.join('\n');
-    
+
     const prompt = `You are helping a health/wellness tracking app determine if a tracker name is ambiguous.
 
-The user wants to create a tracker called "${trackerName}".
+The user wants to create a tracker called: ${safeTrackerName}
 
 ${definitionContext}
 
-TASK: Determine if "${trackerName}" is ambiguous in the context of health/wellness/activity tracking.
+TASK: Determine if ${safeTrackerName} is ambiguous in the context of health/wellness/activity tracking.
 
 A term is AMBIGUOUS if:
 - It has multiple distinct interpretations that would result in DIFFERENT tracking setups

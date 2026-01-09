@@ -20,6 +20,7 @@ import {
   Hash,
   BarChart3,
   Lightbulb,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -70,8 +71,23 @@ import {
   EntryHeatmapCalendar,
   IntensityDistributionBar,
   InsightsPanel,
+  InterlinkInsightsPanel,
+  InterlinkTimelineChart,
+  InterlinkPairSelector,
 } from '@/components/analytics'
+import { useInterlinkData } from '@/hooks/use-interlink-data'
+import type { TrackerPair } from '@/lib/interlink-utils'
 import { PainEntryCard } from '@/components/PainEntryCard'
+import { ExportDialog } from '@/components/export/ExportDialog'
+import {
+  generateEntriesCSV,
+  filterEntriesByDateRange,
+  calculateExportSummary,
+  downloadFile as downloadExportFile,
+  downloadBlob,
+} from '@/lib/export/csv-export'
+import { generateDoctorReport } from '@/lib/export/pdf-report'
+import type { DateRange, ExportFormat } from '@/types/export'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
@@ -89,8 +105,9 @@ interface AnalyticsDashboardProps {
   embedded?: boolean
 }
 
-type ChartSection = 
+type ChartSection =
   | 'insights'
+  | 'interlinked'
   | 'trend'
   | 'heatmap'
   | 'distribution'
@@ -120,8 +137,17 @@ export function AnalyticsDashboard({
   const [expandedSections, setExpandedSections] = useState<string[]>(['insights', 'trend'])
   const [drillDownEntries, setDrillDownEntries] = useState<PainEntry[] | null>(null)
   const [drillDownTitle, setDrillDownTitle] = useState<string>('')
-  
+  const [interlinkPairs, setInterlinkPairs] = useState<TrackerPair[]>([])
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
   const chartsRef = useRef<HTMLDivElement>(null)
+
+  // Interlink analysis (only when viewing all trackers)
+  const interlinkData = useInterlinkData(
+    entries,
+    trackers,
+    { autoDetect: true, manualPairs: interlinkPairs }
+  )
 
   // Update selected tracker if currentTracker changes
   useEffect(() => {
@@ -230,7 +256,7 @@ export function AnalyticsDashboard({
 
   const handleExportPDF = useCallback(async () => {
     if (!chartsRef.current) return
-    
+
     try {
       toast.loading('Generating PDF...')
       const canvas = await html2canvas(chartsRef.current, {
@@ -254,8 +280,124 @@ export function AnalyticsDashboard({
     }
   }, [getExportFilename])
 
-  const sections: { id: ChartSection; title: string; icon: typeof TrendingUp; description: string }[] = [
+  // Advanced export handler for ExportDialog
+  const handleAdvancedExport = useCallback(async (options: {
+    format: ExportFormat
+    dateRange: DateRange
+    trackerIds: string[]
+    includeCharts: boolean
+    includeInsights: boolean
+  }) => {
+    const { format, dateRange, includeCharts, includeInsights } = options
+
+    // Filter entries by the selected date range
+    const exportEntries = filterEntriesByDateRange(entries, dateRange)
+
+    // Further filter by tracker if in single tracker mode
+    const finalEntries = currentTracker
+      ? exportEntries.filter(e => e.tracker_id === currentTracker.id)
+      : exportEntries
+
+    if (finalEntries.length === 0) {
+      toast.error('No entries in selected date range')
+      return
+    }
+
+    try {
+      if (format === 'csv') {
+        toast.loading('Generating CSV...')
+        const csv = generateEntriesCSV(finalEntries, trackers)
+        const filename = getExportFilename('entries', 'csv')
+        downloadExportFile(csv, filename, 'text/csv')
+        toast.dismiss()
+        toast.success(`Exported ${finalEntries.length} entries to CSV`)
+      } else if (format === 'pdf') {
+        toast.loading('Generating PDF report...')
+
+        // Calculate summary stats
+        const summary = calculateExportSummary(finalEntries, trackers, dateRange)
+
+        // Capture chart images if requested
+        const chartImages: Record<string, { type: 'trend' | 'heatmap'; dataUrl: string; width: number; height: number } | null> = {
+          trend: null,
+          heatmap: null,
+        }
+
+        if (includeCharts && chartsRef.current) {
+          // Try to capture the trend chart section
+          const trendSection = chartsRef.current.querySelector('[data-chart="trend"]')
+          if (trendSection) {
+            const canvas = await html2canvas(trendSection as HTMLElement, {
+              backgroundColor: '#ffffff',
+              scale: 2,
+            })
+            chartImages.trend = {
+              type: 'trend',
+              dataUrl: canvas.toDataURL('image/png'),
+              width: canvas.width,
+              height: canvas.height,
+            }
+          }
+
+          // Try to capture the heatmap section
+          const heatmapSection = chartsRef.current.querySelector('[data-chart="heatmap"]')
+          if (heatmapSection) {
+            const canvas = await html2canvas(heatmapSection as HTMLElement, {
+              backgroundColor: '#ffffff',
+              scale: 2,
+            })
+            chartImages.heatmap = {
+              type: 'heatmap',
+              dataUrl: canvas.toDataURL('image/png'),
+              width: canvas.width,
+              height: canvas.height,
+            }
+          }
+        }
+
+        // Generate insights if requested
+        const insights: string[] = []
+        if (includeInsights) {
+          if (summary.averageIntensity !== null) {
+            insights.push(`Average intensity: ${summary.averageIntensity.toFixed(1)}/10`)
+          }
+          insights.push(`Entry frequency: ${summary.entryFrequency}`)
+          if (summary.topTriggers.length > 0) {
+            insights.push(`Top trigger: ${summary.topTriggers[0].name} (${summary.topTriggers[0].count} times)`)
+          }
+          if (summary.topLocations.length > 0) {
+            insights.push(`Most common location: ${summary.topLocations[0].name}`)
+          }
+        }
+
+        const pdfBlob = await generateDoctorReport(
+          {
+            stats: summary,
+            trackers,
+            chartImages,
+            insights,
+          },
+          {
+            title: trackerDisplayName ? `${trackerDisplayName} Report` : 'Baseline Health Report',
+            includeCharts,
+            includeInsights,
+          }
+        )
+
+        downloadBlob(pdfBlob, getExportFilename('report', 'pdf'))
+        toast.dismiss()
+        toast.success('PDF report generated successfully')
+      }
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Export failed. Please try again.')
+      console.error('Export error:', error)
+    }
+  }, [entries, trackers, currentTracker, trackerDisplayName, getExportFilename])
+
+  const sections: { id: ChartSection; title: string; icon: typeof TrendingUp; description: string; hideInSingleMode?: boolean }[] = [
     { id: 'insights', title: 'Insights', icon: Lightbulb, description: 'AI-detected patterns and trends' },
+    { id: 'interlinked', title: 'Interlinked Insights', icon: Link2, description: 'Discover how your trackers affect each other', hideInSingleMode: true },
     { id: 'trend', title: 'Intensity Trend', icon: TrendingUp, description: 'Track your intensity over time' },
     { id: 'heatmap', title: 'Activity Calendar', icon: Calendar, description: 'See your tracking consistency' },
     { id: 'distribution', title: 'Intensity Distribution', icon: BarChart3, description: 'How often each level occurs' },
@@ -263,6 +405,11 @@ export function AnalyticsDashboard({
     { id: 'triggers', title: 'Top Triggers', icon: Zap, description: 'What affects you most' },
     { id: 'hashtags', title: 'Tags', icon: Hash, description: 'Your most used hashtags' },
   ]
+
+  // Filter sections for single tracker mode
+  const visibleSections = isSingleTrackerMode
+    ? sections.filter(s => !s.hideInSingleMode)
+    : sections
 
   return (
     <div className={embedded ? "space-y-6" : "container max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6"}>
@@ -308,7 +455,12 @@ export function AnalyticsDashboard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setExportDialogOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Data...
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Quick Export</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleExportCSV}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -361,7 +513,12 @@ export function AnalyticsDashboard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Export Data</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => setExportDialogOpen(true)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Data...
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Quick Export</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleExportCSV}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -458,7 +615,7 @@ export function AnalyticsDashboard({
             onValueChange={setExpandedSections}
             className="space-y-4"
           >
-            {sections.map(section => (
+            {visibleSections.map(section => (
               <AccordionItem
                 key={section.id}
                 value={section.id}
@@ -485,6 +642,9 @@ export function AnalyticsDashboard({
                     onDayClick={handleDayClick}
                     onTrendPointClick={handleTrendPointClick}
                     themeKey={resolvedTheme}
+                    interlinkData={interlinkData}
+                    interlinkPairs={interlinkPairs}
+                    onInterlinkPairsChange={setInterlinkPairs}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -520,6 +680,16 @@ export function AnalyticsDashboard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Export dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        entries={entries}
+        trackers={trackers}
+        currentTracker={currentTracker}
+        onExport={handleAdvancedExport}
+      />
     </div>
   )
 }
@@ -532,6 +702,12 @@ interface ChartContentProps {
   onTrendPointClick: (date: string, entries: PainEntry[]) => void
   /** Theme key to force component remount when theme changes */
   themeKey: string | undefined
+  /** Interlink analysis data */
+  interlinkData: ReturnType<typeof useInterlinkData>
+  /** Selected interlink pairs */
+  interlinkPairs: TrackerPair[]
+  /** Callback to update interlink pairs */
+  onInterlinkPairsChange: (pairs: TrackerPair[]) => void
 }
 
 function ChartContent({
@@ -541,27 +717,68 @@ function ChartContent({
   onDayClick,
   onTrendPointClick,
   themeKey,
+  interlinkData,
+  interlinkPairs,
+  onInterlinkPairsChange,
 }: ChartContentProps) {
   switch (section) {
     case 'insights':
       return <InsightsPanel entries={entries} />
+    case 'interlinked':
+      return (
+        <div className="space-y-6">
+          <InterlinkPairSelector
+            availableFields={interlinkData.availableFields}
+            selectedPairs={interlinkPairs}
+            suggestedCorrelations={interlinkData.correlations}
+            onPairsChange={onInterlinkPairsChange}
+          />
+          <InterlinkInsightsPanel
+            insights={interlinkData.insights}
+            dataStatus={interlinkData.dataStatus}
+          />
+          {interlinkData.timelineData.length > 0 && (
+            <InterlinkTimelineChart
+              data={interlinkData.timelineData}
+              fields={interlinkData.availableFields.filter(f =>
+                interlinkPairs.length > 0
+                  ? interlinkPairs.some(
+                      p =>
+                        (p.tracker1Id === f.trackerId && p.field1Id === f.fieldId) ||
+                        (p.tracker2Id === f.trackerId && p.field2Id === f.fieldId)
+                    )
+                  : interlinkData.correlations[0] &&
+                    ((interlinkData.correlations[0].tracker1.id === f.trackerId &&
+                      interlinkData.correlations[0].tracker1.fieldId === f.fieldId) ||
+                     (interlinkData.correlations[0].tracker2.id === f.trackerId &&
+                      interlinkData.correlations[0].tracker2.fieldId === f.fieldId))
+              )}
+              correlation={interlinkData.correlations[0]}
+            />
+          )}
+        </div>
+      )
     case 'trend':
       return (
-        <IntensityTrendLine
-          entries={entries}
-          days={timeRange}
-          onPointClick={onTrendPointClick}
-        />
+        <div data-chart="trend">
+          <IntensityTrendLine
+            entries={entries}
+            days={timeRange}
+            onPointClick={onTrendPointClick}
+          />
+        </div>
       )
     case 'heatmap':
       // Key forces remount when theme changes, ensuring fresh CSS variable reads
       return (
-        <EntryHeatmapCalendar
-          key={themeKey}
-          entries={entries}
-          days={timeRange ?? 365}
-          onDayClick={onDayClick}
-        />
+        <div data-chart="heatmap">
+          <EntryHeatmapCalendar
+            key={themeKey}
+            entries={entries}
+            days={timeRange ?? 365}
+            onDayClick={onDayClick}
+          />
+        </div>
       )
     case 'distribution':
       return <IntensityDistributionBar entries={entries} />

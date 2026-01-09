@@ -42,15 +42,33 @@ Use this checklist to keep the project secure and aligned with best practices.
 - Backups: Enable automated backups
 - CI/CD: Inject env vars via provider secrets; do not commit
 
+## Security Advisors (from Supabase)
+
+- Function search_path (WARN): ✅ FIXED (9 Jan 2026)
+  - `public.refresh_schema_cache` had mutable search_path
+  - Fixed by adding `SET search_path = ''` to function definition
+  - Migration: `fix_security_and_performance_advisors`
+  - Reference: https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+
 ## Performance Advisors (from Supabase)
 
-- Unused indexes (INFO):
-  - `public.tracker_entries`: previously `tracker_entries_timestamp_idx`, `tracker_entries_user_id_idx` (removed on 25 Dec 2025)
-  - Rationale: reduce write overhead and storage since they were unused.
+- Duplicate RLS policies (WARN): ✅ FIXED (9 Jan 2026)
+  - `public.tracker_entries` had 4 duplicate permissive policy pairs (SELECT, INSERT, UPDATE, DELETE)
+  - Fixed by dropping redundant generic policies, keeping `authenticated` role-specific policies
+  - Migration: `fix_security_and_performance_advisors`
+  - Reference: https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies
+
+- Unused indexes (INFO): ✅ FIXED (9 Jan 2026)
+  - Previous cleanup (25 Dec 2025): `tracker_entries_timestamp_idx`, `tracker_entries_user_id_idx`
+  - Latest cleanup (9 Jan 2026): `idx_tracker_entries_user_id`, `idx_tracker_entries_user_created_at`, `idx_tracker_entries_field_values`, `idx_ambiguous_terms_user_id`, `idx_trackers_schema_version`
+  - Added `idx_tracker_entries_user_id_fk` to cover foreign key constraint
+  - Migration: `fix_security_and_performance_advisors`, `add_foreign_key_index`
   - Reference: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
-- Auth DB connections (INFO):
+
+- Auth DB connections (INFO): ⚠️ PENDING
   - Auth configured with a fixed max (10) connections.
   - Switch to percentage-based allocation for better scaling.
+  - Action: Update via Supabase Dashboard → Settings → Auth → Connection Pool
   - Reference: https://supabase.com/docs/guides/deployment/going-into-prod
 
 ## Quick Verification Steps

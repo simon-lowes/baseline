@@ -10,40 +10,9 @@ Transform the Chronic Pain Diary into **Baseline** — a flexible, user-centric 
 
 ## Current Status
 
-- **Current Version**: v3.0.1 (Baseline with Visual Analytics + Theme Reactivity)
-- **Completed Phases**: 1, 2, 4 (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
-- **In Progress**: Phase 3 Custom Builder (90% complete)
-
----
-
-## Phase 3: Custom Tracker Builder (v2.2) ⚠️ 90% COMPLETE
-
-### Goal
-
-Empower users to create completely custom trackers with their own fields, categories, and keywords.
-
-### Remaining Items
-
-- Field Builder with drag-to-reorder (partial)
-- Full custom field type coverage:
-  - Number scale
-  - Single select
-  - Multi-select
-  - Text
-  - Time
-  - Duration
-  - Yes/No toggle
-  - Emoji picker
-
----
-
-## Phase 5: Correlations & Cross-Tracker Insights (v3.1) ❌ NOT STARTED
-
-### Goal
-
-Help users discover connections between different trackers (e.g., sleep affecting pain, exercise affecting mood).
-
-_(No changes - not yet implemented)_
+- **Current Version**: v4.0.0 (Baseline with Data Export & Doctor Reports)
+- **Completed Phases**: 1, 2, 3, 3b, 4, 5, 7 (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
+- **Next Up**: Phase 6 (Smart Reminders) or Phase 8 (Publish to Blog)
 
 ---
 
@@ -57,13 +26,13 @@ _(No changes - not yet implemented)_
 
 ---
 
-## Phase 7: Data Export, Sharing & Doctor Reports (v4.0) ❌ NOT STARTED
+## Phase 7: Data Export & Doctor Reports (v4.0) ✅ COMPLETE
 
 ### Goal
 
-Enable users to share their data with healthcare providers or export for personal use.
+Enable users to export their data for personal use or to share with healthcare providers.
 
-_(No changes - not yet implemented)_
+_(See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implementation details)_
 
 ---
 
@@ -71,7 +40,7 @@ _(No changes - not yet implemented)_
 
 ### Goal
 
-Enable users to publish their tracking diary as a beautiful public blog, powered by Astro and deployed on Netlify—with zero technical skills required.
+Enable users to publish their tracking diary as a beautiful public blog, powered by Astro and deployed on Vercel—with zero technical skills required.
 
 _(No changes - not yet implemented)_
 
@@ -87,13 +56,11 @@ _(No changes - not yet implemented)_
 
 ## Priority Matrix
 
-| Phase               | Effort | Impact | Priority | Status |
-| ------------------- | ------ | ------ | -------- | ------ |
-| 3. Custom Builder   | High   | High   | 🟠 P1    | ⚠️ 90% |
-| 5. Correlations     | Medium | Medium | 🟡 P2    | ❌     |
-| 6. Smart Reminders  | Medium | Medium | 🟡 P2    | ❌     |
-| 7. Export & Sharing | Low    | High   | 🟢 P3    | ❌     |
-| 8. Publish to Blog  | High   | Medium | 🟢 P3    | ❌     |
+| Phase               | Effort | Impact | Priority | Status      |
+| ------------------- | ------ | ------ | -------- | ----------- |
+| 6. Smart Reminders  | Medium | Medium | 🟡 P2    | Not Started |
+| 7. Export & Sharing | Low    | High   | 🟠 P1    | ✅ Complete |
+| 8. Publish to Blog  | High   | Medium | 🟢 P3    | Not Started |
 
 ---
 
@@ -119,4 +86,4 @@ _(No changes - not yet implemented)_
 
 ---
 
-_Last updated: January 2026_
+_Last updated: January 9, 2026_

@@ -1,7 +1,9 @@
-import { useState } from 'react'
 import { TrackerField, FieldValues, NumberScaleConfig, MultiSelectConfig, TextConfig } from '@/types/tracker-fields'
 import { ToggleField } from './ToggleField'
 import { SingleSelectField } from './SingleSelectField'
+import { TimeField } from './TimeField'
+import { DurationField } from './DurationField'
+import { EmojiField } from './EmojiField'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Input } from '@/components/ui/input'
@@ -60,6 +62,27 @@ export function DynamicFieldForm({ fields, values, onChange }: DynamicFieldFormP
             <ToggleField
               field={field}
               value={(values[field.id] as boolean) || false}
+              onChange={(value) => handleFieldChange(field.id, value)}
+            />
+          )}
+          {field.type === 'time' && (
+            <TimeField
+              field={field}
+              value={(values[field.id] as string) || ''}
+              onChange={(value) => handleFieldChange(field.id, value)}
+            />
+          )}
+          {field.type === 'duration' && (
+            <DurationField
+              field={field}
+              value={(values[field.id] as number) || 0}
+              onChange={(value) => handleFieldChange(field.id, value)}
+            />
+          )}
+          {field.type === 'emoji' && (
+            <EmojiField
+              field={field}
+              value={(values[field.id] as string) || ''}
               onChange={(value) => handleFieldChange(field.id, value)}
             />
           )}
