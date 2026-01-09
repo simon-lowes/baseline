@@ -253,6 +253,17 @@ export function SwipeableTrackerCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
+        onClick={(e) => {
+          // Handle mouse clicks (fallback for non-touch devices or testing)
+          // Only fire if not revealed and not from a touch event
+          if (!isRevealed && !touchStartRef.current) {
+            e.stopPropagation();
+            onTap();
+          } else if (isRevealed) {
+            // Close revealed state on click
+            onReveal(null);
+          }
+        }}
         className={cn(
           "relative bg-card",
           isDragging ? "cursor-grabbing" : "cursor-pointer"
