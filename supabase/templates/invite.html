@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're invited to Baseline</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8f5f0; font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8f5f0;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 24px 40px; text-align: center;">
+              <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #4db6ac 0%, #3d9a91 100%); border-radius: 14px; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 28px; line-height: 56px;">&#127793;</span>
+              </div>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #333333; letter-spacing: -0.02em;">
+                You're Invited to Baseline
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 0 40px 32px 40px;">
+              <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #555555; text-align: center;">
+                You've been invited to join Baseline, a calming health tracking companion. Start your wellness journey by accepting this invitation.
+              </p>
+
+              <!-- Button -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #4db6ac 0%, #3d9a91 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 12px rgba(77, 182, 172, 0.3);">
+                      Accept Invitation
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 24px 0 0 0; font-size: 14px; line-height: 1.5; color: #888888; text-align: center;">
+                Or copy this link into your browser:<br>
+                <span style="color: #4db6ac; word-break: break-all;">{{ .ConfirmationURL }}</span>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Features highlight -->
+          <tr>
+            <td style="padding: 0 40px 32px 40px;">
+              <div style="padding: 20px; background-color: #f8f5f0; border-radius: 10px;">
+                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333333; text-align: center;">
+                  What you can do with Baseline:
+                </p>
+                <p style="margin: 0; font-size: 14px; line-height: 1.8; color: #666666; text-align: center;">
+                  &#10003; Track your health metrics effortlessly<br>
+                  &#10003; Visualize patterns and trends<br>
+                  &#10003; Get insights into your wellness journey
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f8f5f0; border-radius: 0 0 16px 16px;">
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #999999; text-align: center;">
+                If you weren't expecting this invitation, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Brand footer -->
+        <p style="margin: 24px 0 0 0; font-size: 13px; color: #999999; text-align: center;">
+          Baseline - Your health tracking companion
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
