@@ -60,6 +60,7 @@ export function ConversationalTrackerBuilder({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [nameInput, setNameInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
+  const [clarifyInput, setClarifyInput] = useState('');
   const [finalNote, setFinalNote] = useState('');
 
   // Auto-scroll to bottom only when new messages are added (conversation flow)
@@ -86,6 +87,8 @@ export function ConversationalTrackerBuilder({
     if (state.phase === 'idle' && inputRef.current) {
       inputRef.current.focus();
     } else if (state.phase === 'conversation' && !state.isLoading && inputRef.current) {
+      inputRef.current.focus();
+    } else if (state.phase === 'clarify' && inputRef.current) {
       inputRef.current.focus();
     } else if (state.phase === 'confirm' && textareaRef.current) {
       textareaRef.current.focus();
@@ -147,6 +150,7 @@ export function ConversationalTrackerBuilder({
           type: 'AMBIGUITY_FOUND',
           interpretations: ambiguity.interpretations,
           reason: ambiguity.reason,
+          suggestedCorrection: (ambiguity as { suggestedCorrection?: string }).suggestedCorrection,
         });
       } else {
         dispatch({ type: 'NO_AMBIGUITY' });
@@ -189,24 +193,67 @@ export function ConversationalTrackerBuilder({
   );
 
   /**
-   * Handle "Something else" selection
+   * Handle "Something else" selection - goes to clarify phase
+   * where user explains what they mean by the tracker name
    */
-  const handleSomethingElse = useCallback(async () => {
-    const otherInterp: TrackerInterpretation = {
-      value: 'other',
-      label: 'Something else',
-      description: '',
-    };
+  const handleSomethingElse = useCallback(() => {
     dispatch({ type: 'SELECT_SOMETHING_ELSE' });
+    setClarifyInput('');
+  }, [dispatch]);
+
+  /**
+   * Handle clarification submission - user explains what they mean
+   */
+  const handleClarifySubmit = useCallback(async () => {
+    const explanation = clarifyInput.trim();
+    if (!explanation) return;
+
+    dispatch({ type: 'SET_CLARIFICATION', explanation });
+    setClarifyInput('');
+
+    // Build conversation history including the clarification
+    const clarifyQuestion = `What do you mean by "${state.trackerName}"?`;
+    const history = [{ question: clarifyQuestion, answer: explanation }];
+
     try {
-      await askNextQuestion(state.trackerName, otherInterp, state.messages);
+      const result = await generateTrackerConfigConversational(
+        state.trackerName,
+        explanation, // User's explanation becomes the interpretation context
+        history
+      );
+
+      if (result.error) {
+        dispatch({ type: 'GENERATION_ERROR', error: result.error });
+        return;
+      }
+
+      if (result.needsQuestion && result.question) {
+        dispatch({
+          type: 'ASK_QUESTION',
+          question: result.question,
+          confidence: result.confidence,
+        });
+      } else if (result.config) {
+        dispatch({ type: 'GEMINI_CONFIDENT', config: result.config });
+      }
     } catch (error) {
       dispatch({
         type: 'GENERATION_ERROR',
-        error: error instanceof Error ? error.message : 'Failed to process selection',
+        error: error instanceof Error ? error.message : 'Failed to process clarification',
       });
     }
-  }, [state.trackerName, state.messages, dispatch, askNextQuestion]);
+  }, [clarifyInput, state.trackerName, dispatch]);
+
+  /**
+   * Handle "Start over" - reset to initial state
+   */
+  const handleStartOver = useCallback(() => {
+    reset();
+    setNameInput('');
+    setClarifyInput('');
+    setAnswerInput('');
+    setFinalNote('');
+  }, [reset]);
 
   /**
    * Handle answer submission
@@ -417,16 +464,27 @@ export function ConversationalTrackerBuilder({
                     </motion.button>
                   ))}
 
-                  {/* Something else option */}
-                  <motion.button
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={handleSomethingElse}
-                    className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-left transition-colors"
-                  >
-                    <span className="font-medium text-sm">Something else</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  </motion.button>
+                  {/* Alternative options */}
+                  <div className="flex flex-col gap-2 mt-2">
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={handleSomethingElse}
+                      className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 text-left transition-colors"
+                    >
+                      <span className="font-medium text-sm">No, let me explain what I mean</span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </motion.button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={handleStartOver}
+                      className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-muted-foreground hover:bg-muted/50 text-left transition-colors"
+                    >
+                      <span className="text-sm text-muted-foreground">Start over with a different name</span>
+                    </motion.button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -437,6 +495,41 @@ export function ConversationalTrackerBuilder({
                 {msg.content}
               </ChatBubble>
             ))}
+
+            {/* Clarify phase - user explains what they mean */}
+            {state.phase === 'clarify' && !state.isLoading && (
+              <motion.div
+                key="clarify-input"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-3"
+              >
+                <div className="flex gap-2 pl-11">
+                  <Input
+                    ref={inputRef}
+                    value={clarifyInput}
+                    onChange={(e) => setClarifyInput(e.target.value)}
+                    onKeyDown={(e) => handleKeyPress(e, handleClarifySubmit)}
+                    placeholder="Describe what you want to track..."
+                    className="flex-1"
+                  />
+                  <Button onClick={handleClarifySubmit} disabled={!clarifyInput.trim()}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+                <button
+                  onClick={handleStartOver}
+                  className="text-sm text-muted-foreground hover:text-foreground ml-11 transition-colors"
+                >
+                  ← Start over
+                </button>
+              </motion.div>
+            )}
+
+            {/* Loading state for clarify phase */}
+            {state.isLoading && state.phase === 'clarify' && (
+              <LoadingBubble key="clarify-loading" message="Processing..." />
+            )}
 
             {/* Current question input */}
             {state.phase === 'conversation' && state.currentQuestion && !state.isLoading && (

@@ -13,6 +13,7 @@ const initialState: ConversationState = {
   interpretations: [],
   selectedInterpretation: null,
   disambiguationReason: '',
+  suggestedCorrection: undefined,
   messages: [],
   currentQuestion: null,
   confidence: 0,
@@ -28,10 +29,14 @@ const initialState: ConversationState = {
  *
  * State flow:
  * idle → checking → disambiguate → conversation ↔ (loop) → confirm → generating → complete
- *                        ↓
- *                  (if not ambiguous)
- *                        ↓
- *                   conversation
+ *                        ↓                ↑
+ *                  (if not ambiguous)     |
+ *                        ↓                |
+ *                   conversation          |
+ *                        ↓                |
+ *            (if "Something else")        |
+ *                        ↓                |
+ *                     clarify ─────────────┘
  */
 function conversationReducer(
   state: ConversationState,
@@ -51,6 +56,7 @@ function conversationReducer(
         isLoading: false,
         interpretations: action.interpretations,
         disambiguationReason: action.reason,
+        suggestedCorrection: action.suggestedCorrection,
       };
 
     case 'NO_AMBIGUITY':
@@ -74,6 +80,8 @@ function conversationReducer(
       };
 
     case 'SELECT_SOMETHING_ELSE':
+      // Instead of going directly to conversation phase,
+      // go to clarify phase to ask user what they mean
       return {
         ...state,
         selectedInterpretation: {
@@ -81,8 +89,42 @@ function conversationReducer(
           label: 'Something else',
           description: '',
         },
+        phase: 'clarify',
+        isLoading: false,
+        // Add clarifying question to messages
+        messages: [
+          ...state.messages,
+          {
+            id: crypto.randomUUID(),
+            role: 'ai',
+            content: `What do you mean by "${state.trackerName}"?`,
+            question: `What do you mean by "${state.trackerName}"?`,
+            timestamp: Date.now(),
+          },
+        ],
+      };
+
+    case 'SET_CLARIFICATION':
+      // User has explained what they mean, now proceed to conversation
+      return {
+        ...state,
+        selectedInterpretation: {
+          value: 'other',
+          label: action.explanation,
+          description: action.explanation,
+        },
         phase: 'conversation',
         isLoading: true,
+        messages: [
+          ...state.messages,
+          {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: action.explanation,
+            answer: action.explanation,
+            timestamp: Date.now(),
+          },
+        ],
       };
 
     case 'ASK_QUESTION':

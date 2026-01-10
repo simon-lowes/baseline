@@ -363,7 +363,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
               className="h-4 w-4 rounded border-input text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
             />
             <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors select-none">
-              Keep me logged in for 7 days
+              Keep me signed in for 7 days
             </span>
           </label>
           <button
