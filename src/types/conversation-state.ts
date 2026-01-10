@@ -14,6 +14,7 @@ export type ConversationPhase =
   | 'idle' // Initial state, waiting for user input
   | 'checking' // Checking ambiguity with Gemini
   | 'disambiguate' // Showing AI interpretations + "Something else"
+  | 'clarify' // User clicked "Something else", asking them to explain what they mean
   | 'conversation' // Iterative Q&A with Gemini (one question at a time)
   | 'confirm' // Final "Anything else?" optional step
   | 'generating' // Creating the tracker
@@ -45,6 +46,8 @@ export interface ConversationState {
   interpretations: TrackerInterpretation[];
   selectedInterpretation: TrackerInterpretation | null;
   disambiguationReason: string;
+  /** If set, indicates this disambiguation was triggered by a typo correction suggestion */
+  suggestedCorrection?: string;
 
   // Conversation history
   messages: ConversationMessage[];
@@ -73,10 +76,12 @@ export type ConversationAction =
       type: 'AMBIGUITY_FOUND';
       interpretations: TrackerInterpretation[];
       reason: string;
+      suggestedCorrection?: string;
     }
   | { type: 'NO_AMBIGUITY' }
   | { type: 'SELECT_INTERPRETATION'; interpretation: TrackerInterpretation }
   | { type: 'SELECT_SOMETHING_ELSE' }
+  | { type: 'SET_CLARIFICATION'; explanation: string }
   | { type: 'ASK_QUESTION'; question: string; confidence: number }
   | { type: 'ANSWER_QUESTION'; answer: string }
   | { type: 'GEMINI_CONFIDENT'; config: GeneratedTrackerConfig }
