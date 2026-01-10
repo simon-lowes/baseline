@@ -76,14 +76,11 @@ export function useFormDraft<T>(
     autosaveIntervalMs = DEFAULT_AUTOSAVE_INTERVAL_MS,
   } = options;
 
-  // Track if we restored a draft
-  const [hadDraft, setHadDraft] = useState(false);
-
   // Keep a ref to the latest data for use in event handlers
   const dataRef = useRef<T>(initialData);
 
-  // Check if a draft exists and is valid
-  const getValidDraft = useCallback((): T | null => {
+  // Pure function to check for valid draft (no hooks, safe to call anywhere)
+  const checkForDraft = (): T | null => {
     try {
       const stored = localStorage.getItem(key);
       if (!stored) return null;
@@ -102,17 +99,21 @@ export function useFormDraft<T>(
       localStorage.removeItem(key);
       return null;
     }
-  }, [key, expiryMs]);
+  };
 
-  // Get initial data (draft or default)
+  // Track if we restored a draft - computed once on mount
+  const [hadDraft] = useState(() => {
+    return checkForDraft() !== null;
+  });
+
+  // Get initial data (draft or default) - pure function safe to call during render
   const getInitialData = useCallback((): T => {
-    const draft = getValidDraft();
+    const draft = checkForDraft();
     if (draft !== null) {
-      setHadDraft(true);
       return draft;
     }
     return initialData;
-  }, [getValidDraft, initialData]);
+  }, [key, expiryMs, initialData]);
 
   // Save draft to localStorage
   const saveDraft = useCallback((data: T) => {
