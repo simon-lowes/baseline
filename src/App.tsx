@@ -630,8 +630,8 @@ function App() {
         </div>
       )}
       
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-4xl mx-auto px-6 py-6 flex flex-col gap-4">
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 overflow-hidden">
+        <div className="container max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="text-left">
               <div className="inline-flex items-start">
@@ -680,19 +680,20 @@ function App() {
           
           {/* Tracker Selector - only show when in tracker view */}
           {currentView === 'tracker' && currentTracker && (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Tracking:</span>
+            <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <span className="text-sm text-muted-foreground shrink-0">Tracking:</span>
                 <TrackerSelector
                   currentTracker={currentTracker}
                   onTrackerChange={handleTrackerSelect}
                   onTrackerDeleted={handleTrackerDeleted}
+                  className="min-w-0 max-w-[180px] sm:max-w-[240px]"
                 />
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 shrink-0"
                 onClick={() => handleShowTrackerAnalytics(currentTracker)}
               >
                 <TrendUp size={16} />
