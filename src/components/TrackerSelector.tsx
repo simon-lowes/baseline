@@ -1025,19 +1025,19 @@ export function TrackerSelector({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
-            className={cn("justify-between gap-2 min-w-[160px]", className)}
+          <Button
+            variant="outline"
+            className={cn("justify-between gap-2 w-full", className)}
           >
             {currentTracker ? (
               <>
-                {getTrackerIcon(currentTracker)}
-                <span className="truncate">{currentTracker.name}</span>
+                <span className="shrink-0">{getTrackerIcon(currentTracker)}</span>
+                <span className="truncate flex-1 text-left">{currentTracker.name}</span>
               </>
             ) : (
-              <span className="text-muted-foreground">Select tracker</span>
+              <span className="text-muted-foreground truncate">Select tracker</span>
             )}
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[240px]">
