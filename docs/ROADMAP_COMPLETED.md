@@ -254,7 +254,52 @@ Enable users to export their tracking data as CSV for personal analysis or as pr
 - **Code splitting** - Partially addressed (lazy loading in some areas)
 - **Testing** - Unit tests added (Vitest), E2E tests added (Playwright) ✅
 - **Error boundaries** - Some error handling added ✅
+- **Offline support** - Service worker for offline entry creation ✅
+  - PWA configured with Vite PWA plugin
+  - Background sync for offline entries
+  - Install prompt and update notifications
+- **Accessibility** - WCAG 2.1 AA compliance ✅
+  - Skip links for keyboard navigation
+  - ARIA labels and live regions
+  - Reduced motion support
+  - Focus management in dialogs
+- **Performance** - Virtualized lists for large entry counts ✅
+  - VirtualizedEntryList component with TanStack Virtual
+  - Efficient rendering for 1000+ entries
 
 ---
 
-_Last updated: January 9, 2026 (Phase 7 complete)_
+## Account Settings & GDPR Compliance (v4.1) ✅ COMPLETE
+
+### Goal
+
+Provide user account management with GDPR-compliant data export and account deletion.
+
+### Completed Items
+
+- Account Settings dialog accessible from header ✅
+- Profile section with email display ✅
+- Data Export section (GDPR Article 20 - Right to Data Portability) ✅
+  - CSV export for spreadsheets
+  - JSON export with full metadata
+  - Shows entry/tracker counts with loading state
+- Danger Zone with account deletion (GDPR Article 17 - Right to Erasure) ✅
+  - Multi-step confirmation flow
+  - Data export offer before deletion
+  - Type "DELETE" to confirm
+  - Progress indicator during deletion
+
+### Implementation Details
+
+- Components in `src/components/settings/`:
+  - `ProfileSection.tsx` - Email display, display name editing
+  - `DataExportSection.tsx` - Self-contained data fetching with export options
+  - `DangerZoneSection.tsx` - Warning section with deletion trigger
+  - `DeleteAccountDialog.tsx` - Multi-step deletion confirmation
+- Main dialog: `src/components/AccountSettings.tsx`
+- Auth port extended with `deleteAccount()` method
+- Supabase Edge Function for server-side account deletion
+
+---
+
+_Last updated: January 14, 2026 (Account Settings complete)_

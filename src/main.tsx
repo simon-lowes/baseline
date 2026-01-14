@@ -4,6 +4,8 @@ import { ThemeProvider } from 'next-themes'
 
 import App from './App.tsx'
 import { ErrorFallback } from './ErrorFallback.tsx'
+import { AccessibilityProvider } from './contexts/AccessibilityContext.tsx'
+import { ChartPatternDefs } from './components/charts/ChartPatterns.tsx'
 
 import "./main.css"
 
@@ -32,6 +34,7 @@ function AppWithProviders() {
     'cyan-light', 'cyan-dark',
     'orange-light', 'orange-dark',
     'plum-light', 'plum-dark',
+    'highcontrast-light', 'highcontrast-dark',
   ];
 
   return (
@@ -42,7 +45,10 @@ function AppWithProviders() {
       enableColorScheme={false}
       storageKey="baseline-theme"
     >
-      <App />
+      <AccessibilityProvider>
+        <ChartPatternDefs />
+        <App />
+      </AccessibilityProvider>
     </ThemeProvider>
   );
 }
