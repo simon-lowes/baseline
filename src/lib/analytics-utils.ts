@@ -1,11 +1,17 @@
 /**
  * Analytics Utilities
- * 
+ *
  * Data aggregation and transformation functions for the Visual Analytics Dashboard.
  * Provides trend analysis, distribution calculations, and pattern detection.
  */
 
 import type { PainEntry } from '@/types/pain-entry'
+import {
+  getLocalDateString,
+  generateLocalDateRange,
+  formatDateShort,
+  formatTime24,
+} from '@/lib/date-utils'
 
 // ============================================================================
 // Types
@@ -68,10 +74,10 @@ export const TIME_RANGES: TimeRange[] = [
 
 /**
  * Get date string in YYYY-MM-DD format from timestamp
+ * Uses local timezone (not UTC) to avoid day-boundary bugs
  */
 export function getDateString(timestamp: number): string {
-  const date = new Date(timestamp)
-  return date.toISOString().split('T')[0]
+  return getLocalDateString(timestamp)
 }
 
 /**
@@ -98,18 +104,10 @@ export function filterByDateRange(
 
 /**
  * Generate date range array between two dates
+ * Uses local timezone (not UTC) to avoid day-boundary bugs
  */
 export function generateDateRange(startDate: Date, endDate: Date): string[] {
-  const dates: string[] = []
-  const current = new Date(startDate)
-  current.setHours(0, 0, 0, 0)
-  
-  while (current <= endDate) {
-    dates.push(current.toISOString().split('T')[0])
-    current.setDate(current.getDate() + 1)
-  }
-  
-  return dates
+  return generateLocalDateRange(startDate, endDate)
 }
 
 // ============================================================================
@@ -603,11 +601,9 @@ function detectAnomalies(entries: PainEntry[]): InsightPattern | null {
   // Check if there's a significant spike
   if (recentMax >= 8 && recentMax - recentAvg >= 3) {
     const spikeEntry = recent.find(e => e.intensity === recentMax)
-    const spikeDate = spikeEntry ? new Date(spikeEntry.timestamp).toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'short', 
-      day: 'numeric' 
-    }) : 'recently'
+    const spikeDate = spikeEntry
+      ? formatDateShort(spikeEntry.timestamp)
+      : 'recently'
     
     return {
       type: 'anomaly',
@@ -631,10 +627,9 @@ function detectAnomalies(entries: PainEntry[]): InsightPattern | null {
 export function exportToCSV(entries: PainEntry[]): string {
   const headers = ['Date', 'Time', 'Intensity', 'Locations', 'Triggers', 'Hashtags', 'Notes']
   const rows = entries.map(entry => {
-    const date = new Date(entry.timestamp)
     return [
-      date.toLocaleDateString(),
-      date.toLocaleTimeString(),
+      formatDateShort(entry.timestamp),
+      formatTime24(entry.timestamp),
       entry.intensity.toString(),
       entry.locations.join('; '),
       entry.triggers.join('; '),

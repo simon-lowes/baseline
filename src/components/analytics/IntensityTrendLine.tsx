@@ -17,6 +17,7 @@ import {
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { getIntensityTrend, getMovingAverage } from '@/lib/analytics-utils'
+import { getLocalDateString, formatChartDate, formatDateFull } from '@/lib/date-utils'
 import type { PainEntry } from '@/types/pain-entry'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -135,7 +136,7 @@ export function IntensityTrendLine({
             if (data?.activePayload?.[0]?.payload && onPointClick) {
               const date = data.activePayload[0].payload.date
               const dayEntries = entries.filter(
-                e => new Date(e.timestamp).toISOString().split('T')[0] === date
+                e => getLocalDateString(e.timestamp) === date
               )
               onPointClick(date, dayEntries)
             }
@@ -204,16 +205,10 @@ export function IntensityTrendLine({
 }
 
 function formatDateLabel(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatChartDate(dateStr)
 }
 
 function formatFullDate(dateStr: string): string {
   const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'long',
-    month: 'long', 
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatDateFull(date.getTime())
 }

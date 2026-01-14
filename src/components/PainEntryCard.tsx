@@ -17,16 +17,17 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Trash, NotePencil, Hash } from '@phosphor-icons/react'
+import { Trash, NotePencil, Hash, CloudArrowUp } from '@phosphor-icons/react'
 import { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 import { formatDate } from '@/lib/pain-utils'
+import { formatDateTimeFull } from '@/lib/date-utils'
 import { getTrackerConfig } from '@/types/tracker-config'
 import { motion } from 'framer-motion'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 interface PainEntryCardProps {
-  entry: PainEntry
+  entry: PainEntry & { isPending?: boolean }
   tracker?: Tracker | null
   onDelete: (id: string) => void
   onEdit: (entry: PainEntry) => void
@@ -85,10 +86,7 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
       <div>
         <p className="text-sm font-medium text-muted-foreground mb-1">Date & Time</p>
         <p className="text-base">
-          {new Date(entry.timestamp).toLocaleString('en-US', {
-            dateStyle: 'full',
-            timeStyle: 'short',
-          })}
+          {formatDateTimeFull(entry.timestamp)}
         </p>
       </div>
 
@@ -192,9 +190,17 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
                       {intensityLabel}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDate(entry.timestamp)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(entry.timestamp)}
+                    </p>
+                    {entry.isPending && (
+                      <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-300 bg-amber-50 dark:text-amber-400 dark:border-amber-600 dark:bg-amber-950">
+                        <CloudArrowUp size={12} />
+                        Pending sync
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
