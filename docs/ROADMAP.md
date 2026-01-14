@@ -10,8 +10,8 @@ Transform the Chronic Pain Diary into **Baseline** — a flexible, user-centric 
 
 ## Current Status
 
-- **Current Version**: v4.0.0 (Baseline with Data Export & Doctor Reports)
-- **Completed Phases**: 1, 2, 3, 3b, 4, 5, 7 (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
+- **Current Version**: v4.1.0 (Account Settings & GDPR Compliance)
+- **Completed Phases**: 1, 2, 3, 3b, 4, 5, 7, Account Settings (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
 - **Next Up**: Phase 6 (Smart Reminders) or Phase 8 (Publish to Blog)
 
 ---
@@ -26,16 +26,6 @@ _(No changes - not yet implemented)_
 
 ---
 
-## Phase 7: Data Export & Doctor Reports (v4.0) ✅ COMPLETE
-
-### Goal
-
-Enable users to export their data for personal use or to share with healthcare providers.
-
-_(See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implementation details)_
-
----
-
 ## Phase 8: Publish to Blog (v5.0) ❌ NOT STARTED
 
 ### Goal
@@ -46,21 +36,18 @@ _(No changes - not yet implemented)_
 
 ---
 
-## Technical Debt to Address
+## Technical Debt
 
-- **Offline support** - Service worker for offline entry creation ✅ (PWA configured, hooks integrated, background sync implemented)
-- **Accessibility** - WCAG 2.1 AA compliance audit ✅ (skip links, ARIA labels, reduced motion, focus management, live regions)
-- **Performance** - Virtualized lists for large entry counts ✅ (VirtualizedEntryList component with TanStack Virtual)
+All previously identified technical debt (offline support, accessibility, performance) has been addressed. See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for details.
 
 ---
 
 ## Priority Matrix
 
-| Phase               | Effort | Impact | Priority | Status      |
-| ------------------- | ------ | ------ | -------- | ----------- |
-| 6. Smart Reminders  | Medium | Medium | 🟡 P2    | Not Started |
-| 7. Export & Sharing | Low    | High   | 🟠 P1    | ✅ Complete |
-| 8. Publish to Blog  | High   | Medium | 🟢 P3    | Not Started |
+| Phase              | Effort | Impact | Priority | Status      |
+| ------------------ | ------ | ------ | -------- | ----------- |
+| 6. Smart Reminders | Medium | Medium | 🟡 P2    | Not Started |
+| 8. Publish to Blog | High   | Medium | 🟢 P3    | Not Started |
 
 ---
 
@@ -86,4 +73,4 @@ _(No changes - not yet implemented)_
 
 ---
 
-_Last updated: January 9, 2026_
+_Last updated: January 14, 2026_

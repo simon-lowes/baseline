@@ -17,6 +17,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { getIntensityDistribution, getIntensityColor } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
+import { usePatternsEnabled } from '@/contexts/AccessibilityContext'
+import { getIntensityPatternId, getPatternFill } from '@/components/charts/ChartPatterns'
 
 interface IntensityDistributionBarProps {
   entries: PainEntry[]
@@ -33,13 +35,23 @@ function getChartColors() {
   }
 }
 
+/**
+ * Map intensity value (1-10) to pattern level (low/medium/high)
+ */
+function getIntensityPatternLevel(intensity: number): 'low' | 'medium' | 'high' {
+  if (intensity <= 3) return 'low'
+  if (intensity <= 6) return 'medium'
+  return 'high'
+}
+
 export function IntensityDistributionBar({
   entries,
   height = 200,
 }: IntensityDistributionBarProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  
+  const patternsEnabled = usePatternsEnabled()
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -106,9 +118,15 @@ export function IntensityDistributionBar({
           }
         />
         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
+          {chartData.map((entry, index) => {
+            const intensity = parseInt(entry.intensity)
+            const patternLevel = getIntensityPatternLevel(intensity)
+            const patternId = getIntensityPatternId(patternLevel)
+            const fill = patternsEnabled
+              ? getPatternFill(patternId)
+              : entry.fill
+            return <Cell key={`cell-${index}`} fill={fill} />
+          })}
         </Bar>
       </BarChart>
     </ChartContainer>

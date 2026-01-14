@@ -13,6 +13,8 @@ import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { Palette, Check, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useAccessibility } from '@/contexts/AccessibilityContext'
 
 const ONBOARDING_KEY = 'baseline-theme-onboarded'
 
@@ -93,6 +96,13 @@ const colorThemes = [
     description: 'Elegant & Rich',
     accent: 'bg-purple-800',
     accentStyle: 'background-color: oklch(0.50 0.22 320);',
+  },
+  {
+    id: 'highcontrast',
+    name: 'High Contrast',
+    description: 'Maximum Visibility',
+    accent: 'bg-black',
+    accentStyle: 'background: linear-gradient(135deg, #000 50%, #fff 50%);',
   },
 ] as const
 
@@ -178,6 +188,7 @@ export function ColorThemePicker() {
   const { theme, setTheme } = useTheme()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const { patternsEnabled, setPatternsEnabled } = useAccessibility()
 
   const { color: currentColor, isDark } = parseTheme(theme)
 
@@ -267,7 +278,7 @@ export function ColorThemePicker() {
               </DropdownMenuItem>
             ))}
           </div>
-          {/* Desktop: 3x3 grid */}
+          {/* Desktop: grid layout */}
           <div className="hidden md:grid grid-cols-3 gap-1">
             {colorThemes.map((t) => (
               <DropdownMenuItem
@@ -276,7 +287,7 @@ export function ColorThemePicker() {
                 className="flex flex-col items-center gap-1.5 cursor-pointer p-3 rounded-md min-w-[80px]"
               >
                 <div className="relative">
-                  <div 
+                  <div
                     className="w-8 h-8 rounded-full border-2 border-border"
                     style={{ backgroundColor: t.accentStyle.match(/oklch\([^)]+\)/)?.[0] || '' }}
                   />
@@ -289,6 +300,28 @@ export function ColorThemePicker() {
                 <span className="text-xs font-medium">{t.name}</span>
               </DropdownMenuItem>
             ))}
+          </div>
+
+          {/* Accessibility: Patterns toggle */}
+          <DropdownMenuSeparator className="my-2" />
+          <div className="px-2 py-1.5">
+            <div className="flex items-center justify-between gap-4">
+              <Label
+                htmlFor="patterns-toggle"
+                className="text-xs font-medium cursor-pointer"
+              >
+                Chart patterns
+                <span className="block text-[10px] text-muted-foreground font-normal">
+                  Colorblind friendly
+                </span>
+              </Label>
+              <Switch
+                id="patterns-toggle"
+                checked={patternsEnabled}
+                onCheckedChange={setPatternsEnabled}
+                aria-label="Enable chart patterns for colorblind accessibility"
+              />
+            </div>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useThemeAwareColors } from '@/hooks/use-theme-colors'
+import { usePatternsEnabled } from '@/contexts/AccessibilityContext'
+import { getHeatmapPatternId, getPatternFill } from '@/components/charts/ChartPatterns'
 
 interface EntryHeatmapCalendarProps {
   entries: PainEntry[]
@@ -32,6 +34,7 @@ export function EntryHeatmapCalendar({
 }: EntryHeatmapCalendarProps) {
   const isMobile = useIsMobile()
   const { heatmapColors, mounted } = useThemeAwareColors()
+  const patternsEnabled = usePatternsEnabled()
   
   // Use fewer days on mobile for better display
   const displayDays = isMobile ? Math.min(days, 180) : days
@@ -171,6 +174,7 @@ export function EntryHeatmapCalendar({
                         day={day}
                         size={cellSize}
                         color={heatmapColors[day.level]}
+                        patternsEnabled={patternsEnabled}
                         onClick={() => {
                           if (day.date && onDayClick) {
                             const dayEntries = entries.filter(
@@ -194,13 +198,28 @@ export function EntryHeatmapCalendar({
               {([0, 1, 2, 3, 4] as const).map(level => (
                 <div
                   key={level}
-                  className="rounded-sm"
+                  className="rounded-sm relative overflow-hidden"
                   style={{
                     width: cellSize,
                     height: cellSize,
                     backgroundColor: heatmapColors[level],
                   }}
-                />
+                >
+                  {patternsEnabled && level > 0 && (
+                    <svg
+                      className="absolute inset-0"
+                      width={cellSize}
+                      height={cellSize}
+                      aria-hidden="true"
+                    >
+                      <rect
+                        width={cellSize}
+                        height={cellSize}
+                        fill={getPatternFill(getHeatmapPatternId(level))}
+                      />
+                    </svg>
+                  )}
+                </div>
               ))}
             </div>
             <span>More</span>
@@ -215,10 +234,11 @@ interface DayCellProps {
   day: HeatmapDay
   size: number
   color: string
+  patternsEnabled: boolean
   onClick: () => void
 }
 
-function DayCell({ day, size, color, onClick }: DayCellProps) {
+function DayCell({ day, size, color, patternsEnabled, onClick }: DayCellProps) {
   if (!day.date) {
     return (
       <div
@@ -233,13 +253,14 @@ function DayCell({ day, size, color, onClick }: DayCellProps) {
   }
 
   const formattedDate = formatTooltipDate(day.date)
+  const patternId = getHeatmapPatternId(day.level)
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           className={cn(
-            'rounded-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary',
+            'rounded-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary relative overflow-hidden',
             day.count > 0 && 'cursor-pointer'
           )}
           style={{
@@ -249,7 +270,23 @@ function DayCell({ day, size, color, onClick }: DayCellProps) {
           }}
           onClick={onClick}
           disabled={day.count === 0}
-        />
+        >
+          {/* Pattern overlay for colorblind accessibility */}
+          {patternsEnabled && day.level > 0 && (
+            <svg
+              className="absolute inset-0"
+              width={size}
+              height={size}
+              aria-hidden="true"
+            >
+              <rect
+                width={size}
+                height={size}
+                fill={getPatternFill(patternId)}
+              />
+            </svg>
+          )}
+        </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="text-xs">
         <div className="font-medium">{formattedDate}</div>
