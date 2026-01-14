@@ -43,6 +43,163 @@ export const runDictionaryMigration = action({
 });
 
 // =============================================================================
+// Seamless Auth Migration (Users with existing passwords)
+// =============================================================================
+
+/**
+ * Migrate all users from Supabase with their existing bcrypt password hashes.
+ * This is the FIRST step - creates users who can log in with their existing passwords.
+ * NO re-signup required - completely seamless migration.
+ *
+ * Returns a mapping of Supabase UUIDs to Convex user IDs.
+ */
+export const runSeamlessAuthMigration = action({
+  args: {
+    users: v.array(
+      v.object({
+        supabaseUserId: v.string(),
+        email: v.string(),
+        passwordHash: v.string(), // bcrypt hash from Supabase auth.users
+        displayName: v.optional(v.string()),
+        emailVerified: v.optional(v.boolean()),
+      })
+    ),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    userMapping: Record<string, string>;
+    created: number;
+    skipped: number;
+  }> => {
+    const result = await ctx.runMutation(
+      internal.migrations.migrateUsersWithPasswords,
+      { users: args.users }
+    );
+
+    // Count created vs skipped
+    let created = 0;
+    let skipped = 0;
+    for (const user of args.users) {
+      if (result[user.supabaseUserId]) {
+        // Check if this was a new creation or existing
+        // For simplicity, we count all as successfully mapped
+        created++;
+      } else {
+        skipped++;
+      }
+    }
+
+    return {
+      success: true,
+      userMapping: result as Record<string, string>,
+      created,
+      skipped,
+    };
+  },
+});
+
+/**
+ * Run the complete migration in one go:
+ * 1. Migrate all users with their bcrypt passwords
+ * 2. Import all trackers
+ * 3. Import all entries
+ *
+ * This is the all-in-one migration action.
+ */
+export const runCompleteMigration = action({
+  args: {
+    users: v.array(
+      v.object({
+        supabaseUserId: v.string(),
+        email: v.string(),
+        passwordHash: v.string(),
+        displayName: v.optional(v.string()),
+        emailVerified: v.optional(v.boolean()),
+      })
+    ),
+    trackers: v.array(v.any()),
+    entries: v.array(v.any()),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    users: { created: number; total: number };
+    trackers: { imported: number };
+    entries: { imported: number; skipped: number };
+    userMapping: Record<string, string>;
+    trackerMapping: Record<string, string>;
+  }> => {
+    // Step 1: Migrate users with passwords
+    const userMapping = (await ctx.runMutation(
+      internal.migrations.migrateUsersWithPasswords,
+      { users: args.users }
+    )) as Record<string, string>;
+
+    console.log(`[Migration] User mapping created: ${Object.keys(userMapping).length} users`);
+
+    // Step 2: Import trackers
+    const trackerMapping = (await ctx.runMutation(
+      internal.migrations.importTrackers,
+      {
+        trackers: args.trackers,
+        userMapping,
+      }
+    )) as Record<string, string>;
+
+    console.log(`[Migration] Tracker mapping created: ${Object.keys(trackerMapping).length} trackers`);
+
+    // Step 3: Import entries - normalize timestamps
+    type EntryType = {
+      id: string;
+      user_id: string;
+      tracker_id: string;
+      timestamp: string | number;
+      intensity: number;
+      locations: string[];
+      notes: string;
+      triggers: string[];
+      hashtags: string[];
+      field_values?: unknown;
+    };
+
+    const normalizedEntries = (args.entries as EntryType[]).map((e) => ({
+      id: e.id,
+      user_id: e.user_id,
+      tracker_id: e.tracker_id,
+      timestamp:
+        typeof e.timestamp === "number"
+          ? new Date(e.timestamp).toISOString()
+          : e.timestamp,
+      intensity: e.intensity,
+      locations: e.locations,
+      notes: e.notes,
+      triggers: e.triggers,
+      hashtags: e.hashtags,
+      field_values: e.field_values,
+    }));
+
+    const entryResult = (await ctx.runMutation(
+      internal.migrations.importEntries,
+      {
+        entries: normalizedEntries,
+        userMapping,
+        trackerMapping,
+      }
+    )) as { imported: number; skipped: number };
+
+    console.log(`[Migration] Entries imported: ${entryResult.imported}`);
+
+    return {
+      success: true,
+      users: { created: Object.keys(userMapping).length, total: args.users.length },
+      trackers: { imported: Object.keys(trackerMapping).length },
+      entries: entryResult,
+      userMapping,
+      trackerMapping,
+    };
+  },
+});
+
+// =============================================================================
 // User Mapping Helpers
 // =============================================================================
 
@@ -247,11 +404,21 @@ export const getMigrationStats = query({
     const entries = await ctx.db.query("trackerEntries").collect();
     const dictionary = await ctx.db.query("dictionaryCache").collect();
     const users = await ctx.db.query("users").collect();
+    const authAccounts = await ctx.db.query("authAccounts").collect();
 
     // Try to get user mappings if table exists
-    let userMappings: unknown[] = [];
+    let userMappings: Array<{
+      supabaseUserId: string;
+      convexUserId: string;
+      email?: string;
+    }> = [];
     try {
-      userMappings = await ctx.db.query("userMappings").collect();
+      const mappings = await ctx.db.query("userMappings").collect();
+      userMappings = mappings.map((m) => ({
+        supabaseUserId: m.supabaseUserId,
+        convexUserId: m.convexUserId as string,
+        email: m.email,
+      }));
     } catch {
       // Table may not exist yet
     }
@@ -262,7 +429,8 @@ export const getMigrationStats = query({
       trackers: trackers.length,
       entries: entries.length,
       dictionary: dictionary.length,
-      userMappings: userMappings.length,
+      authAccounts: authAccounts.length,
+      userMappings,
     };
   },
 });
