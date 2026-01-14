@@ -1,3 +1,5 @@
+import type { FieldValues } from './tracker-fields'
+
 export interface PainEntry {
   id: string
   user_id: string
@@ -8,6 +10,7 @@ export interface PainEntry {
   notes: string
   triggers: string[]
   hashtags: string[]
+  field_values?: FieldValues
 }
 
 export type BodyLocation = 

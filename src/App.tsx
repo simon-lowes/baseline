@@ -1,4 +1,4 @@
-import { db, auth, tracker as trackerService, activeBackend } from '@/runtime/appRuntime'
+import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp } from '@phosphor-icons/react'
@@ -25,12 +25,12 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { PainEntry, BODY_LOCATIONS } from '@/types/pain-entry'
 import type { Tracker, TrackerPresetId } from '@/types/tracker'
+import type { FieldValues } from '@/types/tracker-fields'
 import { PainEntryForm } from '@/components/PainEntryForm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PainEntryCard } from '@/components/PainEntryCard'
 import { EmptyState } from '@/components/EmptyState'
 import { AuthForm } from '@/components/AuthForm'
-import { ConvexAuthForm } from '@/components/ConvexAuthForm'
 import { TrackerSelector } from '@/components/TrackerSelector'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { Dashboard } from '@/components/Dashboard'
@@ -40,9 +40,8 @@ import type { AuthUser } from '@/ports/AuthPort'
 import { AnalyticsDashboard } from '@/components/analytics'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
-// Conditional imports for Convex auth
+// Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
-import { useConvexAuthState } from '@/hooks/useConvexAuthState'
 
 /** View states for the main app */
 type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
@@ -74,10 +73,8 @@ function AppContent({ authState }: AppContentProps) {
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
 
-  // Handle auth events (email confirmation, password recovery) - Supabase only
+  // Handle auth events (email confirmation, password recovery)
   useEffect(() => {
-    if (activeBackend !== 'supabase') return;
-
     const { unsubscribe } = auth.onAuthStateChange((event, session) => {
       // Handle email confirmation - user just verified their email
       if (event === 'SIGNED_IN' && session?.user) {
@@ -276,6 +273,7 @@ function AppContent({ authState }: AppContentProps) {
     notes: string
     triggers: string[]
     hashtags: string[]
+    field_values?: FieldValues
   }) => {
     if (!editingEntry) return
 
@@ -290,6 +288,7 @@ function AppContent({ authState }: AppContentProps) {
       notes: data.notes,
       triggers: data.triggers,
       hashtags: data.hashtags,
+      field_values: data.field_values,
     })
 
     if (error) {
@@ -482,7 +481,7 @@ function AppContent({ authState }: AppContentProps) {
     return (
       <>
         <Toaster />
-        {activeBackend === 'convex' ? <ConvexAuthForm /> : <AuthForm />}
+        <AuthForm />
       </>
     )
   }
@@ -531,9 +530,8 @@ function AppContent({ authState }: AppContentProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Password Recovery Dialog - Supabase only */}
-      {activeBackend === 'supabase' && (
-        <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
+      {/* Password Recovery Dialog */}
+      <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Reset your password</DialogTitle>
@@ -560,7 +558,6 @@ function AppContent({ authState }: AppContentProps) {
             </div>
           </DialogContent>
         </Dialog>
-      )}
 
       {/* Email confirmed banner */}
       {emailConfirmed && (
@@ -900,32 +897,12 @@ function AppContent({ authState }: AppContentProps) {
 }
 
 /**
- * Supabase Auth App Wrapper
- * Uses the Supabase auth hook
- */
-function SupabaseApp() {
-  const authState = useSupabaseAuth();
-  return <AppContent authState={authState} />;
-}
-
-/**
- * Convex Auth App Wrapper
- * Uses the Convex auth hooks (must be inside ConvexAuthProvider)
- */
-function ConvexApp() {
-  const authState = useConvexAuthState();
-  return <AppContent authState={authState} />;
-}
-
-/**
  * Main App Component
- * Switches between Supabase and Convex implementations based on activeBackend
+ * Uses Supabase for authentication and data
  */
 function App() {
-  if (activeBackend === 'convex') {
-    return <ConvexApp />;
-  }
-  return <SupabaseApp />;
+  const authState = useSupabaseAuth();
+  return <AppContent authState={authState} />;
 }
 
 export default App
