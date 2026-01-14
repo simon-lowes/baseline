@@ -42,6 +42,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Allow larger bundles to be precached (default is 2 MiB)
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
         // Cache strategies for different resource types
         runtimeCaching: [
           {
