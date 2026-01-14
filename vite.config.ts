@@ -8,6 +8,86 @@ const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // React core - loaded on every page
+          if (id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/scheduler/')) {
+            return 'vendor-react'
+          }
+
+          // Charts - only needed for analytics
+          if (id.includes('node_modules/recharts/') ||
+              id.includes('node_modules/d3')) {
+            return 'vendor-charts'
+          }
+
+          // Animation library
+          if (id.includes('node_modules/framer-motion/')) {
+            return 'vendor-motion'
+          }
+
+          // PDF export - rarely used, load on demand
+          if (id.includes('node_modules/jspdf/') ||
+              id.includes('node_modules/html2canvas/')) {
+            return 'vendor-pdf'
+          }
+
+          // Form handling
+          if (id.includes('node_modules/react-hook-form/') ||
+              id.includes('node_modules/@hookform/') ||
+              id.includes('node_modules/zod/')) {
+            return 'vendor-forms'
+          }
+
+          // Supabase client
+          if (id.includes('node_modules/@supabase/')) {
+            return 'vendor-supabase'
+          }
+
+          // TanStack libraries
+          if (id.includes('node_modules/@tanstack/')) {
+            return 'vendor-tanstack'
+          }
+
+          // Date utilities
+          if (id.includes('node_modules/date-fns/')) {
+            return 'vendor-date'
+          }
+
+          // Drag and drop
+          if (id.includes('node_modules/@dnd-kit/')) {
+            return 'vendor-dnd'
+          }
+
+          // Icons - separate chunk to avoid bloating main bundle
+          if (id.includes('node_modules/lucide-react/') ||
+              id.includes('node_modules/@heroicons/') ||
+              id.includes('node_modules/@phosphor-icons/')) {
+            return 'vendor-icons'
+          }
+
+          // Radix UI primitives - shared across components
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'vendor-radix'
+          }
+
+          // Carousel
+          if (id.includes('node_modules/embla-carousel')) {
+            return 'vendor-carousel'
+          }
+
+          // Command menu
+          if (id.includes('node_modules/cmdk/')) {
+            return 'vendor-cmdk'
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -42,8 +122,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Allow larger bundles to be precached (default is 2 MiB)
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
+        // Allow bundles up to 2.5 MiB to be precached (default is 2 MiB)
+        // With code splitting, individual chunks should be much smaller
+        maximumFileSizeToCacheInBytes: 2.5 * 1024 * 1024, // 2.5 MiB
         // Cache strategies for different resource types
         runtimeCaching: [
           {
