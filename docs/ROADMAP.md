@@ -65,11 +65,9 @@ All previously identified technical debt (offline support, accessibility, perfor
 - The `useThemeAwareColors` hook uses a 50ms delay to ensure CSS variables are read after DOM updates; this could be optimized with `MutationObserver` or `requestAnimationFrame`
 - Chart remounting via `key={resolvedTheme}` works but causes full re-render; consider more granular color updates for complex charts
 
-### Accessibility (v3.x)
+### Accessibility (v3.x) ✅ MOVED TO COMPLETED
 
-- Ensure all 9 themes meet WCAG 2.1 AA contrast requirements
-- Add high-contrast theme option for users with visual impairments
-- Test heatmap color scales for colorblind accessibility (consider adding patterns/textures)
+See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implemented accessibility features.
 
 ---
 
