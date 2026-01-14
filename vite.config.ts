@@ -12,12 +12,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // React core - loaded on every page
-          if (id.includes('node_modules/react/') ||
-              id.includes('node_modules/react-dom/') ||
-              id.includes('node_modules/scheduler/')) {
-            return 'vendor-react'
-          }
+          // NOTE: React is intentionally NOT in a separate chunk.
+          // It must be in the main bundle to ensure it loads before
+          // any components that depend on it (like recharts).
 
           // Charts - only needed for analytics
           if (id.includes('node_modules/recharts/') ||
