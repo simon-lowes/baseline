@@ -336,6 +336,178 @@ export const importDictionaryCache = internalMutation({
 });
 
 // =============================================================================
+// Seamless Auth Migration (Direct Database Insertion)
+// =============================================================================
+
+/**
+ * Migrate a user from Supabase with their existing bcrypt password hash.
+ * This creates:
+ * 1. A user record in the Convex Auth users table
+ * 2. An authAccount record linking the user to the password provider
+ * 3. A profile record for app-specific data
+ * 4. A userMapping record for foreign key translation
+ *
+ * The user can then log in with their existing Supabase password.
+ * NO re-signup required - completely seamless migration.
+ */
+export const migrateUserWithPassword = internalMutation({
+  args: {
+    supabaseUserId: v.string(),
+    email: v.string(),
+    passwordHash: v.string(), // bcrypt hash from Supabase
+    displayName: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Check if user already exists by email in authAccounts
+    const existingAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("provider"), "password"),
+          q.eq(q.field("providerAccountId"), args.email)
+        )
+      )
+      .first();
+
+    if (existingAccount) {
+      console.log(
+        `[Migration] Auth account already exists for ${args.email}, skipping`
+      );
+      return {
+        userId: existingAccount.userId,
+        alreadyExists: true,
+      };
+    }
+
+    // Step 1: Create the user in the Convex Auth users table
+    const userId = await ctx.db.insert("users", {
+      email: args.email,
+      name: args.displayName,
+      emailVerificationTime: args.emailVerified ? Date.now() : undefined,
+    });
+    console.log(`[Migration] Created user: ${userId} for ${args.email}`);
+
+    // Step 2: Create the authAccount with the existing bcrypt hash
+    // The password hash is stored directly - no re-hashing
+    await ctx.db.insert("authAccounts", {
+      userId,
+      provider: "password",
+      providerAccountId: args.email,
+      secret: args.passwordHash,
+      emailVerified: args.emailVerified ? args.email : undefined,
+    });
+    console.log(`[Migration] Created authAccount for ${args.email}`);
+
+    // Step 3: Create the profile record
+    const profileId = await ctx.db.insert("profiles", {
+      userId,
+      email: args.email,
+      displayName: args.displayName,
+    });
+    console.log(`[Migration] Created profile: ${profileId}`);
+
+    // Step 4: Create the user mapping for foreign key translation
+    await ctx.db.insert("userMappings", {
+      supabaseUserId: args.supabaseUserId,
+      convexUserId: userId,
+      email: args.email,
+    });
+    console.log(
+      `[Migration] Created user mapping: ${args.supabaseUserId} -> ${userId}`
+    );
+
+    return {
+      userId,
+      profileId,
+      alreadyExists: false,
+    };
+  },
+});
+
+/**
+ * Batch migrate multiple users from Supabase.
+ * Returns a mapping of Supabase UUIDs to Convex user IDs.
+ */
+export const migrateUsersWithPasswords = internalMutation({
+  args: {
+    users: v.array(
+      v.object({
+        supabaseUserId: v.string(),
+        email: v.string(),
+        passwordHash: v.string(),
+        displayName: v.optional(v.string()),
+        emailVerified: v.optional(v.boolean()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const mapping: Record<string, string> = {};
+    let created = 0;
+    let skipped = 0;
+
+    for (const user of args.users) {
+      // Check if user already exists
+      const existingAccount = await ctx.db
+        .query("authAccounts")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("provider"), "password"),
+            q.eq(q.field("providerAccountId"), user.email)
+          )
+        )
+        .first();
+
+      if (existingAccount) {
+        mapping[user.supabaseUserId] = existingAccount.userId;
+        console.log(`[Migration] User ${user.email} already exists, skipping`);
+        skipped++;
+        continue;
+      }
+
+      // Create user
+      const userId = await ctx.db.insert("users", {
+        email: user.email,
+        name: user.displayName,
+        emailVerificationTime: user.emailVerified ? Date.now() : undefined,
+      });
+
+      // Create authAccount with existing bcrypt hash
+      await ctx.db.insert("authAccounts", {
+        userId,
+        provider: "password",
+        providerAccountId: user.email,
+        secret: user.passwordHash,
+        emailVerified: user.emailVerified ? user.email : undefined,
+      });
+
+      // Create profile
+      await ctx.db.insert("profiles", {
+        userId,
+        email: user.email,
+        displayName: user.displayName,
+      });
+
+      // Create user mapping
+      await ctx.db.insert("userMappings", {
+        supabaseUserId: user.supabaseUserId,
+        convexUserId: userId,
+        email: user.email,
+      });
+
+      mapping[user.supabaseUserId] = userId;
+      created++;
+      console.log(`[Migration] Created user: ${user.email} -> ${userId}`);
+    }
+
+    console.log(
+      `[Migration] Users: ${created} created, ${skipped} skipped`
+    );
+    return mapping;
+  },
+});
+
+// =============================================================================
 // Profile Creation Helper (for migration)
 // =============================================================================
 
