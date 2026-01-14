@@ -29,6 +29,7 @@ import type { FieldValues } from '@/types/tracker-fields'
 import { PainEntryForm } from '@/components/PainEntryForm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { PainEntryCard } from '@/components/PainEntryCard'
+import { VirtualizedEntryList, SimpleEntryList } from '@/components/VirtualizedEntryList'
 import { EmptyState } from '@/components/EmptyState'
 import { AuthForm } from '@/components/AuthForm'
 import { TrackerSelector } from '@/components/TrackerSelector'
@@ -42,6 +43,11 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
 // Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
+
+// Offline support hooks
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { useOfflineQueue } from '@/hooks/useOfflineQueue'
+import { createSyncController, type SyncResult } from '@/services/syncService'
 
 /** View states for the main app */
 type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
@@ -72,6 +78,20 @@ function AppContent({ authState }: AppContentProps) {
   const [currentView, setCurrentView] = useState<AppView>('dashboard')
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
+
+  // Offline support - network status and queue management
+  const { isOnline, wasOffline } = useNetworkStatus()
+  const {
+    queue: offlineQueue,
+    addToQueue,
+    removeFromQueue,
+    updateStatus: updateQueueStatus,
+    getPendingEntries,
+    clearSynced,
+  } = useOfflineQueue()
+
+  // Create sync controller (stable reference)
+  const [syncController] = useState(() => createSyncController())
 
   // Handle auth events (email confirmation, password recovery)
   useEffect(() => {
@@ -194,6 +214,47 @@ function AppContent({ authState }: AppContentProps) {
     loadEntries()
   }, [user, currentTracker, signOut])
 
+  // Sync pending entries when coming back online
+  useEffect(() => {
+    // Only sync when we were offline and are now online
+    if (!wasOffline || !isOnline || !user) return
+
+    const pendingEntries = getPendingEntries()
+    if (pendingEntries.length === 0) return
+
+    // Handle sync completion - refresh entries and clean up queue
+    const handleSyncComplete = (results: SyncResult[]) => {
+      const successCount = results.filter(r => r.success).length
+      const failCount = results.filter(r => !r.success).length
+
+      // Remove successfully synced entries from queue
+      results.filter(r => r.success).forEach(r => removeFromQueue(r.entryId))
+
+      // Show summary toast
+      if (successCount > 0 && failCount === 0) {
+        toast.success(`${successCount} ${successCount === 1 ? 'entry' : 'entries'} synced`)
+      } else if (successCount > 0 && failCount > 0) {
+        toast.warning(`${successCount} synced, ${failCount} failed`)
+      } else if (failCount > 0) {
+        toast.error(`${failCount} ${failCount === 1 ? 'entry' : 'entries'} failed to sync`)
+      }
+
+      // Clear synced entries from queue
+      clearSynced()
+    }
+
+    // Start background sync
+    syncController.startSync(
+      getPendingEntries,
+      updateQueueStatus,
+      handleSyncComplete
+    )
+
+    return () => {
+      syncController.stopSync()
+    }
+  }, [wasOffline, isOnline, user, getPendingEntries, updateQueueStatus, removeFromQueue, clearSynced, syncController])
+
   const [showForm, setShowForm] = useState(false)
   const [editingEntry, setEditingEntry] = useState<PainEntry | null>(null)
   const [dateFilter, setDateFilter] = useState<string | null>(null)
@@ -245,6 +306,15 @@ function AppContent({ authState }: AppContentProps) {
       ...data,
     }
 
+    // If offline, queue the entry for later sync
+    if (!isOnline) {
+      addToQueue(newEntry)
+      setEntries(current => [newEntry, ...current])
+      setShowForm(false)
+      toast.info('Entry saved offline. Will sync when connected.')
+      return
+    }
+
     const { error } = await db.insert<PainEntry>('tracker_entries', newEntry)
 
     if (error) {
@@ -253,7 +323,11 @@ function AppContent({ authState }: AppContentProps) {
         await handleAuthError()
         return
       }
-      toast.error('Could not save entry')
+      // If online but insert failed, queue for retry
+      addToQueue(newEntry)
+      setEntries(current => [newEntry, ...current])
+      setShowForm(false)
+      toast.warning('Entry saved locally. Will retry sync.')
       return
     }
 
@@ -331,7 +405,18 @@ function AppContent({ authState }: AppContentProps) {
   const filteredEntries = useMemo(() => {
     if (!entries) return []
 
-    let filtered = entries
+    // Get set of pending entry IDs from offline queue
+    const pendingIds = new Set(
+      offlineQueue
+        .filter(q => q.status === 'pending' || q.status === 'syncing' || q.status === 'failed')
+        .map(q => q.entry.id)
+    )
+
+    // Mark entries that are pending sync
+    let filtered: Array<PainEntry & { isPending?: boolean }> = entries.map(entry => ({
+      ...entry,
+      isPending: pendingIds.has(entry.id),
+    }))
 
     if (dateFilter) {
       filtered = filterEntriesByDateRange(filtered, parseInt(dateFilter, 10))
@@ -360,7 +445,7 @@ function AppContent({ authState }: AppContentProps) {
     }
 
     return filtered
-  }, [entries, dateFilter, locationFilter, searchTerm])
+  }, [entries, dateFilter, locationFilter, searchTerm, offlineQueue])
 
   const entryCount = entries?.length ?? 0
 
@@ -496,6 +581,13 @@ function AppContent({ authState }: AppContentProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Skip to main content link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
       <Toaster />
 
       {/* About Dialog */}
@@ -644,6 +736,7 @@ function AppContent({ authState }: AppContentProps) {
       </header>
 
       {/* Main content with view transitions */}
+      <div id="main-content" tabIndex={-1} className="outline-none">
       <AnimatePresence mode="wait">
         {/* Welcome screen for new users */}
         {currentView === 'welcome' && (
@@ -778,18 +871,21 @@ function AppContent({ authState }: AppContentProps) {
             <TabsContent value="all" className="space-y-4 mt-6">
               {filteredEntries.length === 0 ? (
                 <EmptyState tracker={currentTracker} />
+              ) : filteredEntries.length > 50 ? (
+                <VirtualizedEntryList
+                  entries={filteredEntries}
+                  tracker={currentTracker}
+                  onDelete={handleDeleteEntry}
+                  onEdit={handleEditEntry}
+                  height="calc(100vh - 380px)"
+                />
               ) : (
-                <div className="space-y-4">
-                  {filteredEntries.map(entry => (
-                    <PainEntryCard
-                      key={entry.id}
-                      entry={entry}
-                      tracker={currentTracker}
-                      onDelete={handleDeleteEntry}
-                      onEdit={handleEditEntry}
-                    />
-                  ))}
-                </div>
+                <SimpleEntryList
+                  entries={filteredEntries}
+                  tracker={currentTracker}
+                  onDelete={handleDeleteEntry}
+                  onEdit={handleEditEntry}
+                />
               )}
             </TabsContent>
 
@@ -851,15 +947,22 @@ function AppContent({ authState }: AppContentProps) {
                     Showing {filteredEntries.length}{' '}
                     {filteredEntries.length === 1 ? 'entry' : 'entries'}
                   </p>
-                  {filteredEntries.map(entry => (
-                    <PainEntryCard
-                      key={entry.id}
-                      entry={entry}
+                  {filteredEntries.length > 50 ? (
+                    <VirtualizedEntryList
+                      entries={filteredEntries}
+                      tracker={currentTracker}
+                      onDelete={handleDeleteEntry}
+                      onEdit={handleEditEntry}
+                      height="calc(100vh - 480px)"
+                    />
+                  ) : (
+                    <SimpleEntryList
+                      entries={filteredEntries}
                       tracker={currentTracker}
                       onDelete={handleDeleteEntry}
                       onEdit={handleEditEntry}
                     />
-                  ))}
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -884,6 +987,7 @@ function AppContent({ authState }: AppContentProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
       <footer className="border-t mt-16">
         <div className="container max-w-4xl mx-auto px-6 py-6">

@@ -4,7 +4,7 @@
  * Extensible for future auth methods (social, phone, passkeys)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -106,6 +106,11 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
   const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('magicLink');
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Refs for focus management (accessibility)
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -159,14 +164,18 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
+      // Focus the confirm password field for accessibility
+      confirmPasswordRef.current?.focus();
       return;
     }
-    
+
     if (password.length < 6) {
       toast.error('Password must be at least 6 characters');
+      // Focus the password field for accessibility
+      passwordRef.current?.focus();
       return;
     }
 
@@ -274,6 +283,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
     <div className="space-y-2">
       <Label htmlFor="email">Email</Label>
       <Input
+        ref={emailRef}
         id="email"
         type="email"
         placeholder="you@example.com"
@@ -283,6 +293,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         disabled={isLoading}
         autoComplete="email"
         className="h-11"
+        aria-required="true"
       />
     </div>
   );
@@ -292,6 +303,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
       <Label htmlFor="password">Password</Label>
       <div className="relative">
         <Input
+          ref={passwordRef}
           id="password"
           type={showPassword ? 'text' : 'password'}
           placeholder="••••••••"
@@ -301,6 +313,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
           disabled={isLoading}
           autoComplete={stage === 'signUp' ? 'new-password' : 'current-password'}
           className="h-11 pr-10"
+          aria-required="true"
         />
         <button
           type="button"
@@ -319,6 +332,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
     <div className="space-y-2">
       <Label htmlFor="confirmPassword">Confirm password</Label>
       <Input
+        ref={confirmPasswordRef}
         id="confirmPassword"
         type={showPassword ? 'text' : 'password'}
         placeholder="••••••••"
@@ -328,6 +342,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         disabled={isLoading}
         autoComplete="new-password"
         className="h-11"
+        aria-required="true"
       />
     </div>
   );

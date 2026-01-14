@@ -201,8 +201,9 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
                     type="button"
                     onClick={() => removeHashtag(tag)}
                     className="hover:bg-muted rounded-full p-0.5"
+                    aria-label={`Remove hashtag ${tag}`}
                   >
-                    <X size={12} />
+                    <X size={12} aria-hidden="true" />
                   </button>
                 </Badge>
               ))}
@@ -214,6 +215,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
                 onKeyDown={handleHashtagKeyDown}
                 onBlur={() => hashtagInput && addHashtag(hashtagInput)}
                 className="flex-1 min-w-[120px] border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                aria-label="Add hashtag"
               />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -345,8 +347,9 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
                   type="button"
                   onClick={() => removeHashtag(tag)}
                   className="hover:bg-muted rounded-full p-0.5"
+                  aria-label={`Remove hashtag ${tag}`}
                 >
-                  <X size={12} />
+                  <X size={12} aria-hidden="true" />
                 </button>
               </Badge>
             ))}
@@ -358,9 +361,10 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
               onKeyDown={handleHashtagKeyDown}
               onBlur={() => hashtagInput && addHashtag(hashtagInput)}
               className="flex-1 min-w-[120px] border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+              aria-label="Add hashtag"
             />
           </div>
-          
+
           {/* Suggested hashtags from AI-generated config */}
           {config.suggestedHashtags && config.suggestedHashtags.length > 0 && (
             <div className="space-y-2">
