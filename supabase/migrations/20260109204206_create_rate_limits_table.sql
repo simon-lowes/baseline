@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: create_rate_limits_table

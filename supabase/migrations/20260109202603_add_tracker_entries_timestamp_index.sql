@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: add_tracker_entries_timestamp_index

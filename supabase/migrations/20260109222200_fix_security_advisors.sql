@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: fix_security_advisors

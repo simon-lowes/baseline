@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: fix_maintenance_log_table

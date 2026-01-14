@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: create_self_healing_maintenance

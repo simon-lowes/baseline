@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: add_cron_jobs_helper
