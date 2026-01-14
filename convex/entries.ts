@@ -232,6 +232,63 @@ export const remove = mutation({
 });
 
 /**
+ * DEBUG: Count all entries in the database (no auth required).
+ * TEMPORARY - Remove after debugging.
+ */
+export const debugCountAll = query({
+  args: {},
+  handler: async (ctx) => {
+    const allEntries = await ctx.db.query("trackerEntries").collect();
+    const allTrackers = await ctx.db.query("trackers").collect();
+    const allUsers = await ctx.db.query("users").collect();
+
+    // Get authenticated user ID for comparison
+    const authUserId = await getAuthUserId(ctx);
+
+    // Group entries by userId to see distribution
+    const byUser = new Map<string, number>();
+    for (const entry of allEntries) {
+      const uid = entry.userId;
+      byUser.set(uid, (byUser.get(uid) ?? 0) + 1);
+    }
+
+    // Get profiles to see which email belongs to which userId
+    const profiles = await ctx.db.query("profiles").collect();
+
+    // Get auth accounts to see email mappings
+    const authAccounts = await ctx.db.query("authAccounts").collect();
+
+    return {
+      totalEntries: allEntries.length,
+      totalTrackers: allTrackers.length,
+      totalUsers: allUsers.length,
+      authenticatedUserId: authUserId,
+      allUserIds: allUsers.map(u => u._id),
+      profiles: profiles.map(p => ({ userId: p.userId, email: p.email })),
+      authAccounts: authAccounts.map(a => ({
+        userId: a.userId,
+        providerAccountId: a.providerAccountId,
+        provider: a.provider
+      })),
+      entriesByUser: Object.fromEntries(byUser),
+      trackersByUser: Object.fromEntries(
+        allTrackers.reduce((acc, t) => {
+          acc.set(t.userId, (acc.get(t.userId) ?? 0) + 1);
+          return acc;
+        }, new Map<string, number>())
+      ),
+      recentEntries: allEntries.slice(0, 5).map(e => ({
+        id: e._id,
+        trackerId: e.trackerId,
+        userId: e.userId,
+        timestamp: e.timestamp,
+        intensity: e.intensity,
+      })),
+    };
+  },
+});
+
+/**
  * Get entry statistics for a tracker.
  * Returns aggregated data like average intensity, entry count, etc.
  */

@@ -27,6 +27,8 @@ dist-ssr
 .env
 # Ignore all environment variants and Supabase CLI env
 .env.*
+# Exception: .env.production contains only public URLs (no secrets)
+!.env.production
 supabase/.env
 supabase/.temp/
 **/agent-eval-report*
