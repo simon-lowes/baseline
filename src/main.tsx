@@ -1,11 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import { ErrorBoundary } from "react-error-boundary";
 import { ThemeProvider } from 'next-themes'
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
 
 import App from './App.tsx'
 import { ErrorFallback } from './ErrorFallback.tsx'
-import { convexClient, isConvexConfigured } from '@/adapters/convex'
 
 import "./main.css"
 
@@ -20,8 +18,8 @@ const getInitialTheme = () => {
 }
 
 /**
- * App wrapper that conditionally adds Convex providers
- * when VITE_CONVEX_URL is configured
+ * App wrapper with theme provider
+ * Uses Supabase for authentication and data
  */
 function AppWithProviders() {
   const themes = [
@@ -36,7 +34,7 @@ function AppWithProviders() {
     'plum-light', 'plum-dark',
   ];
 
-  const appContent = (
+  return (
     <ThemeProvider
       attribute="class"
       defaultTheme={getInitialTheme()}
@@ -47,19 +45,6 @@ function AppWithProviders() {
       <App />
     </ThemeProvider>
   );
-
-  // Wrap with ConvexAuthProvider if configured
-  // Note: ConvexAuthProvider replaces ConvexProvider - it includes all Convex
-  // functionality plus auth. The client prop is required for useAuthActions.
-  if (isConvexConfigured()) {
-    return (
-      <ConvexAuthProvider client={convexClient}>
-        {appContent}
-      </ConvexAuthProvider>
-    );
-  }
-
-  return appContent;
 }
 
 createRoot(document.getElementById('root')!).render(
