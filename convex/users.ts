@@ -1,141 +1,90 @@
 /**
  * User Management Functions
  *
- * Handles creating and managing users in the Convex database.
- * Users are linked to Clerk authentication via clerkId.
+ * Handles user profile data and account management.
+ * Convex Auth handles the core users table - this manages additional profile data.
  */
 
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 /**
- * Get the current authenticated user from the database.
- * Returns null if not authenticated or user not found.
+ * Get the current authenticated user's ID.
+ * Returns null if not authenticated.
+ */
+export const currentUserId = query({
+  args: {},
+  handler: async (ctx) => {
+    return await getAuthUserId(ctx);
+  },
+});
+
+/**
+ * Get the current authenticated user with their profile.
+ * Returns the auth user merged with profile data.
  */
 export const current = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    return user;
-  },
-});
-
-/**
- * Get a user by their Clerk ID.
- * Used internally for linking auth to database records.
- */
-export const getByClerkId = query({
-  args: { clerkId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-  },
-});
-
-/**
- * Create or update a user record when they sign in.
- * Called when a user authenticates to ensure they exist in the database.
- */
-export const upsertFromClerk = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    // Check if user already exists
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (existingUser) {
-      // Update existing user if email changed
-      if (existingUser.email !== identity.email) {
-        await ctx.db.patch(existingUser._id, {
-          email: identity.email ?? existingUser.email,
-          displayName: identity.name ?? existingUser.displayName,
-        });
-      }
-      return existingUser._id;
-    }
-
-    // Create new user
-    const userId = await ctx.db.insert("users", {
-      clerkId: identity.subject,
-      email: identity.email ?? "",
-      displayName: identity.name,
-    });
-
-    return userId;
-  },
-});
-
-/**
- * Update the current user's profile.
- */
-export const updateProfile = mutation({
-  args: {
-    displayName: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
+    // Get the auth user
+    const user = await ctx.db.get(userId);
     if (!user) {
-      throw new Error("User not found");
+      return null;
     }
 
-    await ctx.db.patch(user._id, {
-      displayName: args.displayName,
-    });
+    // Get additional profile data if exists
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
 
-    return user._id;
+    return {
+      ...user,
+      displayName: profile?.displayName,
+      profileEmail: profile?.email,
+    };
   },
 });
 
 /**
- * Internal mutation to create a user (used by webhooks).
- * This bypasses auth checks for use in internal flows.
+ * Create or update the current user's profile.
+ * Called after sign up to store additional profile data.
  */
-export const createInternal = internalMutation({
+export const upsertProfile = mutation({
   args: {
-    clerkId: v.string(),
     email: v.string(),
     displayName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Check if user already exists
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (existingUser) {
-      return existingUser._id;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
     }
 
-    return await ctx.db.insert("users", {
-      clerkId: args.clerkId,
+    // Check if profile exists
+    const existingProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (existingProfile) {
+      // Update existing profile
+      await ctx.db.patch(existingProfile._id, {
+        email: args.email,
+        displayName: args.displayName,
+      });
+      return existingProfile._id;
+    }
+
+    // Create new profile
+    return await ctx.db.insert("profiles", {
+      userId,
       email: args.email,
       displayName: args.displayName,
     });
@@ -143,30 +92,56 @@ export const createInternal = internalMutation({
 });
 
 /**
- * Delete a user and all their data.
- * This is a destructive operation that removes all trackers and entries.
+ * Update the current user's display name.
+ */
+export const updateDisplayName = mutation({
+  args: {
+    displayName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      // Create profile with display name
+      return await ctx.db.insert("profiles", {
+        userId,
+        email: "",
+        displayName: args.displayName,
+      });
+    }
+
+    await ctx.db.patch(profile._id, {
+      displayName: args.displayName,
+    });
+
+    return profile._id;
+  },
+});
+
+/**
+ * Delete the current user's account and all associated data.
+ * This is a destructive operation.
  */
 export const deleteAccount = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
     }
 
     // Delete all tracker entries for this user
     const entries = await ctx.db
       .query("trackerEntries")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     for (const entry of entries) {
@@ -176,16 +151,46 @@ export const deleteAccount = mutation({
     // Delete all trackers for this user
     const trackers = await ctx.db
       .query("trackers")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     for (const tracker of trackers) {
       await ctx.db.delete(tracker._id);
     }
 
-    // Delete the user
-    await ctx.db.delete(user._id);
+    // Delete profile
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (profile) {
+      await ctx.db.delete(profile._id);
+    }
+
+    // Note: The auth user will be deleted separately via Convex Auth
 
     return { success: true };
+  },
+});
+
+// =============================================================================
+// Internal Functions (for migrations)
+// =============================================================================
+
+/**
+ * Get profile by email - internal function for migrations.
+ */
+export const getProfileByEmail = internalQuery({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+
+    return profile;
   },
 });

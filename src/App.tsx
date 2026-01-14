@@ -1,4 +1,4 @@
-import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
+import { db, auth, tracker as trackerService, activeBackend } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp } from '@phosphor-icons/react'
@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { PainEntryCard } from '@/components/PainEntryCard'
 import { EmptyState } from '@/components/EmptyState'
 import { AuthForm } from '@/components/AuthForm'
+import { ConvexAuthForm } from '@/components/ConvexAuthForm'
 import { TrackerSelector } from '@/components/TrackerSelector'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { Dashboard } from '@/components/Dashboard'
@@ -39,72 +40,23 @@ import type { AuthUser } from '@/ports/AuthPort'
 import { AnalyticsDashboard } from '@/components/analytics'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 
+// Conditional imports for Convex auth
+import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
+import { useConvexAuthState } from '@/hooks/useConvexAuthState'
+
 /** View states for the main app */
 type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
 
 /**
- * Validates session against Supabase server before trusting any state.
- * This catches: deleted users, expired tokens, revoked sessions, etc.
- * Also handles "remember me" logic: if user didn't check "remember me" and browser
- * was closed (sessionStorage cleared), we sign them out.
+ * Inner app content - receives auth state from wrapper
  */
-async function validateAndInitAuth(
-  setUser: (user: AuthUser | null) => void,
-  setAuthLoading: (loading: boolean) => void
-): Promise<void> {
-  try {
-    console.log('[Auth] Starting server-side session validation...')
-
-    // Prevent hanging forever if the auth endpoint is slow/unreachable
-    const session = await Promise.race([
-      auth.getSession(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
-    ])
-
-    if (session === null) {
-      console.warn('[Auth] Session validation timed out or returned null')
-      setUser(null)
-      return
-    }
-
-    // Check "remember me" preference
-    // If user signed in WITHOUT "remember me", they stored a flag in sessionStorage
-    // When browser closes, sessionStorage clears -> sign them out
-    const rememberSession = localStorage.getItem('baseline-remember-session')
-    const activeSession = sessionStorage.getItem('baseline-active-session')
-
-    if (!rememberSession && !activeSession) {
-      // This means either:
-      // 1. User never signed in through our form (legacy session) - keep them signed in
-      // 2. User signed in without "remember me" and browser was closed - sign out
-      // We check if there's a Supabase session but no flags -> likely case 2
-      // To avoid signing out legacy users, we only sign out if the session was created
-      // after this feature was deployed. For now, let's be permissive and keep them in.
-      // TODO: After some time, we can enforce stricter behavior
-      console.log('[Auth] No session preference flags found, keeping user signed in')
-    }
-
-    console.log('[Auth] Session validated successfully:', session.user.email)
-    setUser(session.user)
-  } catch (error) {
-    console.error('[Auth] Session validation failed:', error)
-    // Force sign out to clear any stale tokens from localStorage
-    try {
-      await auth.signOut()
-    } catch (signOutError) {
-      console.warn('[Auth] SignOut during cleanup failed:', signOutError)
-    }
-    setUser(null)
-  } finally {
-    setAuthLoading(false)
-  }
+interface AppContentProps {
+  authState: UseAuthResult;
 }
 
-function App() {
-  // CRITICAL: Start with null user, not cached value
-  // Only trust user state AFTER server validation completes
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+function AppContent({ authState }: AppContentProps) {
+  const { user, isLoading: authLoading, signOut } = authState;
+
   const [entries, setEntries] = useState<PainEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [emailConfirmed, setEmailConfirmed] = useState(false)
@@ -114,7 +66,7 @@ function App() {
   const [updatingPassword, setUpdatingPassword] = useState(false)
   const [currentTracker, setCurrentTracker] = useState<Tracker | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
-  
+
   // Multi-tracker and view state
   const [trackers, setTrackers] = useState<Tracker[]>([])
   const [trackersLoading, setTrackersLoading] = useState(true)
@@ -122,14 +74,11 @@ function App() {
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
 
-  // Listen for auth state changes
+  // Handle auth events (email confirmation, password recovery) - Supabase only
   useEffect(() => {
-    void validateAndInitAuth(setUser, setAuthLoading)
+    if (activeBackend !== 'supabase') return;
 
-    // Subscribe to auth changes
     const { unsubscribe } = auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-      
       // Handle email confirmation - user just verified their email
       if (event === 'SIGNED_IN' && session?.user) {
         // Check if this is from an email confirmation (URL has access_token hash)
@@ -141,7 +90,7 @@ function App() {
           globalThis.history.replaceState(null, '', globalThis.location.pathname)
         }
       }
-      
+
       if (event === 'PASSWORD_RECOVERY') {
         // Show reset password dialog when Supabase triggers recovery event
         setPasswordRecoveryOpen(true)
@@ -153,8 +102,6 @@ function App() {
 
     return () => unsubscribe()
   }, [])
-
-
 
   // Load all trackers when user is authenticated
   useEffect(() => {
@@ -169,10 +116,10 @@ function App() {
     const loadTrackers = async () => {
       setTrackersLoading(true)
       const result = await trackerService.getTrackers()
-      
+
       if (result.data) {
         setTrackers(result.data)
-        
+
         // Determine initial view based on tracker count
         if (result.data.length === 0) {
           setCurrentView('welcome')
@@ -187,23 +134,23 @@ function App() {
       }
       setTrackersLoading(false)
     }
-    
+
     loadTrackers()
   }, [user])
 
   // Load ALL entries for analytics view (cross-tracker)
   const loadAllEntries = useCallback(async () => {
     if (!user) return
-    
+
     const { data, error } = await db.select<PainEntry>('tracker_entries', {
       orderBy: { column: 'timestamp', ascending: false },
     })
-    
+
     if (error) {
       console.error('Failed to load all entries for analytics:', error)
       return
     }
-    
+
     setAllEntries(data ?? [])
   }, [user])
 
@@ -222,7 +169,7 @@ function App() {
 
       if (error) {
         console.error(error)
-        
+
         // Check for auth-related errors (deleted user, invalid token, etc.)
         const errorMsg = error.message?.toLowerCase() ?? ''
         if (
@@ -234,11 +181,10 @@ function App() {
           errorMsg.includes('row-level security')
         ) {
           toast.error('Session expired. Please sign in again.')
-          await auth.signOut()
-          setUser(null)
+          await signOut()
           return
         }
-        
+
         toast.error('Could not load entries')
         setLoading(false)
         return
@@ -249,7 +195,8 @@ function App() {
     }
 
     loadEntries()
-  }, [user, currentTracker])
+  }, [user, currentTracker, signOut])
+
   const [showForm, setShowForm] = useState(false)
   const [editingEntry, setEditingEntry] = useState<PainEntry | null>(null)
   const [dateFilter, setDateFilter] = useState<string | null>(null)
@@ -271,11 +218,10 @@ function App() {
   }
 
   // Handle auth errors by signing out
-  const handleAuthError = async () => {
+  const handleAuthError = useCallback(async () => {
     toast.error('Session expired. Please sign in again.')
-    await auth.signOut()
-    setUser(null)
-  }
+    await signOut()
+  }, [signOut])
 
   const handleAddEntry = async (data: {
     intensity: number
@@ -422,24 +368,16 @@ function App() {
   const handleSignOut = async () => {
     console.log('[App] Sign out clicked');
     try {
-      const { error } = await auth.signOut()
-      console.log('[App] Sign out result:', error?.message);
-      if (error) {
-        toast.error('Could not sign out')
-      } else {
-        // Reset theme to system default on logout so new users get fresh experience
-        localStorage.removeItem('theme')
-        // Note: Keep 'baseline-theme-onboarded' flag - once user has seen theme picker on this device,
-        // they don't need the tooltip again even after logout
-        // Clear session persistence flags
-        localStorage.removeItem('baseline-remember-session')
-        sessionStorage.removeItem('baseline-active-session')
-        // Remove theme class from document to reset to default
-        document.documentElement.classList.remove(
-          'dark', 'zinc-light', 'zinc-dark', 'nature-light', 'nature-dark', 'rose-light', 'rose-dark'
-        )
-        toast.success('Signed out')
-      }
+      await signOut()
+      // Reset theme to system default on logout so new users get fresh experience
+      localStorage.removeItem('theme')
+      // Note: Keep 'baseline-theme-onboarded' flag - once user has seen theme picker on this device,
+      // they don't need the tooltip again even after logout
+      // Remove theme class from document to reset to default
+      document.documentElement.classList.remove(
+        'dark', 'zinc-light', 'zinc-dark', 'nature-light', 'nature-dark', 'rose-light', 'rose-dark'
+      )
+      toast.success('Signed out')
     } catch (err) {
       console.error('[App] Sign out exception:', err);
       toast.error('Sign out failed');
@@ -529,7 +467,7 @@ function App() {
     }
   }, [currentTracker?.id])
 
-  // Show loading while validating auth with server
+  // Show loading while validating auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -544,7 +482,7 @@ function App() {
     return (
       <>
         <Toaster />
-        <AuthForm />
+        {activeBackend === 'convex' ? <ConvexAuthForm /> : <AuthForm />}
       </>
     )
   }
@@ -560,7 +498,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      
+
       {/* About Dialog */}
       <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -572,8 +510,8 @@ function App() {
               Know your baseline, spot the changes.
             </p>
             <p>
-              Baseline helps you track anything that matters to your health and wellbeing. 
-              Whether it's chronic pain, mood, sleep, or custom trackers powered by AI — 
+              Baseline helps you track anything that matters to your health and wellbeing.
+              Whether it's chronic pain, mood, sleep, or custom trackers powered by AI —
               understanding your patterns is the first step to feeling better.
             </p>
             <div className="space-y-2">
@@ -592,35 +530,38 @@ function App() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reset your password</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              type="password"
-              placeholder="New password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-            />
-            <Input
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setPasswordRecoveryOpen(false)}>Cancel</Button>
-              <Button onClick={handlePasswordUpdate} disabled={updatingPassword}>
-                {updatingPassword ? 'Updating…' : 'Update password'}
-              </Button>
+
+      {/* Password Recovery Dialog - Supabase only */}
+      {activeBackend === 'supabase' && (
+        <Dialog open={passwordRecoveryOpen} onOpenChange={setPasswordRecoveryOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reset your password</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                type="password"
+                placeholder="New password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+              />
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="ghost" onClick={() => setPasswordRecoveryOpen(false)}>Cancel</Button>
+                <Button onClick={handlePasswordUpdate} disabled={updatingPassword}>
+                  {updatingPassword ? 'Updating…' : 'Update password'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Email confirmed banner */}
       {emailConfirmed && (
         <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-3 text-center">
@@ -629,13 +570,13 @@ function App() {
           </p>
         </div>
       )}
-      
+
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 overflow-hidden">
         <div className="container max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="text-left">
               <div className="inline-flex items-start">
-                <button 
+                <button
                   onClick={handleGoHome}
                   className="hover:opacity-80 transition-opacity"
                 >
@@ -646,7 +587,7 @@ function App() {
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button 
+                      <button
                         onClick={() => setAboutOpen(true)}
                         className="-mt-0.5 ml-1 w-5 h-5 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold hover:bg-primary/20 hover:border-primary/60 transition-all cursor-pointer"
                         aria-label="About Baseline"
@@ -677,7 +618,7 @@ function App() {
               </Button>
             </div>
           </div>
-          
+
           {/* Tracker Selector - only show when in tracker view */}
           {currentView === 'tracker' && currentTracker && (
             <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
@@ -729,7 +670,7 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <Dashboard 
+            <Dashboard
               trackers={trackers}
               onTrackerSelect={handleTrackerSelect}
               onTrackerCreated={handleTrackerCreated}
@@ -956,6 +897,35 @@ function App() {
       </footer>
     </div>
   )
+}
+
+/**
+ * Supabase Auth App Wrapper
+ * Uses the Supabase auth hook
+ */
+function SupabaseApp() {
+  const authState = useSupabaseAuth();
+  return <AppContent authState={authState} />;
+}
+
+/**
+ * Convex Auth App Wrapper
+ * Uses the Convex auth hooks (must be inside ConvexAuthProvider)
+ */
+function ConvexApp() {
+  const authState = useConvexAuthState();
+  return <AppContent authState={authState} />;
+}
+
+/**
+ * Main App Component
+ * Switches between Supabase and Convex implementations based on activeBackend
+ */
+function App() {
+  if (activeBackend === 'convex') {
+    return <ConvexApp />;
+  }
+  return <SupabaseApp />;
 }
 
 export default App
