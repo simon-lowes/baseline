@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: fix_audit_trigger_text_to_uuid_cast

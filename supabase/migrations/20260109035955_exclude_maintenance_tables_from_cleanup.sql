@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: exclude_maintenance_tables_from_cleanup

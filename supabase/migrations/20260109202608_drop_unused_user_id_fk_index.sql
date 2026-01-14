@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: drop_unused_user_id_fk_index

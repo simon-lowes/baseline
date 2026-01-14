@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: optimize_tracker_entries_rls_policies

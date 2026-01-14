@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: add_foreign_key_index

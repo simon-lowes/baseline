@@ -1,0 +1,2 @@
+-- Migration applied via Supabase Dashboard
+-- Original migration: create_audit_log_table

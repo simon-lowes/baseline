@@ -1,3 +1,3 @@
 -- Migration applied via Supabase Dashboard
 -- This stub file ensures local/remote migration history stays in sync
--- Original migration: add_field_values
+-- Original migration: fix_security_and_performance_advisors
