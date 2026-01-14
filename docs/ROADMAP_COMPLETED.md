@@ -302,4 +302,48 @@ Provide user account management with GDPR-compliant data export and account dele
 
 ---
 
-_Last updated: January 14, 2026 (Account Settings complete)_
+## Accessibility Enhancements (v4.2) ✅ COMPLETE
+
+### Goal
+
+Ensure WCAG 2.1 AA compliance with high-contrast theme and colorblind-friendly charts.
+
+### Completed Items
+
+- High Contrast theme (10th theme option) ✅
+  - Pure black/white with 21:1 contrast ratio
+  - Maximum visibility for users with visual impairments
+  - Split black/white visual indicator in theme picker
+- Colorblind-safe chart palette ✅
+  - Replaced green-yellow-red intensity gradient with blue-neutral-orange
+  - Benefits ~8% of males with red-green color blindness (deuteranopia/protanopia)
+  - OKLch color space for perceptual uniformity
+- Chart pattern overlays (opt-in feature) ✅
+  - SVG patterns (stripes, dots, crosshatch) as secondary visual channel
+  - Heatmap calendar pattern support (5 density levels)
+  - Intensity bar chart pattern support (3 levels: low/medium/high)
+  - "Chart patterns" toggle in theme picker dropdown
+- Accessibility context for user preferences ✅
+  - localStorage persistence for pattern toggle
+  - `useAccessibility()` and `usePatternsEnabled()` hooks
+- WCAG contrast audit utility ✅
+  - OKLch to sRGB conversion
+  - Luminance and contrast ratio calculation
+  - Programmatic theme auditing capability
+
+### Implementation Details
+
+- New files:
+  - `src/lib/contrast-audit.ts` - WCAG contrast ratio calculator
+  - `src/components/charts/ChartPatterns.tsx` - SVG pattern definitions
+  - `src/contexts/AccessibilityContext.tsx` - User preference storage
+- Modified files:
+  - `src/main.css` - High-contrast theme classes, colorblind-safe intensity colors
+  - `src/main.tsx` - AccessibilityProvider and ChartPatternDefs integration
+  - `src/components/ThemeSwitcher.tsx` - High Contrast option + patterns toggle
+  - `src/components/analytics/EntryHeatmapCalendar.tsx` - Pattern overlay support
+  - `src/components/analytics/IntensityDistributionBar.tsx` - Pattern fill support
+
+---
+
+_Last updated: January 14, 2026 (Accessibility complete)_
