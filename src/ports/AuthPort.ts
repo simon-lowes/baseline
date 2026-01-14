@@ -87,4 +87,10 @@ export interface AuthPort {
    * Call this before rendering authenticated UI on app startup.
    */
   waitForInitialValidation(): Promise<AuthUser | null>;
+  /**
+   * Delete the current user's account and all associated data.
+   * This is a destructive operation that cannot be undone.
+   * Calls a server-side Edge Function to delete data with admin privileges.
+   */
+  deleteAccount(): Promise<{ error: Error | null }>;
 }

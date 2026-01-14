@@ -72,4 +72,8 @@ export const noopAuth: AuthPort = {
   async checkUserExists(_email: string) {
     return { exists: false, error: new Error('Authentication not configured') };
   },
+
+  async deleteAccount() {
+    return { error: new Error('Authentication not configured') };
+  },
 };
