@@ -80,7 +80,7 @@ export const convexDb: DbPort = {
       const entry = Array.isArray(values) ? values[0] : values;
       const v = entry as any;
 
-      const doc = await convexClient.mutation(api.entries.create, {
+      const mutationArgs = {
         trackerId: v.tracker_id as Id<"trackers">,
         timestamp: v.timestamp ? new Date(v.timestamp).getTime() : undefined,
         intensity: v.intensity,
@@ -89,7 +89,13 @@ export const convexDb: DbPort = {
         triggers: v.triggers || [],
         hashtags: v.hashtags || [],
         fieldValues: v.field_values,
-      });
+      };
+
+      const doc = await convexClient.mutation(api.entries.create, mutationArgs);
+
+      if (!doc) {
+        return { data: null, error: new Error("Mutation returned no document") };
+      }
 
       return { data: transformEntry(doc) as T, error: null };
     } catch (err) {
