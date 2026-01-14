@@ -48,9 +48,9 @@ _(No changes - not yet implemented)_
 
 ## Technical Debt to Address
 
-- **Offline support** - Service worker for offline entry creation ❌
-- **Accessibility** - WCAG 2.1 AA compliance audit ❌
-- **Performance** - Virtualized lists for large entry counts ❌
+- **Offline support** - Service worker for offline entry creation ✅ (PWA configured, hooks integrated, background sync implemented)
+- **Accessibility** - WCAG 2.1 AA compliance audit ✅ (skip links, ARIA labels, reduced motion, focus management, live regions)
+- **Performance** - Virtualized lists for large entry counts ✅ (VirtualizedEntryList component with TanStack Virtual)
 
 ---
 

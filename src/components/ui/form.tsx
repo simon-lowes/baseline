@@ -146,6 +146,8 @@ function FormMessage({ className, ...props }: ComponentProps<"p">) {
       data-slot="form-message"
       id={formMessageId}
       className={cn("text-destructive text-sm", className)}
+      role="alert"
+      aria-live="polite"
       {...props}
     >
       {body}

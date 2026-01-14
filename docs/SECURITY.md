@@ -1,9 +1,9 @@
 # Security Reference Document
 
 **Project:** Baseline Health Tracker
-**Last Audit:** 9 January 2026
+**Last Audit:** 14 January 2026
 **Security Expert:** Claude (AI Security Advisor)
-**Version:** 1.5.0 (Audit trail for data changes)
+**Version:** 1.6.0 (Security audit - edge function auth redeployment)
 
 > This is the authoritative security reference for the project. It should be consulted before any code changes that touch authentication, authorization, data handling, or external integrations.
 
@@ -726,6 +726,7 @@ A security review should be triggered when:
 | 1.3.0 | 9 Jan 2026 | Critical security fixes: dev/e2e bypass blocked in production, JWT auth added to AI endpoints, CSP headers implemented |
 | 1.4.0 | 9 Jan 2026 | Distributed rate limiting (Supabase-backed), security event logging with database persistence |
 | 1.5.0 | 9 Jan 2026 | Audit trail for data changes with triggers on trackers, tracker_entries, and profiles tables |
+| 1.6.0 | 14 Jan 2026 | Security audit: Redeployed generate-tracker-config and check-ambiguity with JWT auth + rate limiting (v19/v14), fixed audit_log RLS performance (subquery pattern), npm audit clean |
 
 ---
 
