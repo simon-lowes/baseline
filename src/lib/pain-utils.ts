@@ -1,4 +1,5 @@
 import { PainEntry } from '@/types/pain-entry'
+import { formatRelativeDateTime } from '@/lib/date-utils'
 
 export const getPainColor = (intensity: number): string => {
   if (intensity <= 3) return 'oklch(0.75 0.12 145)'
@@ -14,21 +15,12 @@ export const getPainLabel = (intensity: number): string => {
   return 'Extreme'
 }
 
+/**
+ * Format timestamp for entry card display
+ * Uses 24-hour format: "Today at 14:30", "Yesterday at 09:15", etc.
+ */
 export const formatDate = (timestamp: number): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (diffInDays === 0) {
-    return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-  }
-  if (diffInDays === 1) {
-    return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-  }
-  if (diffInDays < 7) {
-    return date.toLocaleDateString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })
-  }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return formatRelativeDateTime(timestamp)
 }
 
 export const filterEntriesByDateRange = (

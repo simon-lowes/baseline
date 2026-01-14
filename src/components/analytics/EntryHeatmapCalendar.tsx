@@ -7,6 +7,7 @@
 
 import { useMemo } from 'react'
 import { generateHeatmapData, type HeatmapDay } from '@/lib/analytics-utils'
+import { getLocalDateString, formatTooltipDate } from '@/lib/date-utils'
 import type { PainEntry } from '@/types/pain-entry'
 import { cn } from '@/lib/utils'
 import {
@@ -173,7 +174,7 @@ export function EntryHeatmapCalendar({
                         onClick={() => {
                           if (day.date && onDayClick) {
                             const dayEntries = entries.filter(
-                              e => new Date(e.timestamp).toISOString().split('T')[0] === day.date
+                              e => getLocalDateString(e.timestamp) === day.date
                             )
                             onDayClick(day.date, dayEntries)
                           }
@@ -231,11 +232,7 @@ function DayCell({ day, size, color, onClick }: DayCellProps) {
     )
   }
 
-  const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
+  const formattedDate = formatTooltipDate(day.date)
 
   return (
     <Tooltip>

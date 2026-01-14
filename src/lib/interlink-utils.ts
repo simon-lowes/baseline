@@ -8,6 +8,7 @@
 import type { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 import type { TrackerField, FieldValues, NumberScaleConfig, DurationConfig } from '@/types/tracker-fields'
+import { getLocalDateString } from '@/lib/date-utils'
 
 // ============================================================================
 // Types
@@ -86,10 +87,10 @@ const WEAK_THRESHOLD = 0.2
 
 /**
  * Get date string in YYYY-MM-DD format from timestamp
+ * Uses local timezone (not UTC) to avoid day-boundary bugs
  */
 function getDateString(timestamp: number): string {
-  const date = new Date(timestamp)
-  return date.toISOString().split('T')[0]
+  return getLocalDateString(timestamp)
 }
 
 /**
@@ -242,7 +243,7 @@ export function calculateLaggedCorrelation(
     // Calculate date2 = date1 + lagDays
     const d1 = new Date(date1)
     d1.setDate(d1.getDate() + lagDays)
-    const date2 = d1.toISOString().split('T')[0]
+    const date2 = getLocalDateString(d1.getTime())
 
     const val1 = series1.get(date1)
     const val2 = series2.get(date2)
@@ -575,7 +576,7 @@ export function generateTimelineData(
   const current = new Date(start)
 
   while (current <= end) {
-    const dateStr = current.toISOString().split('T')[0]
+    const dateStr = getLocalDateString(current.getTime())
     const point: TimelineDataPoint = { date: dateStr }
 
     for (const field of fields) {

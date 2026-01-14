@@ -63,6 +63,7 @@ import {
   exportAnalyticsSummary,
   downloadFile,
 } from '@/lib/analytics-utils'
+import { formatDateFull } from '@/lib/date-utils'
 import {
   IntensityTrendLine,
   LocationDistributionPie,
@@ -186,22 +187,14 @@ export function AnalyticsDashboard({
   // Drill-down handlers
   const handleDayClick = useCallback((date: string, dayEntries: PainEntry[]) => {
     if (dayEntries.length === 0) return
-    const formattedDate = new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    })
+    const formattedDate = formatDateFull(new Date(date).getTime())
     setDrillDownTitle(`Entries for ${formattedDate}`)
     setDrillDownEntries(dayEntries)
   }, [])
 
   const handleTrendPointClick = useCallback((date: string, dayEntries: PainEntry[]) => {
     if (dayEntries.length === 0) return
-    const formattedDate = new Date(date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    })
+    const formattedDate = formatDateFull(new Date(date).getTime())
     setDrillDownTitle(`Entries for ${formattedDate}`)
     setDrillDownEntries(dayEntries)
   }, [])

@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Link2 } from 'lucide-react'
 import type { TimelineDataPoint, TrackerFieldInfo, InterlinkCorrelation } from '@/lib/interlink-utils'
+import { formatChartDate, formatDateFull } from '@/lib/date-utils'
 
 interface InterlinkTimelineChartProps {
   data: TimelineDataPoint[]
@@ -214,16 +215,10 @@ export function InterlinkTimelineChart({
 }
 
 function formatDateLabel(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatChartDate(dateStr)
 }
 
 function formatFullDate(dateStr: string): string {
   const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatDateFull(date.getTime())
 }
