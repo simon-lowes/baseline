@@ -35,17 +35,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
-import { auth } from '@/runtime/appRuntime'
+import { auth, db } from '@/runtime/appRuntime'
 import { downloadFile } from '@/lib/export/csv-export'
 import type { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 
-type Step = 'warning' | 'export' | 'confirm' | 'processing' | 'complete' | 'error'
+type Step = 'loading' | 'warning' | 'export' | 'confirm' | 'processing' | 'complete' | 'error'
 
 interface DeleteAccountDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  entries: PainEntry[]
   trackers: Tracker[]
   userEmail?: string
   onAccountDeleted: () => Promise<void>
@@ -54,23 +53,39 @@ interface DeleteAccountDialogProps {
 export function DeleteAccountDialog({
   open,
   onOpenChange,
-  entries,
   trackers,
   userEmail,
   onAccountDeleted,
 }: DeleteAccountDialogProps) {
-  const [step, setStep] = useState<Step>('warning')
+  const [step, setStep] = useState<Step>('loading')
   const [confirmText, setConfirmText] = useState('')
   const [progress, setProgress] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
+  const [entries, setEntries] = useState<PainEntry[]>([])
 
-  // Reset state when dialog opens/closes
+  // Fetch entries and reset state when dialog opens
   useEffect(() => {
     if (open) {
-      setStep('warning')
+      setStep('loading')
       setConfirmText('')
       setProgress(0)
       setErrorMessage('')
+
+      // Fetch all entries for accurate count and export
+      const loadEntries = async () => {
+        const { data, error } = await db.select<PainEntry>('tracker_entries', {
+          orderBy: { column: 'timestamp', ascending: false },
+        })
+
+        if (error) {
+          console.error('[DeleteAccountDialog] Failed to load entries:', error)
+        } else {
+          setEntries(data ?? [])
+        }
+        setStep('warning')
+      }
+
+      loadEntries()
     }
   }, [open])
 
@@ -158,8 +173,16 @@ export function DeleteAccountDialog({
   const isConfirmValid = confirmText.toUpperCase() === 'DELETE'
 
   return (
-    <Dialog open={open} onOpenChange={step === 'processing' ? undefined : onOpenChange}>
+    <Dialog open={open} onOpenChange={step === 'processing' || step === 'loading' ? undefined : onOpenChange}>
       <DialogContent className="sm:max-w-md">
+        {/* Loading state */}
+        {step === 'loading' && (
+          <div className="py-8 flex flex-col items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading account data...</p>
+          </div>
+        )}
+
         {/* Step 1: Warning */}
         {step === 'warning' && (
           <>

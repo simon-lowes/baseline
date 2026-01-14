@@ -18,14 +18,12 @@ import { ProfileSection } from '@/components/settings/ProfileSection'
 import { DataExportSection } from '@/components/settings/DataExportSection'
 import { DangerZoneSection } from '@/components/settings/DangerZoneSection'
 import type { AuthUser } from '@/ports/AuthPort'
-import type { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 
 interface AccountSettingsProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   user: AuthUser | null
-  entries: PainEntry[]
   trackers: Tracker[]
   onAccountDeleted: () => Promise<void>
 }
@@ -34,7 +32,6 @@ export function AccountSettings({
   open,
   onOpenChange,
   user,
-  entries,
   trackers,
   onAccountDeleted,
 }: AccountSettingsProps) {
@@ -51,7 +48,6 @@ export function AccountSettings({
           <Separator />
 
           <DataExportSection
-            entries={entries}
             trackers={trackers}
             userEmail={user?.email}
           />
@@ -59,7 +55,6 @@ export function AccountSettings({
           <Separator />
 
           <DangerZoneSection
-            entries={entries}
             trackers={trackers}
             userEmail={user?.email}
             onAccountDeleted={onAccountDeleted}

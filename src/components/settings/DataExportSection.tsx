@@ -3,9 +3,12 @@
  *
  * Allows users to export all their data for GDPR Article 20 (Right to Data Portability).
  * Supports CSV and JSON formats.
+ *
+ * This component fetches its own data on mount to ensure accurate stats,
+ * rather than relying on potentially stale parent state.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Download, FileSpreadsheet, FileJson, Loader2, ChevronDown, Database } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,17 +21,39 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { generateEntriesCSV, downloadFile } from '@/lib/export/csv-export'
+import { db } from '@/runtime/appRuntime'
 import type { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 
 interface DataExportSectionProps {
-  entries: PainEntry[]
   trackers: Tracker[]
   userEmail?: string
 }
 
-export function DataExportSection({ entries, trackers, userEmail }: DataExportSectionProps) {
+export function DataExportSection({ trackers, userEmail }: DataExportSectionProps) {
   const [isExporting, setIsExporting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [entries, setEntries] = useState<PainEntry[]>([])
+
+  // Fetch all entries when component mounts
+  useEffect(() => {
+    const loadEntries = async () => {
+      setIsLoading(true)
+      const { data, error } = await db.select<PainEntry>('tracker_entries', {
+        orderBy: { column: 'timestamp', ascending: false },
+      })
+
+      if (error) {
+        console.error('[DataExportSection] Failed to load entries:', error)
+      } else {
+        console.log('[DataExportSection] Loaded entries:', data?.length ?? 0)
+        setEntries(data ?? [])
+      }
+      setIsLoading(false)
+    }
+
+    loadEntries()
+  }, [])
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -130,21 +155,30 @@ export function DataExportSection({ entries, trackers, userEmail }: DataExportSe
       <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
         <Database className="h-5 w-5 text-muted-foreground mt-0.5" />
         <div className="flex-1 space-y-1">
-          <p className="text-sm">
-            <span className="font-medium">{stats.totalEntries}</span>{' '}
-            {stats.totalEntries === 1 ? 'entry' : 'entries'} across{' '}
-            <span className="font-medium">{stats.totalTrackers}</span>{' '}
-            {stats.totalTrackers === 1 ? 'tracker' : 'trackers'}
-          </p>
-          {stats.firstEntryDate && (
-            <p className="text-xs text-muted-foreground">
-              First entry: {format(stats.firstEntryDate, 'PPP')}
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading data...
             </p>
-          )}
-          {stats.totalEntries === 0 && (
-            <p className="text-xs text-muted-foreground">
-              No entries recorded yet
-            </p>
+          ) : (
+            <>
+              <p className="text-sm">
+                <span className="font-medium">{stats.totalEntries}</span>{' '}
+                {stats.totalEntries === 1 ? 'entry' : 'entries'} across{' '}
+                <span className="font-medium">{stats.totalTrackers}</span>{' '}
+                {stats.totalTrackers === 1 ? 'tracker' : 'trackers'}
+              </p>
+              {stats.firstEntryDate && (
+                <p className="text-xs text-muted-foreground">
+                  First entry: {format(stats.firstEntryDate, 'PPP')}
+                </p>
+              )}
+              {stats.totalEntries === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No entries recorded yet
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
