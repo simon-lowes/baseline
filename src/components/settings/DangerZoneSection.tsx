@@ -10,18 +10,15 @@ import { AlertTriangle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { DeleteAccountDialog } from './DeleteAccountDialog'
-import type { PainEntry } from '@/types/pain-entry'
 import type { Tracker } from '@/types/tracker'
 
 interface DangerZoneSectionProps {
-  entries: PainEntry[]
   trackers: Tracker[]
   userEmail?: string
   onAccountDeleted: () => Promise<void>
 }
 
 export function DangerZoneSection({
-  entries,
   trackers,
   userEmail,
   onAccountDeleted,
@@ -63,7 +60,6 @@ export function DangerZoneSection({
       <DeleteAccountDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        entries={entries}
         trackers={trackers}
         userEmail={userEmail}
         onAccountDeleted={onAccountDeleted}

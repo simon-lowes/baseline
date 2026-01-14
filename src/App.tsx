@@ -173,13 +173,6 @@ function AppContent({ authState }: AppContentProps) {
     setAllEntries(data ?? [])
   }, [user])
 
-  // Load all entries when settings dialog opens (for accurate data export stats)
-  useEffect(() => {
-    if (settingsOpen && user) {
-      loadAllEntries()
-    }
-  }, [settingsOpen, user, loadAllEntries])
-
   // Load entries when tracker changes
   useEffect(() => {
     if (!user || !currentTracker) {
@@ -665,7 +658,6 @@ function AppContent({ authState }: AppContentProps) {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         user={user}
-        entries={allEntries.length > 0 ? allEntries : entries}
         trackers={trackers}
         onAccountDeleted={handleSignOut}
       />
