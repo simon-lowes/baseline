@@ -1,10 +1,15 @@
 /**
  * App Runtime
- * 
+ *
  * THE SINGLE IMPORT POINT FOR ALL BACKEND SERVICES
- * 
+ *
  * All UI/components must import backend services from this module only.
  * Never import adapters directly in components.
+ *
+ * Backend Priority:
+ * 1. Convex (if VITE_CONVEX_URL is set)
+ * 2. Supabase (if VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set)
+ * 3. In-memory fallback for dev/E2E
  */
 
 import { localKv } from '@/adapters/local/localKv';
@@ -12,6 +17,8 @@ import { noopAuth } from '@/adapters/noop/noopAuth';
 import { supabaseDb } from '@/adapters/supabase/supabaseDb';
 import { supabaseAuth } from '@/adapters/supabase/supabaseAuth';
 import { supabaseTracker } from '@/adapters/supabase/supabaseTracker';
+import { convexAuth, isConvexConfigured, convexDb } from '@/adapters/convex';
+import { convexTracker } from '@/adapters/convex';
 
 import type { KvPort } from '@/ports/KvPort';
 import type { AuthPort } from '@/ports/AuthPort';
@@ -28,23 +35,38 @@ const hasSupabaseEnv = Boolean(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const hasConvexEnv = Boolean(import.meta.env.VITE_CONVEX_URL);
+
+/**
+ * Determines the active backend provider
+ * Priority: Convex > Supabase > Noop
+ */
+export const activeBackend: 'convex' | 'supabase' | 'noop' = hasConvexEnv
+  ? 'convex'
+  : hasSupabaseEnv
+    ? 'supabase'
+    : 'noop';
+
 // =============================================================================
 // Runtime Configuration
 // =============================================================================
 
 export interface RuntimeConfig {
-  kvProvider: 'local' | 'supabase';
-  authProvider: 'noop' | 'supabase';
-  dbProvider: 'noop' | 'supabase';
+  kvProvider: 'local' | 'supabase' | 'convex';
+  authProvider: 'noop' | 'supabase' | 'convex';
+  dbProvider: 'noop' | 'supabase' | 'convex';
+  trackerProvider: 'noop' | 'supabase' | 'convex';
 }
 
 /**
  * Current runtime configuration (determined by environment)
+ * Convex takes priority if configured, otherwise falls back to Supabase
  */
 export const runtimeConfig: RuntimeConfig = {
-  kvProvider: 'local',
-  authProvider: hasSupabaseEnv ? 'supabase' : 'noop',
-  dbProvider: hasSupabaseEnv ? 'supabase' : 'noop',
+  kvProvider: 'local', // Always local for now
+  authProvider: hasConvexEnv ? 'convex' : hasSupabaseEnv ? 'supabase' : 'noop',
+  dbProvider: hasConvexEnv ? 'convex' : hasSupabaseEnv ? 'supabase' : 'noop',
+  trackerProvider: hasConvexEnv ? 'convex' : hasSupabaseEnv ? 'supabase' : 'noop',
 };
 
 // =============================================================================
@@ -59,13 +81,18 @@ export const kv: KvPort = localKv;
 
 /**
  * Authentication
- * Uses Supabase if env vars present, otherwise no-op
+ * Priority: Convex > Supabase > Noop
+ *
+ * Note: Convex Auth uses React hooks, so the adapter provides limited imperative functionality.
+ * For full auth features with Convex, use the useAuthActions hook from @convex-dev/auth/react.
  */
-// Expose auth implementation. In local development (no Supabase env) provide a lightweight dev auth
-// so the app can be used without configuring Supabase. For E2E we still allow ?e2e=true to use the special testAuth.
+// Expose auth implementation. In local development (no backend env) provide a lightweight dev auth
+// so the app can be used without configuring a backend. For E2E we still allow ?e2e=true to use the special testAuth.
 // SECURITY: Dev/E2E modes are ONLY available in development builds (import.meta.env.DEV)
 let _auth: AuthPort;
-if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
+const hasAnyBackend = hasConvexEnv || hasSupabaseEnv;
+
+if (import.meta.env.DEV && ((!hasAnyBackend && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
   console.log('[appRuntime] DEV mode detected - using devAuth');
   const devUser = { id: 'dev-user', email: 'dev@example.com' };
   _auth = {
@@ -85,8 +112,12 @@ if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') |
       return devUser as any;
     }
   } as AuthPort;
+} else if (hasConvexEnv) {
+  // Use Convex auth (note: most methods require React hooks)
+  console.log('[appRuntime] Using Convex authentication');
+  _auth = convexAuth;
 } else {
-  // Use real supabase auth in environments with proper env vars
+  // Use Supabase auth or noop fallback
   _auth = hasSupabaseEnv ? supabaseAuth : noopAuth;
 }
 
@@ -118,10 +149,12 @@ export const auth: AuthPort = _auth;
 
 /**
  * Database
- * Uses Supabase if env vars present. When running E2E with `?e2e=true` provide a lightweight
- * in-memory adapter for tracker_entries to avoid Supabase UUID parsing errors for test-generated IDs.
+ * Priority: Convex > Supabase
+ * When running E2E with `?e2e=true` provide a lightweight
+ * in-memory adapter for tracker_entries to avoid UUID parsing errors for test-generated IDs.
  */
-let _db: DbPort = supabaseDb;
+let _db: DbPort = hasConvexEnv ? convexDb : supabaseDb;
+console.log(`[appRuntime] Using ${hasConvexEnv ? 'Convex' : 'Supabase'} database adapter`);
 // SECURITY: E2E mode is ONLY available in development builds (import.meta.env.DEV)
 if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.search.includes('e2e=true')) {
   console.log('[appRuntime] E2E mode detected - using in-memory DB adapter for tracker_entries');
@@ -180,12 +213,24 @@ export const db: DbPort = _db;
 /**
  * Tracker Service
  * Manages user trackers (multiple tracking types per user)
+ * Priority: Convex > Supabase > In-memory dev
  */
-let _tracker: TrackerPort = supabaseTracker;
+let _tracker: TrackerPort;
 
-// DEV mode: in-memory tracker for local development (no Supabase env)
+// Choose tracker implementation based on available backend
+if (hasConvexEnv) {
+  console.log('[appRuntime] Using Convex tracker');
+  _tracker = convexTracker;
+} else if (hasSupabaseEnv) {
+  _tracker = supabaseTracker;
+} else {
+  // Fall through to DEV mode below
+  _tracker = supabaseTracker; // Temporary assignment, overridden in DEV mode
+}
+
+// DEV mode: in-memory tracker for local development (no backend env)
 // SECURITY: Dev mode is ONLY available in development builds (import.meta.env.DEV)
-if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
+if (import.meta.env.DEV && ((!hasAnyBackend && typeof window !== 'undefined') || (typeof window !== 'undefined' && window.location.search.includes('dev=true')))) {
   console.log('[appRuntime] DEV mode detected - using in-memory dev tracker');
   const DEV_KEY = '__baseline_dev_trackers';
   let devStore: Tracker[] = [];
@@ -431,9 +476,13 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.sear
 
 export function getRuntimeStatus() {
   return {
+    activeBackend,
     kv: runtimeConfig.kvProvider,
     auth: runtimeConfig.authProvider,
     db: runtimeConfig.dbProvider,
+    tracker: runtimeConfig.trackerProvider,
     user: auth.getUser(),
+    hasConvexEnv,
+    hasSupabaseEnv,
   };
 }

@@ -7,21 +7,26 @@
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  // Include Convex Auth tables (authAccounts, authSessions, authRefreshTokens, etc.)
+  ...authTables,
+
   // ==========================================================================
-  // USERS TABLE
+  // USERS TABLE (extends auth users with profile data)
   // ==========================================================================
-  // Replaces Supabase profiles table. Links to Clerk auth via clerkId.
-  users: defineTable({
-    // Clerk user ID (from identity.subject)
-    clerkId: v.string(),
-    // User's email address
+  // Additional profile data beyond what Convex Auth stores.
+  // The auth system creates its own 'users' table, so we use 'profiles' instead.
+  profiles: defineTable({
+    // Reference to the Convex Auth user ID
+    userId: v.id("users"),
+    // User's email address (denormalized for convenience)
     email: v.string(),
     // Optional display name
     displayName: v.optional(v.string()),
   })
-    .index("by_clerk_id", ["clerkId"])
+    .index("by_user_id", ["userId"])
     .index("by_email", ["email"]),
 
   // ==========================================================================
@@ -109,6 +114,21 @@ export default defineSchema({
     // When this was fetched (Unix ms)
     fetchedAt: v.number(),
   }).index("by_word", ["word"]),
+
+  // ==========================================================================
+  // USER MAPPINGS TABLE (for migration)
+  // ==========================================================================
+  // Maps Supabase user UUIDs to Convex user IDs during migration
+  userMappings: defineTable({
+    // Original Supabase user UUID
+    supabaseUserId: v.string(),
+    // Convex user ID after migration
+    convexUserId: v.id("users"),
+    // Email for reference
+    email: v.string(),
+  })
+    .index("by_supabase_id", ["supabaseUserId"])
+    .index("by_convex_id", ["convexUserId"]),
 
   // ==========================================================================
   // AUDIT LOG TABLE
