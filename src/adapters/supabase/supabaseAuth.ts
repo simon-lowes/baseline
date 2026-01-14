@@ -383,4 +383,43 @@ export const supabaseAuth: AuthPort = {
       error: new Error('User enumeration check disabled for security reasons'),
     };
   },
+
+  async deleteAccount(): Promise<{ error: Error | null }> {
+    try {
+      // Get current session for the access token
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+      if (sessionError || !session) {
+        return { error: new Error('Not authenticated') };
+      }
+
+      // Call the Edge Function to delete all user data and the auth user
+      // This requires admin privileges which only the Edge Function has
+      const { error: deleteError } = await supabaseClient.functions.invoke('delete-account', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (deleteError) {
+        console.error('[deleteAccount] edge function error:', deleteError);
+        return { error: new Error(deleteError.message || 'Failed to delete account') };
+      }
+
+      // Clear local state
+      currentUser = null;
+      lastValidatedUserId = null;
+      initialValidationPromise = null;
+      initialValidationComplete = false;
+
+      // Sign out locally (the auth user should already be deleted server-side)
+      await supabaseClient.auth.signOut();
+
+      return { error: null };
+    } catch (err) {
+      console.error('[deleteAccount] unexpected error:', err);
+      return { error: err instanceof Error ? err : new Error('Failed to delete account') };
+    }
+  },
 };

@@ -1,7 +1,7 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, List, Calendar, SignOut, TrendUp } from '@phosphor-icons/react'
+import { Plus, List, Calendar, SignOut, TrendUp, Gear } from '@phosphor-icons/react'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,7 @@ import { getTrackerConfig } from '@/types/tracker-config'
 import type { AuthUser } from '@/ports/AuthPort'
 import { AnalyticsDashboard } from '@/components/analytics'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
+import { AccountSettings } from '@/components/AccountSettings'
 
 // Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
@@ -71,6 +72,7 @@ function AppContent({ authState }: AppContentProps) {
   const [updatingPassword, setUpdatingPassword] = useState(false)
   const [currentTracker, setCurrentTracker] = useState<Tracker | null>(null)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Multi-tracker and view state
   const [trackers, setTrackers] = useState<Tracker[]>([])
@@ -651,6 +653,16 @@ function AppContent({ authState }: AppContentProps) {
           </DialogContent>
         </Dialog>
 
+      {/* Account Settings Dialog */}
+      <AccountSettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        user={user}
+        entries={allEntries.length > 0 ? allEntries : entries}
+        trackers={trackers}
+        onAccountDeleted={handleSignOut}
+      />
+
       {/* Email confirmed banner */}
       {emailConfirmed && (
         <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-3 text-center">
@@ -695,6 +707,23 @@ function AppContent({ authState }: AppContentProps) {
               </p>
             </div>
             <div className="flex items-center gap-1">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSettingsOpen(true)}
+                      aria-label="Account settings"
+                    >
+                      <Gear size={20} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Account settings</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <ThemeSwitcher />
               <Button
                 variant="ghost"
