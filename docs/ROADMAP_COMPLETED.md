@@ -383,7 +383,7 @@ Extend theme reactivity to all charts, add custom accent colors, persist prefere
   - `src/components/ui/color-picker.tsx` - Color picker component with preview
   - `src/hooks/use-custom-accent.ts` - Custom accent state and DOM application
   - `src/hooks/use-user-preferences.ts` - Server sync with optimistic updates
-  - `supabase/migrations/20260115_001_add_user_preferences.sql` - Database schema
+  - `supabase/migrations/20260115005635_add_user_preferences.sql` - Database schema
 - Modified files:
   - `src/hooks/use-theme-colors.ts` - Extended with chart6-8 colors
   - `src/components/ThemeSwitcher.tsx` - System mode, custom accent, server sync
