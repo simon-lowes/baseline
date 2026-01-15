@@ -198,7 +198,7 @@ export function getLocationDistribution(entries: PainEntry[]): CategoryCount[] {
   let total = 0
   
   for (const entry of entries) {
-    for (const location of entry.locations) {
+    for (const location of entry.locations ?? []) {
       counts.set(location, (counts.get(location) ?? 0) + 1)
       total++
     }
@@ -226,7 +226,7 @@ export function getTriggerFrequency(entries: PainEntry[]): CategoryCount[] {
   let total = 0
   
   for (const entry of entries) {
-    for (const trigger of entry.triggers) {
+    for (const trigger of entry.triggers ?? []) {
       counts.set(trigger, (counts.get(trigger) ?? 0) + 1)
       total++
     }
@@ -552,7 +552,7 @@ function detectTriggerCorrelation(entries: PainEntry[]): InsightPattern | null {
   const triggerStats = new Map<string, { total: number; count: number }>()
   
   for (const entry of entries) {
-    for (const trigger of entry.triggers) {
+    for (const trigger of entry.triggers ?? []) {
       const existing = triggerStats.get(trigger) ?? { total: 0, count: 0 }
       existing.total += entry.intensity
       existing.count++
@@ -631,8 +631,8 @@ export function exportToCSV(entries: PainEntry[]): string {
       formatDateShort(entry.timestamp),
       formatTime24(entry.timestamp),
       entry.intensity.toString(),
-      entry.locations.join('; '),
-      entry.triggers.join('; '),
+      (entry.locations ?? []).join('; '),
+      (entry.triggers ?? []).join('; '),
       (entry.hashtags ?? []).join('; '),
       `"${(entry.notes ?? '').replace(/"/g, '""')}"`,
     ].join(',')

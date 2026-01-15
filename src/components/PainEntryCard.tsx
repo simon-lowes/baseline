@@ -90,22 +90,24 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
         </p>
       </div>
 
-      <div>
-        <p className="text-sm font-medium text-muted-foreground mb-2">{config.locationLabel}</p>
-        <div className="flex flex-wrap gap-2">
-          {entry.locations.map(location => (
-            <Badge key={location} variant="secondary" className="capitalize">
-              {location.replace('-', ' ')}
-            </Badge>
-          ))}
+      {(entry.locations ?? []).length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-2">{config.locationLabel}</p>
+          <div className="flex flex-wrap gap-2">
+            {(entry.locations ?? []).map(location => (
+              <Badge key={location} variant="secondary" className="capitalize">
+                {location.replace('-', ' ')}
+              </Badge>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {entry.triggers.length > 0 && (
+      {(entry.triggers ?? []).length > 0 && (
         <div>
           <p className="text-sm font-medium text-muted-foreground mb-2">{config.triggersLabel}</p>
           <div className="flex flex-wrap gap-2">
-            {entry.triggers.map(trigger => (
+            {(entry.triggers ?? []).map(trigger => (
               <Badge key={trigger} variant="outline">
                 {trigger}
               </Badge>
@@ -204,13 +206,15 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {entry.locations.map(location => (
-                  <Badge key={location} variant="secondary" className="capitalize">
-                    {location.replace('-', ' ')}
-                  </Badge>
-                ))}
-              </div>
+              {(entry.locations ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {(entry.locations ?? []).map(location => (
+                    <Badge key={location} variant="secondary" className="capitalize">
+                      {location.replace('-', ' ')}
+                    </Badge>
+                  ))}
+                </div>
+              )}
 
               {entry.notes && (
                 <p className="text-sm text-foreground/80 line-clamp-2">
@@ -218,9 +222,9 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
                 </p>
               )}
 
-              {entry.triggers.length > 0 && (
+              {(entry.triggers ?? []).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {entry.triggers.map(trigger => (
+                  {(entry.triggers ?? []).map(trigger => (
                     <Badge key={trigger} variant="outline" className="text-xs">
                       {trigger}
                     </Badge>
