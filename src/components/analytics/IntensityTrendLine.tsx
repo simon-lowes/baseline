@@ -5,8 +5,7 @@
  * Supports interactive tooltips and click-through to specific entries.
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
+import { useMemo, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -21,6 +20,7 @@ import { getLocalDateString, formatChartDate, formatDateFull } from '@/lib/date-
 import type { PainEntry } from '@/types/pain-entry'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { useThemeAwareColors } from '@/hooks/use-theme-colors'
 
 interface IntensityTrendLineProps {
   entries: PainEntry[]
@@ -28,18 +28,6 @@ interface IntensityTrendLineProps {
   onPointClick?: (date: string, entries: PainEntry[]) => void
   showMovingAverage?: boolean
   height?: number
-}
-
-/**
- * Get theme-aware chart colors using getComputedStyle
- */
-function getChartColors() {
-  const styles = getComputedStyle(document.documentElement)
-  return {
-    primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 200)',
-    mutedForeground: styles.getPropertyValue('--muted-foreground').trim() || 'oklch(0.50 0.01 260)',
-    background: styles.getPropertyValue('--background').trim() || 'oklch(0.97 0.01 80)',
-  }
 }
 
 export function IntensityTrendLine({
@@ -50,18 +38,7 @@ export function IntensityTrendLine({
   height = 300,
 }: IntensityTrendLineProps) {
   const [showMA, setShowMA] = useState(initialShowMA)
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
-  // Get resolved theme colors - recompute when theme changes
-  const chartColors = useMemo(() => {
-    if (!mounted) return getChartColors()
-    return getChartColors()
-  }, [resolvedTheme, mounted])
+  const { chartColors } = useThemeAwareColors()
   
   const chartConfig = useMemo(() => ({
     intensity: {

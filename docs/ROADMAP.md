@@ -53,12 +53,9 @@ All previously identified technical debt (offline support, accessibility, perfor
 
 ## Future Considerations
 
-### Theme System (v3.x)
+### Theme System (v3.x) ✅ MOVED TO COMPLETED
 
-- Consider extending theme reactivity to other chart types (IntensityTrendLine, LocationDistributionPie, IntensityDistributionBar)
-- Add user-customizable accent color picker (beyond the 9 presets)
-- Persist theme preference to user profile (currently localStorage only)
-- System theme auto-detection with manual override option
+See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implemented theme system enhancements.
 
 ### Performance (v3.x)
 
@@ -71,4 +68,4 @@ See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implemented accessibility f
 
 ---
 
-_Last updated: January 14, 2026_
+_Last updated: January 15, 2026_

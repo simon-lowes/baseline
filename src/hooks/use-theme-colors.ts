@@ -21,6 +21,9 @@ export interface HeatmapColors {
 
 export interface ChartColors {
   primary: string
+  accent: string
+  mutedForeground: string
+  background: string
   chart1: string
   chart2: string
   chart3: string
@@ -49,6 +52,9 @@ function getChartColorsFromCSS(): ChartColors {
   const styles = getComputedStyle(document.documentElement)
   return {
     primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 250)',
+    accent: styles.getPropertyValue('--accent').trim() || 'oklch(0.68 0.15 35)',
+    mutedForeground: styles.getPropertyValue('--muted-foreground').trim() || 'oklch(0.50 0.01 260)',
+    background: styles.getPropertyValue('--background').trim() || 'oklch(0.97 0.01 80)',
     chart1: styles.getPropertyValue('--chart-1').trim() || 'oklch(0.65 0.15 250)',
     chart2: styles.getPropertyValue('--chart-2').trim() || 'oklch(0.65 0.15 200)',
     chart3: styles.getPropertyValue('--chart-3').trim() || 'oklch(0.65 0.15 150)',
@@ -102,13 +108,16 @@ export function useThemeAwareColors() {
   // Compute chart colors reactively
   const chartColors = useMemo<ChartColors>(() => {
     if (!mounted) {
-      return { 
-        primary: '', 
-        chart1: '', 
-        chart2: '', 
-        chart3: '', 
-        chart4: '', 
-        chart5: '' 
+      return {
+        primary: '',
+        accent: '',
+        mutedForeground: '',
+        background: '',
+        chart1: '',
+        chart2: '',
+        chart3: '',
+        chart4: '',
+        chart5: ''
       }
     }
     // colorVersion forces re-computation when theme changes
