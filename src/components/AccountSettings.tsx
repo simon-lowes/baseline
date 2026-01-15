@@ -16,6 +16,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { ProfileSection } from '@/components/settings/ProfileSection'
 import { DataExportSection } from '@/components/settings/DataExportSection'
+import { FeedbackSection } from '@/components/settings/FeedbackSection'
 import { DangerZoneSection } from '@/components/settings/DangerZoneSection'
 import type { AuthUser } from '@/ports/AuthPort'
 import type { Tracker } from '@/types/tracker'
@@ -51,6 +52,10 @@ export function AccountSettings({
             trackers={trackers}
             userEmail={user?.email}
           />
+
+          <Separator />
+
+          <FeedbackSection />
 
           <Separator />
 

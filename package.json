@@ -1,7 +1,7 @@
 {
     "name": "baseline",
     "private": true,
-    "version": "3.0.1",
+    "version": "4.2.0",
     "description": "Know your baseline, spot the changes. Track pain, mood, and any metric that matters.",
     "author": "Simon Lowes <52527080+simon-lowes@users.noreply.github.com>",
     "repository": {

@@ -2,12 +2,16 @@ import { createRoot } from 'react-dom/client'
 import { ErrorBoundary } from "react-error-boundary";
 import { ThemeProvider } from 'next-themes'
 
+import { initSentry } from './lib/sentry'
 import App from './App.tsx'
 import { ErrorFallback } from './ErrorFallback.tsx'
 import { AccessibilityProvider } from './contexts/AccessibilityContext.tsx'
 import { ChartPatternDefs } from './components/charts/ChartPatterns.tsx'
 
 import "./main.css"
+
+// Initialize Sentry before React renders (production only)
+initSentry();
 
 // Determine initial theme based on system preference
 const getInitialTheme = () => {
