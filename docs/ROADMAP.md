@@ -12,27 +12,29 @@ Transform the Chronic Pain Diary into **Baseline** — a flexible, user-centric 
 
 - **Current Version**: v4.1.0 (Account Settings & GDPR Compliance)
 - **Completed Phases**: 1, 2, 3, 3b, 4, 5, 7, Account Settings (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
-- **Next Up**: Phase 6 (Smart Reminders) or Phase 8 (Publish to Blog)
+- **Next Up**: Phase 6 (AI-Powered Health Reports)
 
 ---
 
-## Phase 6: Smart Reminders & Predictions (v3.2) ❌ NOT STARTED
+## Phase 6: AI-Powered Health Reports (v5.0) ❌ NOT STARTED
 
 ### Goal
 
-Proactive notifications and predictions based on historical patterns.
+Generate professional, readable health reports for sharing with healthcare providers—powered by Gemini AI.
 
-_(No changes - not yet implemented)_
+### Concept
 
----
+Building on Phase 7's PDF export, this adds AI-generated narrative insights:
+- Summarize patterns and trends in natural language
+- Highlight anomalies and correlations across trackers
+- Format as a searchable, printable document (not raw data)
+- Alternative to CSV for doctor visits: "Here's what my last 3 months looked like"
 
-## Phase 8: Publish to Blog (v5.0) ❌ NOT STARTED
+### Why This Matters
 
-### Goal
+Doctors don't have time to parse spreadsheets. A well-formatted report with AI-generated insights makes tracked health data actionable in clinical settings.
 
-Enable users to publish their tracking diary as a beautiful public blog, powered by Astro and deployed on Vercel—with zero technical skills required.
-
-_(No changes - not yet implemented)_
+_(Not yet implemented - requires Gemini integration for report generation)_
 
 ---
 
@@ -44,27 +46,16 @@ All previously identified technical debt (offline support, accessibility, perfor
 
 ## Priority Matrix
 
-| Phase              | Effort | Impact | Priority | Status      |
-| ------------------ | ------ | ------ | -------- | ----------- |
-| 6. Smart Reminders | Medium | Medium | 🟡 P2    | Not Started |
-| 8. Publish to Blog | High   | Medium | 🟢 P3    | Not Started |
+| Phase                    | Effort | Impact | Priority | Status      |
+| ------------------------ | ------ | ------ | -------- | ----------- |
+| 6. AI Health Reports     | Medium | High   | 🟡 P2    | Not Started |
 
 ---
 
-## Future Considerations
+## Completed Sections
 
-### Theme System (v3.x) ✅ MOVED TO COMPLETED
-
-See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implemented theme system enhancements.
-
-### Performance (v3.x)
-
-- The `useThemeAwareColors` hook uses a 50ms delay to ensure CSS variables are read after DOM updates; this could be optimized with `MutationObserver` or `requestAnimationFrame`
-- Chart remounting via `key={resolvedTheme}` works but causes full re-render; consider more granular color updates for complex charts
-
-### Accessibility (v3.x) ✅ MOVED TO COMPLETED
-
-See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md) for implemented accessibility features.
+- **Theme System (v3.x)** - See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md)
+- **Accessibility (v3.x)** - See [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md)
 
 ---
 
