@@ -232,10 +232,10 @@ export function Dashboard({
             const olderEntries = entries.filter(e => e.timestamp >= fourteenDaysAgo && e.timestamp < sevenDaysAgo);
             
             const recentAvg = recentEntries.length > 0
-              ? recentEntries.reduce((sum, e) => sum + e.pain_level, 0) / recentEntries.length
+              ? recentEntries.reduce((sum, e) => sum + e.intensity, 0) / recentEntries.length
               : null;
             const olderAvg = olderEntries.length > 0
-              ? olderEntries.reduce((sum, e) => sum + e.pain_level, 0) / olderEntries.length
+              ? olderEntries.reduce((sum, e) => sum + e.intensity, 0) / olderEntries.length
               : null;
             
             // Determine trend
@@ -1131,10 +1131,10 @@ export function Dashboard({
 
           try {
             // Update tracker with new fields
-            const updatedConfig: GeneratedTrackerConfig & { fields: typeof fields } = {
-              ...trackerToEdit.generated_config,
+            const updatedConfig = {
+              ...(trackerToEdit.generated_config ?? {}),
               fields,
-            };
+            } as GeneratedTrackerConfig & { fields: typeof fields };
 
             const result = await trackerService.updateTracker(trackerToEdit.id, {
               generated_config: updatedConfig,
