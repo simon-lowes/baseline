@@ -1,0 +1,31 @@
+name: Claude Daily Chores
+
+on:
+  schedule:
+    # Runs at 9am UTC daily (9am GMT / 10am BST)
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  dependabot-chores:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Claude Code for PR Chores
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            AUTONOMOUS MODE - Complete these tasks without asking questions:
+            
+            1. List all open Dependabot pull requests in this repository
+            2. For each PR:
+               - Check if CI/checks have passed
+               - If passed, merge using squash merge
+               - If failed, skip and note the failure
+            3. Report a summary of what was merged and what was skipped
+            
+            Make all decisions autonomously. Do not ask for confirmation.
