@@ -10,8 +10,8 @@
  */
 
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
-import { Palette, Check, Moon, Sun } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { Palette, Check, Moon, Sun, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -30,8 +30,22 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
+import { ColorPicker } from '@/components/ui/color-picker'
+import { useCustomAccent } from '@/hooks/use-custom-accent'
+import { useUserPreferences } from '@/hooks/use-user-preferences'
 
 const ONBOARDING_KEY = 'baseline-theme-onboarded'
+const THEME_MODE_KEY = 'baseline-theme-mode'
+
+type ThemeMode = 'light' | 'dark' | 'system'
+
+/**
+ * Get the system's preferred color scheme
+ */
+function getSystemPrefersDark(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
 
 const colorThemes = [
   {
@@ -122,23 +136,90 @@ function buildTheme(color: ColorTheme, isDark: boolean): string {
 }
 
 /**
- * DarkModeToggle - Simple button to toggle between light and dark mode
- * Shows Sun icon in dark mode (click to switch to light)
- * Shows Moon icon in light mode (click to switch to dark)
+ * DarkModeToggle - Cycles between light, dark, and system mode
+ * - Sun icon: Light mode
+ * - Moon icon: Dark mode
+ * - Monitor icon: System mode (follows OS preference)
  */
 export function DarkModeToggle() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  
+  const [mode, setMode] = useState<ThemeMode>('light')
+  const { updatePreferences, isAuthenticated } = useUserPreferences()
+
   const { color: currentColor, isDark } = parseTheme(theme)
 
-  // Avoid hydration mismatch
+  // Load mode from localStorage on mount
   useEffect(() => {
+    const storedMode = localStorage.getItem(THEME_MODE_KEY) as ThemeMode | null
+    if (storedMode && ['light', 'dark', 'system'].includes(storedMode)) {
+      setMode(storedMode)
+    } else {
+      // Infer mode from current theme
+      setMode(isDark ? 'dark' : 'light')
+    }
     setMounted(true)
-  }, [])
+  }, [isDark])
 
-  const toggleDarkMode = () => {
-    setTheme(buildTheme(currentColor, !isDark))
+  // Listen for system preference changes when in system mode
+  useEffect(() => {
+    if (!mounted || mode !== 'system') return
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setTheme(buildTheme(currentColor, e.matches))
+    }
+
+    // Apply current system preference
+    setTheme(buildTheme(currentColor, mediaQuery.matches))
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [mode, mounted, currentColor, setTheme])
+
+  const cycleMode = () => {
+    const modes: ThemeMode[] = ['light', 'dark', 'system']
+    const currentIndex = modes.indexOf(mode)
+    const nextMode = modes[(currentIndex + 1) % modes.length]
+
+    setMode(nextMode)
+    localStorage.setItem(THEME_MODE_KEY, nextMode)
+
+    // Apply the theme based on new mode
+    if (nextMode === 'system') {
+      const prefersDark = getSystemPrefersDark()
+      setTheme(buildTheme(currentColor, prefersDark))
+    } else {
+      setTheme(buildTheme(currentColor, nextMode === 'dark'))
+    }
+
+    // Sync to server for authenticated users
+    if (isAuthenticated) {
+      updatePreferences({ themeMode: nextMode })
+    }
+  }
+
+  const getIcon = () => {
+    switch (mode) {
+      case 'light':
+        return <Sun className="h-4 w-4 transition-transform duration-200" />
+      case 'dark':
+        return <Moon className="h-4 w-4 transition-transform duration-200" />
+      case 'system':
+        return <Monitor className="h-4 w-4 transition-transform duration-200" />
+    }
+  }
+
+  const getLabel = () => {
+    switch (mode) {
+      case 'light':
+        return 'Light mode (click for dark)'
+      case 'dark':
+        return 'Dark mode (click for system)'
+      case 'system':
+        return 'System mode (click for light)'
+    }
   }
 
   if (!mounted) {
@@ -146,7 +227,7 @@ export function DarkModeToggle() {
     return (
       <Button variant="ghost" size="icon" className="h-9 w-9" disabled>
         <Sun className="h-4 w-4" />
-        <span className="sr-only">Toggle dark mode</span>
+        <span className="sr-only">Toggle theme mode</span>
       </Button>
     )
   }
@@ -155,25 +236,21 @@ export function DarkModeToggle() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-9 w-9"
-            onClick={toggleDarkMode}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={cycleMode}
+            aria-label={getLabel()}
           >
-            {isDark ? (
-              <Sun className="h-4 w-4 transition-transform duration-200" />
-            ) : (
-              <Moon className="h-4 w-4 transition-transform duration-200" />
-            )}
-            <span className="sr-only">
-              {isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            </span>
+            {getIcon()}
+            <span className="sr-only">{getLabel()}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          {isDark ? 'Light mode' : 'Dark mode'}
+          {mode === 'light' && 'Light mode'}
+          {mode === 'dark' && 'Dark mode'}
+          {mode === 'system' && `System mode (${isDark ? 'dark' : 'light'})`}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -182,15 +259,70 @@ export function DarkModeToggle() {
 
 /**
  * ColorThemePicker - Dropdown for selecting color palette (Zinc, Nature, Rose)
- * Includes first-visit onboarding animation
+ * Includes first-visit onboarding animation and server sync for logged-in users
  */
 export function ColorThemePicker() {
   const { theme, setTheme } = useTheme()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { patternsEnabled, setPatternsEnabled } = useAccessibility()
+  const { customAccent, setCustomAccent, clearCustomAccent } = useCustomAccent()
+  const {
+    preferences,
+    updatePreferences,
+    isAuthenticated,
+    isLoading: prefsLoading,
+  } = useUserPreferences()
+
+  // Track if we've applied server preferences
+  const hasAppliedServerPrefs = useRef(false)
 
   const { color: currentColor, isDark } = parseTheme(theme)
+
+  // Apply server preferences when user logs in
+  useEffect(() => {
+    if (isAuthenticated && !prefsLoading && !hasAppliedServerPrefs.current) {
+      hasAppliedServerPrefs.current = true
+
+      // Apply theme mode from server (store in localStorage for DarkModeToggle)
+      const serverMode = preferences.themeMode as ThemeMode
+      localStorage.setItem(THEME_MODE_KEY, serverMode)
+
+      // Apply theme color and mode from server
+      let isDarkForTheme = preferences.themeMode === 'dark'
+      if (preferences.themeMode === 'system') {
+        isDarkForTheme = getSystemPrefersDark()
+      }
+
+      const serverTheme = buildTheme(
+        preferences.themeColor as ColorTheme,
+        isDarkForTheme
+      )
+      if (serverTheme !== theme) {
+        setTheme(serverTheme)
+      }
+
+      // Apply custom accent from server
+      if (preferences.customAccent && preferences.customAccent !== customAccent) {
+        setCustomAccent(preferences.customAccent)
+      }
+
+      // Apply patterns from server
+      if (preferences.patternsEnabled !== patternsEnabled) {
+        setPatternsEnabled(preferences.patternsEnabled)
+      }
+    }
+  }, [
+    isAuthenticated,
+    prefsLoading,
+    preferences,
+    theme,
+    customAccent,
+    patternsEnabled,
+    setTheme,
+    setCustomAccent,
+    setPatternsEnabled,
+  ])
 
   // Check for first visit onboarding
   useEffect(() => {
@@ -215,6 +347,38 @@ export function ColorThemePicker() {
 
   const handleColorChange = (newColor: ColorTheme) => {
     setTheme(buildTheme(newColor, isDark))
+
+    // Sync to server for authenticated users
+    if (isAuthenticated) {
+      updatePreferences({ themeColor: newColor })
+    }
+  }
+
+  const handleCustomAccentChange = (oklch: string) => {
+    setCustomAccent(oklch)
+
+    // Sync to server for authenticated users
+    if (isAuthenticated) {
+      updatePreferences({ customAccent: oklch })
+    }
+  }
+
+  const handleCustomAccentClear = () => {
+    clearCustomAccent()
+
+    // Sync to server for authenticated users
+    if (isAuthenticated) {
+      updatePreferences({ customAccent: null })
+    }
+  }
+
+  const handlePatternsChange = (enabled: boolean) => {
+    setPatternsEnabled(enabled)
+
+    // Sync to server for authenticated users
+    if (isAuthenticated) {
+      updatePreferences({ patternsEnabled: enabled })
+    }
   }
 
   const triggerButton = (
@@ -302,6 +466,22 @@ export function ColorThemePicker() {
             ))}
           </div>
 
+          {/* Custom accent color */}
+          <DropdownMenuSeparator className="my-2" />
+          <div className="px-2 py-1.5">
+            <Label className="text-xs font-medium block mb-2">
+              Custom accent
+              <span className="block text-[10px] text-muted-foreground font-normal">
+                Override theme accent color
+              </span>
+            </Label>
+            <ColorPicker
+              value={customAccent}
+              onChange={handleCustomAccentChange}
+              onClear={handleCustomAccentClear}
+            />
+          </div>
+
           {/* Accessibility: Patterns toggle */}
           <DropdownMenuSeparator className="my-2" />
           <div className="px-2 py-1.5">
@@ -318,7 +498,7 @@ export function ColorThemePicker() {
               <Switch
                 id="patterns-toggle"
                 checked={patternsEnabled}
-                onCheckedChange={setPatternsEnabled}
+                onCheckedChange={handlePatternsChange}
                 aria-label="Enable chart patterns for colorblind accessibility"
               />
             </div>

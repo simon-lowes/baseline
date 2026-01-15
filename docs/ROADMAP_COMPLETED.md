@@ -346,4 +346,51 @@ Ensure WCAG 2.1 AA compliance with high-contrast theme and colorblind-friendly c
 
 ---
 
-_Last updated: January 14, 2026 (Accessibility complete)_
+## Theme System Enhancements (v4.3) ✅ COMPLETE
+
+### Goal
+
+Extend theme reactivity to all charts, add custom accent colors, persist preferences server-side, and support system theme detection.
+
+### Completed Items
+
+- Extended theme reactivity to all chart types ✅
+  - IntensityTrendLine now uses `useThemeAwareColors` hook
+  - LocationDistributionPie now uses `useThemeAwareColors` hook
+  - IntensityDistributionBar now uses `useThemeAwareColors` hook
+  - All charts update instantly on theme change
+- Custom accent color picker ✅
+  - OKLch color picker in theme dropdown
+  - Hex↔OKLch color conversion utilities
+  - Overrides theme accent color with user-selected color
+  - Auto-calculates contrasting foreground color
+  - Persists to localStorage (and server for logged-in users)
+- Server-side preference sync ✅
+  - New `profiles` columns: theme_color, theme_mode, custom_accent, patterns_enabled
+  - Supabase migration applied
+  - Optimistic local updates with debounced server sync (500ms)
+  - Graceful fallback to localStorage when offline
+- System theme auto-detection ✅
+  - Three-way toggle: Light → Dark → System
+  - Follows OS preference when in System mode
+  - Real-time updates when system preference changes
+  - Preserves color palette during mode switches
+
+### Implementation Details
+
+- New files:
+  - `src/lib/color-utils.ts` - Hex↔OKLch conversion, luminance calculation
+  - `src/components/ui/color-picker.tsx` - Color picker component with preview
+  - `src/hooks/use-custom-accent.ts` - Custom accent state and DOM application
+  - `src/hooks/use-user-preferences.ts` - Server sync with optimistic updates
+  - `supabase/migrations/20260115_001_add_user_preferences.sql` - Database schema
+- Modified files:
+  - `src/hooks/use-theme-colors.ts` - Extended with chart6-8 colors
+  - `src/components/ThemeSwitcher.tsx` - System mode, custom accent, server sync
+  - `src/components/analytics/IntensityTrendLine.tsx` - Refactored to use hook
+  - `src/components/analytics/LocationDistributionPie.tsx` - Refactored to use hook
+  - `src/components/analytics/IntensityDistributionBar.tsx` - Refactored to use hook
+
+---
+
+_Last updated: January 15, 2026 (Theme System Enhancements complete)_

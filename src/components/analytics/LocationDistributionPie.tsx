@@ -5,8 +5,7 @@
  * Supports interactive tooltips and click filtering.
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
+import { useMemo } from 'react'
 import {
   PieChart,
   Pie,
@@ -16,6 +15,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { getLocationDistribution, type CategoryCount } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
+import { useThemeAwareColors } from '@/hooks/use-theme-colors'
 
 interface LocationDistributionPieProps {
   entries: PainEntry[]
@@ -24,49 +24,29 @@ interface LocationDistributionPieProps {
   height?: number
 }
 
-/**
- * Get theme-aware color palette for pie slices
- * Uses getComputedStyle to read resolved oklch values at runtime
- */
-function getPieColors(): { colors: string[]; background: string } {
-  const styles = getComputedStyle(document.documentElement)
-  return {
-    colors: [
-      styles.getPropertyValue('--primary').trim(),
-      styles.getPropertyValue('--chart-2').trim(),
-      styles.getPropertyValue('--chart-3').trim(),
-      styles.getPropertyValue('--chart-4').trim(),
-      styles.getPropertyValue('--chart-5').trim(),
-      styles.getPropertyValue('--chart-1').trim(),
-      styles.getPropertyValue('--accent').trim(),
-      styles.getPropertyValue('--muted-foreground').trim(),
-    ],
-    background: styles.getPropertyValue('--background').trim(),
-  }
-}
-
 export function LocationDistributionPie({
   entries,
   onSliceClick,
   maxSlices = 8,
   height = 300,
 }: LocationDistributionPieProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
+  const { chartColors } = useThemeAwareColors()
+
+  // Build color array for pie slices
+  const pieColors = useMemo(() => [
+    chartColors.primary,
+    chartColors.chart2,
+    chartColors.chart3,
+    chartColors.chart4,
+    chartColors.chart5,
+    chartColors.chart1,
+    chartColors.accent,
+    chartColors.mutedForeground,
+  ], [chartColors])
+
   // Recompute colors when theme changes
   const { distribution, chartConfig, colors, backgroundColor } = useMemo(() => {
-    // Force recomputation on theme change
-    if (!mounted) {
-      // Initial render - still compute colors
-    }
     const dist = getLocationDistribution(entries)
-    const pieColorData = getPieColors()
-    const pieColors = pieColorData.colors
     
     // Limit slices and group remainder as "Other"
     let processedDist: CategoryCount[]
@@ -98,13 +78,13 @@ export function LocationDistributionPie({
       }
     })
     
-    return { 
-      distribution: processedDist, 
-      chartConfig: config, 
+    return {
+      distribution: processedDist,
+      chartConfig: config,
       colors: pieColors,
-      backgroundColor: pieColorData.background,
+      backgroundColor: chartColors.background,
     }
-  }, [entries, maxSlices, resolvedTheme, mounted])
+  }, [entries, maxSlices, pieColors, chartColors.background])
 
   if (distribution.length === 0) {
     return (

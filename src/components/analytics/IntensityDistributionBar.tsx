@@ -4,8 +4,7 @@
  * Shows histogram of intensity values (1-10).
  */
 
-import { useMemo, useState, useEffect } from 'react'
-import { useTheme } from 'next-themes'
+import { useMemo } from 'react'
 import {
   BarChart,
   Bar,
@@ -19,20 +18,11 @@ import { getIntensityDistribution, getIntensityColor } from '@/lib/analytics-uti
 import type { PainEntry } from '@/types/pain-entry'
 import { usePatternsEnabled } from '@/contexts/AccessibilityContext'
 import { getIntensityPatternId, getPatternFill } from '@/components/charts/ChartPatterns'
+import { useThemeAwareColors } from '@/hooks/use-theme-colors'
 
 interface IntensityDistributionBarProps {
   entries: PainEntry[]
   height?: number
-}
-
-/**
- * Get theme-aware chart colors using getComputedStyle
- */
-function getChartColors() {
-  const styles = getComputedStyle(document.documentElement)
-  return {
-    primary: styles.getPropertyValue('--primary').trim() || 'oklch(0.65 0.12 200)',
-  }
 }
 
 /**
@@ -48,19 +38,8 @@ export function IntensityDistributionBar({
   entries,
   height = 200,
 }: IntensityDistributionBarProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const { chartColors } = useThemeAwareColors()
   const patternsEnabled = usePatternsEnabled()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-  
-  // Get resolved theme colors - recompute when theme changes
-  const chartColors = useMemo(() => {
-    if (!mounted) return getChartColors()
-    return getChartColors()
-  }, [resolvedTheme, mounted])
   
   const chartConfig = useMemo(() => ({
     count: {
@@ -86,7 +65,7 @@ export function IntensityDistributionBar({
     count: item.count,
     percentage: item.percentage,
     fill: getIntensityColor(parseInt(item.name)),
-  })), [distribution, resolvedTheme, mounted])
+  })), [distribution, chartColors])
 
   return (
     <ChartContainer config={chartConfig} className="w-full" style={{ height }}>
