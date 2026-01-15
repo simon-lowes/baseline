@@ -604,8 +604,8 @@ function AppContent({ authState }: AppContentProps) {
             <p className="text-base text-foreground">
               Know your baseline, spot the changes.
             </p>
-            <p className="text-xs">
-              Version {import.meta.env.VITE_APP_VERSION || '4.1.0'}
+            <p className="text-xs text-muted-foreground/70">
+              Beta
             </p>
             <p>
               Baseline helps you track anything that matters to your health and wellbeing.
