@@ -76,4 +76,8 @@ export const noopAuth: AuthPort = {
   async deleteAccount() {
     return { error: new Error('Authentication not configured') };
   },
+
+  async ensureDefaultTracker() {
+    // No-op: nothing to do without auth
+  },
 };

@@ -93,4 +93,9 @@ export interface AuthPort {
    * Calls a server-side Edge Function to delete data with admin privileges.
    */
   deleteAccount(): Promise<{ error: Error | null }>;
+  /**
+   * Ensure a default tracker exists for the user.
+   * Called after sign-in/sign-up to create the initial tracker if needed.
+   */
+  ensureDefaultTracker(accessToken?: string): Promise<void>;
 }

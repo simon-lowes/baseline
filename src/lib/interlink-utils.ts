@@ -25,8 +25,8 @@ export interface InterlinkMetric {
 }
 
 export interface InterlinkCorrelation {
-  tracker1: { id: string; name: string; fieldId: string; fieldLabel: string }
-  tracker2: { id: string; name: string; fieldId: string; fieldLabel: string }
+  tracker1: { id: string; name: string; trackerName: string; fieldId: string; fieldLabel: string }
+  tracker2: { id: string; name: string; trackerName: string; fieldId: string; fieldLabel: string }
   correlation: number  // -1 to 1
   lagDays: number      // 0 = same day, 1 = next day, etc.
   strength: 'strong' | 'moderate' | 'weak'
@@ -395,12 +395,14 @@ function analyzeFieldPair(
     tracker1: {
       id: tracker1Info.trackerId,
       name: tracker1Info.trackerName,
+      trackerName: tracker1Info.trackerName,
       fieldId: tracker1Info.fieldId,
       fieldLabel: tracker1Info.fieldLabel,
     },
     tracker2: {
       id: tracker2Info.trackerId,
       name: tracker2Info.trackerName,
+      trackerName: tracker2Info.trackerName,
       fieldId: tracker2Info.fieldId,
       fieldLabel: tracker2Info.fieldLabel,
     },

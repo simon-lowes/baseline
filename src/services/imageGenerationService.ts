@@ -71,8 +71,13 @@ export async function generateTrackerImage(
 }
 
 /**
+ * Alias for generateTrackerImage - kept for backwards compatibility
+ */
+export const generateTrackerImageAsync = generateTrackerImage;
+
+/**
  * Update tracker with generated image information
- * 
+ *
  * @param trackerId - The tracker ID to update
  * @param imageUrl - The generated image URL
  * @param modelName - The model used for generation
