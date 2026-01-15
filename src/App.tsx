@@ -41,6 +41,8 @@ import type { AuthUser } from '@/ports/AuthPort'
 import { AnalyticsDashboard } from '@/components/analytics'
 import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { AccountSettings } from '@/components/AccountSettings'
+import { PrivacyPolicy, TermsOfService } from '@/components/legal'
+import { HelpCenter } from '@/components/help'
 
 // Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
@@ -51,7 +53,7 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue'
 import { createSyncController, type SyncResult } from '@/services/syncService'
 
 /** View states for the main app */
-type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics';
+type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics' | 'privacy' | 'terms' | 'help';
 
 /**
  * Inner app content - receives auth state from wrapper
@@ -602,6 +604,9 @@ function AppContent({ authState }: AppContentProps) {
             <p className="text-base text-foreground">
               Know your baseline, spot the changes.
             </p>
+            <p className="text-xs">
+              Version {import.meta.env.VITE_APP_VERSION || '4.1.0'}
+            </p>
             <p>
               Baseline helps you track anything that matters to your health and wellbeing.
               Whether it's chronic pain, mood, sleep, or custom trackers powered by AI —
@@ -617,8 +622,22 @@ function AppContent({ authState }: AppContentProps) {
                 <li>Private and secure — your data stays yours</li>
               </ul>
             </div>
-            <p className="text-xs pt-2 border-t">
-              Made with care for people managing chronic conditions. 💙
+            <div className="flex gap-4 text-xs pt-2 border-t">
+              <button
+                onClick={() => { setAboutOpen(false); setCurrentView('help'); }}
+                className="text-primary hover:underline"
+              >
+                Help & FAQ
+              </button>
+              <a
+                href="mailto:support@baseline-app.com"
+                className="text-primary hover:underline"
+              >
+                Contact Support
+              </a>
+            </div>
+            <p className="text-xs">
+              Made with care for people managing chronic conditions.
             </p>
           </div>
         </DialogContent>
@@ -1014,14 +1033,66 @@ function AppContent({ authState }: AppContentProps) {
             </main>
           </motion.div>
         )}
+
+        {/* Privacy Policy */}
+        {currentView === 'privacy' && (
+          <motion.div
+            key="privacy"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <PrivacyPolicy onBack={() => setCurrentView('dashboard')} />
+          </motion.div>
+        )}
+
+        {/* Terms of Service */}
+        {currentView === 'terms' && (
+          <motion.div
+            key="terms"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <TermsOfService onBack={() => setCurrentView('dashboard')} />
+          </motion.div>
+        )}
+
+        {/* Help Center */}
+        {currentView === 'help' && (
+          <motion.div
+            key="help"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <HelpCenter onBack={() => setCurrentView('dashboard')} />
+          </motion.div>
+        )}
       </AnimatePresence>
       </div>
 
       <footer className="border-t mt-16">
-        <div className="container max-w-4xl mx-auto px-6 py-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Your data is stored securely and privately.
-          </p>
+        <div className="container max-w-4xl mx-auto px-6 py-6 flex flex-col sm:flex-row gap-2 justify-center items-center text-sm text-muted-foreground">
+          <span>Your data is stored securely and privately.</span>
+          <span className="hidden sm:inline">·</span>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setCurrentView('privacy')}
+              className="hover:text-foreground hover:underline transition-colors"
+            >
+              Privacy
+            </button>
+            <button
+              onClick={() => setCurrentView('terms')}
+              className="hover:text-foreground hover:underline transition-colors"
+            >
+              Terms
+            </button>
+          </div>
         </div>
       </footer>
     </div>
