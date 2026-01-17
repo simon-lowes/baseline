@@ -1,7 +1,7 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, List, Calendar, SignOut, TrendUp, Gear } from '@phosphor-icons/react'
+import { Plus, List, Calendar, SignOut, TrendUp, Gear, ArrowLeft } from '@phosphor-icons/react'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -697,9 +697,9 @@ function AppContent({ authState }: AppContentProps) {
               <div className="inline-flex items-start">
                 <button
                   onClick={handleGoHome}
-                  className="hover:opacity-80 transition-opacity"
+                  className="group transition-opacity cursor-pointer"
                 >
-                  <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+                  <h1 className="text-3xl font-semibold text-foreground tracking-tight group-hover:underline underline-offset-4 decoration-primary/50 decoration-2">
                     Baseline
                   </h1>
                 </button>
@@ -759,6 +759,15 @@ function AppContent({ authState }: AppContentProps) {
           {currentView === 'tracker' && currentTracker && (
             <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGoHome}
+                  className="text-muted-foreground hover:text-foreground -ml-2 gap-1 px-2"
+                >
+                  <ArrowLeft size={16} />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Button>
                 <span className="text-sm text-muted-foreground shrink-0">Tracking:</span>
                 <TrackerSelector
                   currentTracker={currentTracker}
