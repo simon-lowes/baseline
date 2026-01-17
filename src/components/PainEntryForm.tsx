@@ -304,7 +304,7 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
                 variant={selectedTriggers.includes(trigger) ? 'default' : 'outline'}
                 className={`cursor-pointer transition-all ${
                   selectedTriggers.includes(trigger)
-                    ? 'bg-secondary text-secondary-foreground'
+                    ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-muted'
                 }`}
                 onClick={() => toggleTrigger(trigger)}
