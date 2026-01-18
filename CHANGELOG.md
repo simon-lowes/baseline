@@ -1,79 +1,108 @@
 # Changelog
 
-All notable changes to Baseline will be documented in this file.
+All notable changes to **Baseline** are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [4.2.0] - 2026-01-15
+## [Unreleased]
+
+Nothing yet.
+
+---
+
+## [Beta] - 2026-01-18
+
+Major milestone: Full-featured health tracking app with AI-powered tracker creation, theming, offline support, and accessibility compliance.
 
 ### Added
-- Privacy Policy page accessible from footer
-- Terms of Service page accessible from footer
-- Version display in About dialog
-- Help & FAQ link in About dialog
-- Contact support link in About dialog
-- Sentry error monitoring for improved reliability
-- Help center with FAQ section
+
+- **Navigation**: Browser back/forward support with invisible routing (no URL changes)
+- **Professional Infrastructure**: About dialog, Help center, feedback links
+- **Account Settings**: GDPR-compliant data export (JSON) and account deletion
+- **Offline Support**: PWA service worker with offline access to cached data
+- **Accessibility**: WCAG 2.1 AA compliance (focus management, ARIA labels, keyboard nav)
+- **Theme System**: 8 color themes (Teal, Rose, Blue, Green, Violet, Amber, Indigo, Cyan) with dark mode
+- **AI Tracker Builder**: Conversational tracker creation powered by Gemini
+- **Swipeable Cards**: Mobile-friendly swipe gestures for tracker actions
+- **Session Persistence**: "Remember me" functionality with draft saving
+- **Email Templates**: Custom templates for confirmation, password reset, email change
+- **Timezone Support**: Timezone-aware date handling and 24-hour clock format option
+- **AI-Generated Images**: Unique tracker images generated via AI on dashboard
+- **Smart Disambiguation**: Clarification step when tracker names are ambiguous
+- **Dictionary Service**: Word lookup and caching for tracker context
+- **Report Charts**: Utilities for capturing analytics charts as images
+- **Theme Sync**: Server-side theme preference sync across devices
 
 ### Changed
-- Footer now includes Privacy and Terms links
-- About dialog redesigned with version info and quick links
 
-## [4.1.0] - 2026-01-14
+- Simplified tracker header for better mobile UX (removed redundant back button)
+- Improved navigation with cleaner, more spacious header layout
+- Code splitting for reduced initial bundle sizes
+- Theme-reactive chart colors that adapt to selected theme
+- Upgraded to Gemini 3.0 models for AI features
 
-### Added
-- Account settings with profile management
-- GDPR-compliant data export (JSON and CSV formats)
-- Account deletion with complete data purge
-- Display name customization
+### Fixed
+
+- Mobile horizontal scrolling issues on header and swipeable cards
+- Selected tags now use theme primary color for better visibility
+- Race conditions in tracker auto-selection on component mount
+- Tracker deletion now navigates to dashboard correctly
+- Settings components fetch their own entry data (fixed data loading)
+- React included in main bundle to fix chunk loading order
+- PWA precache limits increased for larger bundles
+- TypeScript compilation errors resolved
+- Null safety for entry arrays (locations, triggers)
+- Migration filename inconsistencies with database records
 
 ### Security
-- Secure account deletion via Edge Function with admin privileges
 
-## [4.0.0] - 2026-01-10
+- Resolved CORS origin bypass vulnerability in edge functions
+- Fixed biased cryptographic random number generation (GitHub Alert #3)
+- Enhanced rate limiting across all edge functions
+- Added HTTPS localhost variants to CORS allowed origins
 
-### Added
-- Convex backend migration complete
-- Real-time data synchronization
-- Improved offline support with queue management
+### Removed
 
-### Changed
-- Migrated from Supabase to Convex for data layer
-- Enhanced sync reliability with retry logic
+- Convex backend experiment (reverted to Supabase-only architecture)
+- Redundant in-app back button (browser handles navigation)
 
-## [3.0.0] - 2025-12-15
+---
 
-### Added
-- Multiple custom trackers support
-- AI-powered tracker generation with Gemini
-- AI-generated tracker icons
-- Cross-tracker analytics and insights
-- Interlink correlation analysis
+## [Alpha] - 2025-12-21
 
-### Changed
-- Redesigned dashboard with tracker cards
-- Improved analytics visualization
-
-## [2.0.0] - 2025-11-01
+Initial public release: Migration from Spark prototype to Supabase-powered app.
 
 ### Added
-- Theme system with 10 color palettes
-- Dark mode support
-- High contrast accessibility theme
-- Pattern overlays for colorblind users
 
-### Changed
-- Moved to OKLch color space for perceptual uniformity
-- Improved chart accessibility
+- **Authentication**: Magic Link email authentication via Supabase
+- **Multi-Tracker Support**: Create and manage multiple health trackers
+- **Welcome Screen**: Onboarding flow for new users
+- **Dashboard**: Home view with all trackers displayed as cards
+- **Entry Logging**: Log health entries with severity scale (1-10)
+- **Tagging System**: Location and trigger tags for entries
+- **Analytics Dashboard**: Charts and visualizations for tracking patterns
+- **Search**: Full-text search across notes, triggers, and locations
+- **Entry Calendar**: Heatmap calendar view of entry history
+- **Preset Trackers**: Quick-start templates (Pain, Mood, Sleep, etc.)
+- **Custom Trackers**: Create trackers for anything with AI-generated context
+- **Mobile-First Design**: Responsive layout optimized for mobile devices
+- **Real-time Sync**: Supabase real-time subscriptions for live updates
 
-## [1.0.0] - 2025-10-01
+### Technical
 
-### Added
-- Initial release
-- Pain tracking with intensity, location, and triggers
-- Calendar heatmap visualization
-- Entry management (add, edit, delete)
-- User authentication with Supabase
-- Offline-first PWA support
-- Data export functionality
+- React 19 with TypeScript
+- Vite build system
+- Supabase (Auth, PostgreSQL, Row Level Security)
+- TanStack React Query for data fetching
+- Tailwind CSS v4 with shadcn/ui components
+- Recharts for analytics visualizations
+- Framer Motion for animations
+
+---
+
+## Version History Reference
+
+| Version | Date | Highlights |
+|---------|------|------------|
+| Beta | 2026-01-18 | AI features, theming, offline, accessibility |
+| Alpha | 2025-12-21 | Initial Supabase release |
