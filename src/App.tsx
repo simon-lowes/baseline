@@ -1,6 +1,6 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useEffect, useState, useCallback } from 'react'
+import { useInvisibleRouter, type AppView } from '@/hooks/useInvisibleRouter'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp, Gear, ArrowLeft } from '@phosphor-icons/react'
 
@@ -53,9 +53,6 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { useOfflineQueue } from '@/hooks/useOfflineQueue'
 import { createSyncController, type SyncResult } from '@/services/syncService'
 
-/** View states for the main app */
-type AppView = 'welcome' | 'dashboard' | 'tracker' | 'analytics' | 'privacy' | 'terms' | 'help';
-
 /**
  * Inner app content - receives auth state from wrapper
  */
@@ -66,10 +63,8 @@ interface AppContentProps {
 function AppContent({ authState }: AppContentProps) {
   const { user, isLoading: authLoading, signOut } = authState;
 
-  // React Router hooks
-  const location = useLocation();
-  const navigate = useNavigate();
-  const params = useParams();
+  // Invisible router - URL always stays '/' but back/forward works
+  const { currentView, trackerId, navigate, currentState } = useInvisibleRouter();
 
   const [entries, setEntries] = useState<PainEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,39 +83,27 @@ function AppContent({ authState }: AppContentProps) {
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
 
-  // Derive currentView from URL path
-  const currentView = useMemo((): AppView => {
-    const path = location.pathname;
-    if (path === '/welcome') return 'welcome';
-    if (path.startsWith('/tracker/')) return 'tracker';
-    if (path.startsWith('/analytics')) return 'analytics';
-    if (path === '/privacy') return 'privacy';
-    if (path === '/terms') return 'terms';
-    if (path === '/help') return 'help';
-    return 'dashboard'; // Default: / or unknown paths
-  }, [location.pathname]);
-
-  // Sync currentTracker when URL changes to /tracker/:id
+  // Sync currentTracker when navigating to tracker view
   useEffect(() => {
-    if (currentView === 'tracker' && params.trackerId && trackers.length > 0) {
-      const tracker = trackers.find(t => t.id === params.trackerId);
+    if (currentView === 'tracker' && trackerId && trackers.length > 0) {
+      const tracker = trackers.find(t => t.id === trackerId);
       if (tracker && tracker.id !== currentTracker?.id) {
         setCurrentTracker(tracker);
       }
     }
-  }, [currentView, params.trackerId, trackers, currentTracker?.id]);
+  }, [currentView, trackerId, trackers, currentTracker?.id]);
 
-  // Sync analyticsTracker when URL changes to /analytics/:id
+  // Sync analyticsTracker when navigating to analytics view
   useEffect(() => {
     if (currentView === 'analytics' && trackers.length > 0) {
-      if (params.trackerId) {
-        const tracker = trackers.find(t => t.id === params.trackerId);
+      if (trackerId) {
+        const tracker = trackers.find(t => t.id === trackerId);
         if (tracker) setAnalyticsTracker(tracker);
       } else {
         setAnalyticsTracker(null); // All trackers
       }
     }
-  }, [currentView, params.trackerId, trackers]);
+  }, [currentView, trackerId, trackers]);
 
   // Offline support - network status and queue management
   const { isOnline, wasOffline } = useNetworkStatus()
@@ -179,21 +162,21 @@ function AppContent({ authState }: AppContentProps) {
       if (result.data) {
         setTrackers(result.data)
 
-        // Only redirect on initial load (when at root path)
-        // Don't redirect if user has navigated to a specific URL
-        if (location.pathname === '/') {
+        // Only redirect on initial load (when at dashboard view)
+        // Don't redirect if user has navigated to a specific view
+        if (currentView === 'dashboard') {
           if (result.data.length === 0) {
-            navigate('/welcome', { replace: true })
+            navigate({ view: 'welcome' })
             setCurrentTracker(null)
           }
-          // If at root with trackers, stay at dashboard (already at /)
+          // If at dashboard with trackers, stay at dashboard
         }
       }
       setTrackersLoading(false)
     }
 
     loadTrackers()
-  }, [user, location.pathname, navigate])
+  }, [user, currentView, navigate])
 
   // Load ALL entries for analytics view (cross-tracker)
   const loadAllEntries = useCallback(async () => {
@@ -530,38 +513,38 @@ function AppContent({ authState }: AppContentProps) {
     setConfirmPassword('')
   }
 
-  // Navigation handlers - use navigate() to update URL (which drives the view)
+  // Navigation handlers - use navigate() to update history state (URL stays '/')
   const handleGoHome = useCallback(() => {
     if (trackers.length === 0) {
-      navigate('/welcome')
+      navigate({ view: 'welcome' })
     } else {
-      navigate('/')
+      navigate({ view: 'dashboard' })
     }
     setCurrentTracker(null)
   }, [trackers.length, navigate])
 
   const handleTrackerSelect = useCallback((tracker: Tracker) => {
     setCurrentTracker(tracker)
-    navigate(`/tracker/${tracker.id}`)
+    navigate({ view: 'tracker', trackerId: tracker.id })
   }, [navigate])
 
   const handleTrackerCreated = useCallback((tracker: Tracker) => {
     console.log('[App] handleTrackerCreated called for', tracker.name, tracker.id);
     setTrackers(prev => [...prev, tracker])
     setCurrentTracker(tracker)
-    navigate(`/tracker/${tracker.id}`)
+    navigate({ view: 'tracker', trackerId: tracker.id })
   }, [navigate])
 
   const handleShowAnalytics = useCallback(async () => {
     await loadAllEntries()
     setAnalyticsTracker(null) // Show all trackers
-    navigate('/analytics')
+    navigate({ view: 'analytics' })
   }, [loadAllEntries, navigate])
 
   const handleShowTrackerAnalytics = useCallback(async (tracker: Tracker) => {
     await loadAllEntries()
     setAnalyticsTracker(tracker) // Show single tracker
-    navigate(`/analytics/${tracker.id}`)
+    navigate({ view: 'analytics', trackerId: tracker.id })
   }, [loadAllEntries, navigate])
 
   // Listen for manual dev tracker creation events and update UI accordingly
@@ -582,12 +565,12 @@ function AppContent({ authState }: AppContentProps) {
     return () => window.removeEventListener('__dev:trackerCreated', handler as EventListener);
   }, [handleTrackerCreated]);
 
-  const handleTrackerDeleted = useCallback((trackerId: string) => {
-    setTrackers(prev => prev.filter(t => t.id !== trackerId))
+  const handleTrackerDeleted = useCallback((deletedTrackerId: string) => {
+    setTrackers(prev => prev.filter(t => t.id !== deletedTrackerId))
     // If deleted the current tracker, reset and go to dashboard
-    if (currentTracker?.id === trackerId) {
+    if (currentTracker?.id === deletedTrackerId) {
       setCurrentTracker(null)
-      navigate('/')
+      navigate({ view: 'dashboard' })
     }
   }, [currentTracker?.id, navigate])
 
@@ -660,7 +643,7 @@ function AppContent({ authState }: AppContentProps) {
             </div>
             <div className="flex gap-4 text-xs pt-2 border-t">
               <button
-                onClick={() => { setAboutOpen(false); navigate('/help'); }}
+                onClick={() => { setAboutOpen(false); navigate({ view: 'help' }); }}
                 className="text-primary hover:underline"
               >
                 Help & FAQ
@@ -874,7 +857,7 @@ function AppContent({ authState }: AppContentProps) {
             <AnalyticsDashboard
               entries={allEntries}
               trackers={trackers}
-              onBack={() => analyticsTracker ? navigate(`/tracker/${analyticsTracker.id}`) : navigate('/')}
+              onBack={() => analyticsTracker ? navigate({ view: 'tracker', trackerId: analyticsTracker.id }) : navigate({ view: 'dashboard' })}
               onEntryEdit={handleEditEntry}
               onEntryDelete={handleDeleteEntry}
               currentTracker={analyticsTracker}
@@ -1088,7 +1071,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <PrivacyPolicy onBack={() => navigate('/')} />
+            <PrivacyPolicy onBack={() => navigate({ view: 'dashboard' })} />
           </motion.div>
         )}
 
@@ -1101,7 +1084,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <TermsOfService onBack={() => navigate('/')} />
+            <TermsOfService onBack={() => navigate({ view: 'dashboard' })} />
           </motion.div>
         )}
 
@@ -1114,7 +1097,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <HelpCenter onBack={() => navigate('/')} />
+            <HelpCenter onBack={() => navigate({ view: 'dashboard' })} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1126,13 +1109,13 @@ function AppContent({ authState }: AppContentProps) {
           <span className="hidden sm:inline">·</span>
           <div className="flex gap-4">
             <button
-              onClick={() => navigate('/privacy')}
+              onClick={() => navigate({ view: 'privacy' })}
               className="hover:text-foreground hover:underline transition-colors"
             >
               Privacy
             </button>
             <button
-              onClick={() => navigate('/terms')}
+              onClick={() => navigate({ view: 'terms' })}
               className="hover:text-foreground hover:underline transition-colors"
             >
               Terms
