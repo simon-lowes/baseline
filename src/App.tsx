@@ -2,7 +2,7 @@ import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useInvisibleRouter, type AppView } from '@/hooks/useInvisibleRouter'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, List, Calendar, SignOut, TrendUp, Gear, ArrowLeft } from '@phosphor-icons/react'
+import { Plus, List, Calendar, SignOut, TrendUp, Gear } from '@phosphor-icons/react'
 
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -776,34 +776,22 @@ function AppContent({ authState }: AppContentProps) {
 
           {/* Tracker Selector - only show when in tracker view */}
           {currentView === 'tracker' && currentTracker && (
-            <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleGoHome}
-                  className="text-muted-foreground hover:text-foreground -ml-2 gap-1 px-2"
-                >
-                  <ArrowLeft size={16} />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </Button>
-                <span className="text-sm text-muted-foreground shrink-0">Tracking:</span>
-                <TrackerSelector
-                  currentTracker={currentTracker}
-                  onTrackerChange={handleTrackerSelect}
-                  onTrackerDeleted={handleTrackerDeleted}
-                  className="min-w-0 max-w-[180px] sm:max-w-[240px]"
-                />
-              </div>
+            <div className="flex items-center justify-between gap-3 sm:gap-4 min-w-0">
+              <TrackerSelector
+                currentTracker={currentTracker}
+                onTrackerChange={handleTrackerSelect}
+                onTrackerDeleted={handleTrackerDeleted}
+                className="min-w-0 flex-1 max-w-[280px] sm:max-w-[320px]"
+              />
               <Button
                 variant="outline"
-                size="sm"
-                className="gap-2 shrink-0"
+                size="icon"
+                className="shrink-0 h-9 w-9 sm:h-auto sm:w-auto sm:px-3 sm:gap-2"
                 onClick={() => handleShowTrackerAnalytics(currentTracker)}
+                aria-label="View your progress"
               >
                 <TrendUp size={16} />
-                <span className="hidden sm:inline">View Your Progress</span>
-                <span className="sm:hidden">Progress</span>
+                <span className="hidden sm:inline">Progress</span>
               </Button>
             </div>
           )}
