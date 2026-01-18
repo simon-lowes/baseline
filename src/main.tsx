@@ -2,8 +2,9 @@ import { createRoot } from 'react-dom/client'
 import { ErrorBoundary } from "react-error-boundary";
 import { ThemeProvider } from 'next-themes'
 
+import { RouterProvider } from 'react-router'
 import { initSentry } from './lib/sentry'
-import App from './App.tsx'
+import { router } from './router'
 import { ErrorFallback } from './ErrorFallback.tsx'
 import { AccessibilityProvider } from './contexts/AccessibilityContext.tsx'
 import { ChartPatternDefs } from './components/charts/ChartPatterns.tsx'
@@ -51,7 +52,7 @@ function AppWithProviders() {
     >
       <AccessibilityProvider>
         <ChartPatternDefs />
-        <App />
+        <RouterProvider router={router} />
       </AccessibilityProvider>
     </ThemeProvider>
   );

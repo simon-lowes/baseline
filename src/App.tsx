@@ -1,5 +1,6 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp, Gear, ArrowLeft } from '@phosphor-icons/react'
 
@@ -65,6 +66,11 @@ interface AppContentProps {
 function AppContent({ authState }: AppContentProps) {
   const { user, isLoading: authLoading, signOut } = authState;
 
+  // React Router hooks
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+
   const [entries, setEntries] = useState<PainEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [emailConfirmed, setEmailConfirmed] = useState(false)
@@ -79,9 +85,42 @@ function AppContent({ authState }: AppContentProps) {
   // Multi-tracker and view state
   const [trackers, setTrackers] = useState<Tracker[]>([])
   const [trackersLoading, setTrackersLoading] = useState(true)
-  const [currentView, setCurrentView] = useState<AppView>('dashboard')
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
+
+  // Derive currentView from URL path
+  const currentView = useMemo((): AppView => {
+    const path = location.pathname;
+    if (path === '/welcome') return 'welcome';
+    if (path.startsWith('/tracker/')) return 'tracker';
+    if (path.startsWith('/analytics')) return 'analytics';
+    if (path === '/privacy') return 'privacy';
+    if (path === '/terms') return 'terms';
+    if (path === '/help') return 'help';
+    return 'dashboard'; // Default: / or unknown paths
+  }, [location.pathname]);
+
+  // Sync currentTracker when URL changes to /tracker/:id
+  useEffect(() => {
+    if (currentView === 'tracker' && params.trackerId && trackers.length > 0) {
+      const tracker = trackers.find(t => t.id === params.trackerId);
+      if (tracker && tracker.id !== currentTracker?.id) {
+        setCurrentTracker(tracker);
+      }
+    }
+  }, [currentView, params.trackerId, trackers, currentTracker?.id]);
+
+  // Sync analyticsTracker when URL changes to /analytics/:id
+  useEffect(() => {
+    if (currentView === 'analytics' && trackers.length > 0) {
+      if (params.trackerId) {
+        const tracker = trackers.find(t => t.id === params.trackerId);
+        if (tracker) setAnalyticsTracker(tracker);
+      } else {
+        setAnalyticsTracker(null); // All trackers
+      }
+    }
+  }, [currentView, params.trackerId, trackers]);
 
   // Offline support - network status and queue management
   const { isOnline, wasOffline } = useNetworkStatus()
@@ -130,7 +169,6 @@ function AppContent({ authState }: AppContentProps) {
       setLoading(false)
       setTrackersLoading(false)
       setTrackers([])
-      setCurrentView('dashboard')
       return
     }
 
@@ -141,23 +179,21 @@ function AppContent({ authState }: AppContentProps) {
       if (result.data) {
         setTrackers(result.data)
 
-        // Determine initial view based on tracker count
-        if (result.data.length === 0) {
-          setCurrentView('welcome')
-          setCurrentTracker(null)
-        } else {
-          // If we have a current tracker, stay in tracker view
-          // Otherwise go to dashboard
-          if (!currentTracker) {
-            setCurrentView('dashboard')
+        // Only redirect on initial load (when at root path)
+        // Don't redirect if user has navigated to a specific URL
+        if (location.pathname === '/') {
+          if (result.data.length === 0) {
+            navigate('/welcome', { replace: true })
+            setCurrentTracker(null)
           }
+          // If at root with trackers, stay at dashboard (already at /)
         }
       }
       setTrackersLoading(false)
     }
 
     loadTrackers()
-  }, [user])
+  }, [user, location.pathname, navigate])
 
   // Load ALL entries for analytics view (cross-tracker)
   const loadAllEntries = useCallback(async () => {
@@ -494,39 +530,39 @@ function AppContent({ authState }: AppContentProps) {
     setConfirmPassword('')
   }
 
-  // Navigation handlers
+  // Navigation handlers - use navigate() to update URL (which drives the view)
   const handleGoHome = useCallback(() => {
     if (trackers.length === 0) {
-      setCurrentView('welcome')
+      navigate('/welcome')
     } else {
-      setCurrentView('dashboard')
+      navigate('/')
     }
     setCurrentTracker(null)
-  }, [trackers.length])
+  }, [trackers.length, navigate])
 
   const handleTrackerSelect = useCallback((tracker: Tracker) => {
     setCurrentTracker(tracker)
-    setCurrentView('tracker')
-  }, [])
+    navigate(`/tracker/${tracker.id}`)
+  }, [navigate])
 
   const handleTrackerCreated = useCallback((tracker: Tracker) => {
     console.log('[App] handleTrackerCreated called for', tracker.name, tracker.id);
     setTrackers(prev => [...prev, tracker])
     setCurrentTracker(tracker)
-    setCurrentView('tracker')
-  }, [])
+    navigate(`/tracker/${tracker.id}`)
+  }, [navigate])
 
   const handleShowAnalytics = useCallback(async () => {
     await loadAllEntries()
     setAnalyticsTracker(null) // Show all trackers
-    setCurrentView('analytics')
-  }, [loadAllEntries])
+    navigate('/analytics')
+  }, [loadAllEntries, navigate])
 
   const handleShowTrackerAnalytics = useCallback(async (tracker: Tracker) => {
     await loadAllEntries()
     setAnalyticsTracker(tracker) // Show single tracker
-    setCurrentView('analytics')
-  }, [loadAllEntries])
+    navigate(`/analytics/${tracker.id}`)
+  }, [loadAllEntries, navigate])
 
   // Listen for manual dev tracker creation events and update UI accordingly
   useEffect(() => {
@@ -551,9 +587,9 @@ function AppContent({ authState }: AppContentProps) {
     // If deleted the current tracker, reset and go to dashboard
     if (currentTracker?.id === trackerId) {
       setCurrentTracker(null)
-      setCurrentView('dashboard')
+      navigate('/')
     }
-  }, [currentTracker?.id])
+  }, [currentTracker?.id, navigate])
 
   // Show loading while validating auth
   if (authLoading) {
@@ -624,7 +660,7 @@ function AppContent({ authState }: AppContentProps) {
             </div>
             <div className="flex gap-4 text-xs pt-2 border-t">
               <button
-                onClick={() => { setAboutOpen(false); setCurrentView('help'); }}
+                onClick={() => { setAboutOpen(false); navigate('/help'); }}
                 className="text-primary hover:underline"
               >
                 Help & FAQ
@@ -838,7 +874,7 @@ function AppContent({ authState }: AppContentProps) {
             <AnalyticsDashboard
               entries={allEntries}
               trackers={trackers}
-              onBack={() => analyticsTracker ? setCurrentView('tracker') : setCurrentView('dashboard')}
+              onBack={() => analyticsTracker ? navigate(`/tracker/${analyticsTracker.id}`) : navigate('/')}
               onEntryEdit={handleEditEntry}
               onEntryDelete={handleDeleteEntry}
               currentTracker={analyticsTracker}
@@ -1052,7 +1088,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <PrivacyPolicy onBack={() => setCurrentView('dashboard')} />
+            <PrivacyPolicy onBack={() => navigate('/')} />
           </motion.div>
         )}
 
@@ -1065,7 +1101,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <TermsOfService onBack={() => setCurrentView('dashboard')} />
+            <TermsOfService onBack={() => navigate('/')} />
           </motion.div>
         )}
 
@@ -1078,7 +1114,7 @@ function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <HelpCenter onBack={() => setCurrentView('dashboard')} />
+            <HelpCenter onBack={() => navigate('/')} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1090,13 +1126,13 @@ function AppContent({ authState }: AppContentProps) {
           <span className="hidden sm:inline">·</span>
           <div className="flex gap-4">
             <button
-              onClick={() => setCurrentView('privacy')}
+              onClick={() => navigate('/privacy')}
               className="hover:text-foreground hover:underline transition-colors"
             >
               Privacy
             </button>
             <button
-              onClick={() => setCurrentView('terms')}
+              onClick={() => navigate('/terms')}
               className="hover:text-foreground hover:underline transition-colors"
             >
               Terms
