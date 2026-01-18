@@ -1,5 +1,5 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useInvisibleRouter, type AppView } from '@/hooks/useInvisibleRouter'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp, Gear, ArrowLeft } from '@phosphor-icons/react'
