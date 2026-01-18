@@ -808,7 +808,7 @@ export function Dashboard({
 
             // Card content shared between mobile and desktop
             const cardContent = (
-              <CardContent className="p-4 space-y-3">
+              <CardContent className="p-4 space-y-3 h-[120px]">
                 {/* Icon/Image and name */}
                 <div className="flex items-start gap-3">
                   {tracker.image_url ? (
@@ -862,7 +862,7 @@ export function Dashboard({
                   )}
                   <div className="flex-1 min-w-0">
                     <h3
-                      className="font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors"
+                      className="font-medium text-foreground truncate group-hover:text-primary transition-colors"
                       title={tracker.name}
                     >
                       {tracker.name}
