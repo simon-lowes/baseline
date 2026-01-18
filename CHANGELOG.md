@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Legal documents updated to British English spelling
+- Terms of Service liability cap simplified for free app (£100 flat cap)
 
 ---
 

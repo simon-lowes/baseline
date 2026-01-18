@@ -89,7 +89,7 @@ export function TermsOfService({ onBack }: TermsOfServiceProps) {
             </ul>
             <p className="mt-3">
               You are responsible for all activity that occurs under your account.
-              Notify us immediately of any unauthorized use.
+              Notify us immediately of any unauthorised use.
             </p>
           </section>
 
@@ -124,7 +124,7 @@ export function TermsOfService({ onBack }: TermsOfServiceProps) {
             <p>
               Baseline uses AI to generate tracker configurations and icons. This
               AI-generated content is provided "as is" without warranty. You are
-              responsible for reviewing and customizing AI-generated content before use.
+              responsible for reviewing and customising AI-generated content before use.
             </p>
           </section>
 
@@ -159,8 +159,7 @@ export function TermsOfService({ onBack }: TermsOfServiceProps) {
               <li>Decisions made using insights from the Service</li>
             </ul>
             <p className="mt-3">
-              Our total liability shall not exceed the amount you paid for the
-              Service in the 12 months preceding the claim, or $100, whichever is greater.
+              Our total liability shall not exceed £100.
             </p>
           </section>
 
@@ -179,7 +178,7 @@ export function TermsOfService({ onBack }: TermsOfServiceProps) {
             <p>
               You may terminate your account at any time by deleting it through
               Settings. We may terminate or suspend your account if you violate
-              these Terms or engage in harmful behavior.
+              these Terms or engage in harmful behaviour.
             </p>
             <p className="mt-3">
               Upon termination, your right to use the Service ceases immediately.
