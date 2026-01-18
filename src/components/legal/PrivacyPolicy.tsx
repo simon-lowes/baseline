@@ -92,7 +92,7 @@ export function PrivacyPolicy({ onBack }: PrivacyPolicyProps) {
             <h2 className="text-lg font-medium mt-8 mb-3">4. Data Storage & Security</h2>
             <p>
               Your data is stored on <strong>Supabase</strong>, a secure cloud platform
-              with data centers in the United States. Supabase provides:
+              with data centres in the United States. Supabase provides:
             </p>
             <ul className="list-disc pl-6 space-y-1">
               <li>Encryption at rest (AES-256)</li>

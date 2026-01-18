@@ -71,4 +71,5 @@ npm run lint         # ESLint check
 2. Maintain TypeScript strict mode compliance
 3. Ensure RLS policies are respected
 4. Keep the calming, accessible UX
-5. Run `npm run lint` and `npm run test` before committing
+5. **Update CHANGELOG.md** before every commit (add to Unreleased section)
+6. Run `npm run lint` and `npm run test` before committing
