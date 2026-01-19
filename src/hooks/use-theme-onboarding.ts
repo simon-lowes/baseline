@@ -210,7 +210,8 @@ export function useThemeOnboarding(): ThemeOnboarding {
   return {
     showThemeCTA,
     dismissThemeCTA,
-    showModeIndicator,
+    // Don't show mode indicator when theme CTA is active (prevents tooltip overlap on mobile)
+    showModeIndicator: showModeIndicator && !showThemeCTA,
     currentModeLabel,
     modeIndicatorTooltip,
     dismissModeIndicator,
