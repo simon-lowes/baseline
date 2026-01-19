@@ -33,8 +33,8 @@ import { useAccessibility } from '@/contexts/AccessibilityContext'
 import { ColorPicker } from '@/components/ui/color-picker'
 import { useCustomAccent } from '@/hooks/use-custom-accent'
 import { useUserPreferences } from '@/hooks/use-user-preferences'
+import { useThemeOnboarding } from '@/hooks/use-theme-onboarding'
 
-const ONBOARDING_KEY = 'baseline-theme-onboarded'
 const THEME_MODE_KEY = 'baseline-theme-mode'
 
 type ThemeMode = 'light' | 'dark' | 'system'
@@ -146,6 +146,12 @@ export function DarkModeToggle() {
   const [mounted, setMounted] = useState(false)
   const [mode, setMode] = useState<ThemeMode>('light')
   const { updatePreferences, isAuthenticated } = useUserPreferences()
+  const {
+    showModeIndicator,
+    currentModeLabel,
+    modeIndicatorTooltip,
+    dismissModeIndicator,
+  } = useThemeOnboarding()
 
   const { color: currentColor, isDark } = parseTheme(theme)
 
@@ -232,15 +238,23 @@ export function DarkModeToggle() {
     )
   }
 
+  const handleClick = () => {
+    // Dismiss the onboarding indicator if showing
+    if (showModeIndicator) {
+      dismissModeIndicator()
+    }
+    cycleMode()
+  }
+
   return (
     <TooltipProvider>
-      <Tooltip>
+      <Tooltip open={showModeIndicator ? true : undefined} delayDuration={showModeIndicator ? 0 : undefined}>
         <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9"
-            onClick={cycleMode}
+            onClick={handleClick}
             aria-label={getLabel()}
           >
             {getIcon()}
@@ -248,9 +262,18 @@ export function DarkModeToggle() {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          {mode === 'light' && 'Light mode'}
-          {mode === 'dark' && 'Dark mode'}
-          {mode === 'system' && `System mode (${isDark ? 'dark' : 'light'})`}
+          {showModeIndicator ? (
+            <div className="text-center">
+              <div className="font-medium">{currentModeLabel}</div>
+              <div className="text-xs text-muted-foreground">{modeIndicatorTooltip}</div>
+            </div>
+          ) : (
+            <>
+              {mode === 'light' && 'Light mode'}
+              {mode === 'dark' && 'Dark mode'}
+              {mode === 'system' && `System mode (${isDark ? 'dark' : 'light'})`}
+            </>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -263,7 +286,6 @@ export function DarkModeToggle() {
  */
 export function ColorThemePicker() {
   const { theme, setTheme } = useTheme()
-  const [showOnboarding, setShowOnboarding] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const { patternsEnabled, setPatternsEnabled } = useAccessibility()
   const { customAccent, setCustomAccent, clearCustomAccent } = useCustomAccent()
@@ -273,6 +295,7 @@ export function ColorThemePicker() {
     isAuthenticated,
     isLoading: prefsLoading,
   } = useUserPreferences()
+  const { showThemeCTA, dismissThemeCTA } = useThemeOnboarding()
 
   // Track if we've applied server preferences
   const hasAppliedServerPrefs = useRef(false)
@@ -324,24 +347,11 @@ export function ColorThemePicker() {
     setPatternsEnabled,
   ])
 
-  // Check for first visit onboarding
-  useEffect(() => {
-    const hasOnboarded = localStorage.getItem(ONBOARDING_KEY)
-    if (!hasOnboarded) {
-      // Delay showing onboarding to let page load
-      const timer = setTimeout(() => {
-        setShowOnboarding(true)
-      }, 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [])
-
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
-    if (open && showOnboarding) {
+    if (open && showThemeCTA) {
       // Mark as onboarded when they first open the menu
-      localStorage.setItem(ONBOARDING_KEY, 'true')
-      setShowOnboarding(false)
+      dismissThemeCTA()
     }
   }
 
@@ -382,15 +392,15 @@ export function ColorThemePicker() {
   }
 
   const triggerButton = (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className={`h-9 w-9 relative ${showOnboarding ? 'animate-pulse' : ''}`}
+    <Button
+      variant="ghost"
+      size="icon"
+      className={`h-9 w-9 relative ${showThemeCTA ? 'animate-pulse' : ''}`}
     >
       <Palette className="h-4 w-4" />
       <span className="sr-only">Choose color theme</span>
       {/* Pulse ring for onboarding */}
-      {showOnboarding && (
+      {showThemeCTA && (
         <span className="absolute inset-0 rounded-md ring-2 ring-primary/50 animate-ping" />
       )}
     </Button>
@@ -399,15 +409,15 @@ export function ColorThemePicker() {
   return (
     <TooltipProvider>
       <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-        {showOnboarding ? (
-          <Tooltip open={showOnboarding} delayDuration={0}>
+        {showThemeCTA ? (
+          <Tooltip open={showThemeCTA} delayDuration={0}>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
                 {triggerButton}
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="font-medium">
-              Pick your theme! 🎨
+              Personalise your theme
             </TooltipContent>
           </Tooltip>
         ) : (

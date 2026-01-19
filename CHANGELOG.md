@@ -6,10 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Theme onboarding system with respectful, non-intrusive indicators
+  - Theme CTA (colour picker pulse) shows max 6 times, persists via server for auth users
+  - Mode indicator tooltip (Light/Dark/System) shows once per session, auto-dismisses
+  - Server-side sync via `profiles.theme_onboarding_completed` column
+
 ### Changed
 
 - Legal documents updated to British English spelling
 - Terms of Service liability cap simplified for free app (£100 flat cap)
+- Theme CTA tooltip changed from "Pick your theme! 🎨" to "Personalise your theme"
 
 ---
 
