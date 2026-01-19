@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Terms of Service liability cap simplified for free app (£100 flat cap)
 - Theme CTA tooltip changed from "Pick your theme! 🎨" to "Personalise your theme"
 
+### Fixed
+
+- Theme onboarding tooltips no longer overlap on mobile (mode indicator hidden when CTA active)
+
 ---
 
 ## [Beta] - 2026-01-18
