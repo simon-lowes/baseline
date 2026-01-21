@@ -6,6 +6,9 @@
  */
 
 import type { PainEntry } from '@/types/pain-entry'
+import type { Tracker } from '@/types/tracker'
+import type { IntensityScale } from '@/types/generated-config'
+import { getTrackerPolarity } from '@/types/tracker-config'
 import {
   getLocalDateString,
   generateLocalDateRange,
@@ -375,10 +378,26 @@ export function groupHeatmapByWeek(data: HeatmapDay[]): HeatmapDay[][] {
 
 /**
  * Detect patterns and generate insights
+ *
+ * @param entries - Pain/mood entries to analyze
+ * @param tracker - Optional tracker for polarity-aware insights
+ *                  Polarity determines how to interpret intensity values:
+ *                  - 'high_bad': Higher values are worse (e.g., chronic pain: 10 = severe)
+ *                  - 'low_bad': Lower values are worse (e.g., mood: 1 = very low)
+ *                  - 'neutral': No value judgment (e.g., exercise intensity)
  */
-export function generateInsights(entries: PainEntry[]): InsightPattern[] {
+export function generateInsights(
+  entries: PainEntry[],
+  tracker?: Tracker | null
+): InsightPattern[] {
   const insights: InsightPattern[] = []
-  
+
+  // Get polarity for context-aware interpretation
+  // Default to 'high_bad' for backwards compatibility (original pain tracking behavior)
+  const polarity: IntensityScale = tracker
+    ? getTrackerPolarity(tracker)
+    : 'high_bad'
+
   if (entries.length < 3) {
     return [{
       type: 'info',
@@ -387,68 +406,105 @@ export function generateInsights(entries: PainEntry[]): InsightPattern[] {
       severity: 'info',
     }]
   }
-  
-  // Check for intensity trends
-  const trendInsight = detectIntensityTrend(entries)
+
+  // Check for intensity trends (polarity-aware)
+  const trendInsight = detectIntensityTrend(entries, polarity)
   if (trendInsight) insights.push(trendInsight)
-  
-  // Check for streaks
+
+  // Check for streaks (not polarity-dependent)
   const streakInsight = detectStreak(entries)
   if (streakInsight) insights.push(streakInsight)
-  
-  // Check for peak days
-  const peakInsight = detectPeakDays(entries)
+
+  // Check for peak days (polarity-aware)
+  const peakInsight = detectPeakDays(entries, polarity)
   if (peakInsight) insights.push(peakInsight)
-  
-  // Check for trigger correlations
-  const correlationInsight = detectTriggerCorrelation(entries)
+
+  // Check for trigger correlations (polarity-aware)
+  const correlationInsight = detectTriggerCorrelation(entries, polarity)
   if (correlationInsight) insights.push(correlationInsight)
-  
-  // Check for anomalies
-  const anomalyInsight = detectAnomalies(entries)
+
+  // Check for anomalies (polarity-aware)
+  const anomalyInsight = detectAnomalies(entries, polarity)
   if (anomalyInsight) insights.push(anomalyInsight)
-  
+
   return insights
 }
 
 /**
  * Detect intensity trends over last 2 weeks
+ *
+ * Polarity determines what "improving" means:
+ * - high_bad (pain): decreasing intensity = improving
+ * - low_bad (mood): increasing intensity = improving
+ * - neutral: no value judgment, just report change
  */
-function detectIntensityTrend(entries: PainEntry[]): InsightPattern | null {
+function detectIntensityTrend(
+  entries: PainEntry[],
+  polarity: IntensityScale
+): InsightPattern | null {
   const recent = filterByDateRange(entries, 14)
   const older = entries.filter(e => {
     const age = Date.now() - e.timestamp
     return age >= 14 * 24 * 60 * 60 * 1000 && age < 28 * 24 * 60 * 60 * 1000
   })
-  
+
   if (recent.length < 3 || older.length < 3) return null
-  
+
   const recentAvg = recent.reduce((sum, e) => sum + e.intensity, 0) / recent.length
   const olderAvg = older.reduce((sum, e) => sum + e.intensity, 0) / older.length
   const diff = recentAvg - olderAvg
-  
+
   if (Math.abs(diff) < 0.5) return null
-  
-  if (diff < -1) {
+
+  // For neutral polarity, just report the change without value judgment
+  if (polarity === 'neutral') {
+    if (Math.abs(diff) >= 1) {
+      const direction = diff > 0 ? 'increased' : 'decreased'
+      return {
+        type: 'trend',
+        title: 'Trend detected',
+        description: `Your average intensity ${direction} by ${Math.abs(diff).toFixed(1)} points over the last 2 weeks.`,
+        severity: 'info',
+        data: { recentAvg, olderAvg, diff },
+      }
+    }
+    return null
+  }
+
+  // Determine if this is an improvement based on polarity
+  // high_bad: decreasing (diff < 0) is improving
+  // low_bad: increasing (diff > 0) is improving
+  const isImproving = polarity === 'low_bad' ? diff > 1 : diff < -1
+  const isWorsening = polarity === 'low_bad' ? diff < -1 : diff > 1
+
+  if (isImproving) {
+    const changeDesc = polarity === 'low_bad'
+      ? `increased by ${diff.toFixed(1)} points`
+      : `decreased by ${Math.abs(diff).toFixed(1)} points`
+
     return {
       type: 'trend',
       title: 'Improving trend! 📈',
-      description: `Your average intensity decreased by ${Math.abs(diff).toFixed(1)} points over the last 2 weeks.`,
+      description: `Your average ${changeDesc} over the last 2 weeks.`,
       severity: 'success',
-      data: { recentAvg, olderAvg, diff },
+      data: { recentAvg, olderAvg, diff, polarity },
     }
   }
-  
-  if (diff > 1) {
+
+  if (isWorsening) {
+    const changeDesc = polarity === 'low_bad'
+      ? `dropped by ${Math.abs(diff).toFixed(1)} points`
+      : `increased by ${diff.toFixed(1)} points`
+
     return {
       type: 'trend',
-      title: 'Intensity increasing',
-      description: `Your average intensity increased by ${diff.toFixed(1)} points over the last 2 weeks.`,
+      title: polarity === 'low_bad' ? 'Declining trend' : 'Intensity increasing',
+      description: `Your average ${changeDesc} over the last 2 weeks.`,
       severity: 'warning',
-      data: { recentAvg, olderAvg, diff },
+      data: { recentAvg, olderAvg, diff, polarity },
     }
   }
-  
+
   return null
 }
 
@@ -509,48 +565,81 @@ function detectStreak(entries: PainEntry[]): InsightPattern | null {
 
 /**
  * Detect peak days of the week
+ *
+ * Polarity determines what "toughest" means:
+ * - high_bad (pain): highest average = toughest day
+ * - low_bad (mood): lowest average = toughest day
+ * - neutral: report highest/lowest without judgment
  */
-function detectPeakDays(entries: PainEntry[]): InsightPattern | null {
+function detectPeakDays(
+  entries: PainEntry[],
+  polarity: IntensityScale
+): InsightPattern | null {
   if (entries.length < 14) return null
-  
+
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const dayStats = new Array(7).fill(null).map(() => ({ total: 0, count: 0 }))
-  
+
   for (const entry of entries) {
     const day = new Date(entry.timestamp).getDay()
     dayStats[day].total += entry.intensity
     dayStats[day].count++
   }
-  
+
   const dayAvgs = dayStats.map((stat, idx) => ({
     day: dayNames[idx],
     avg: stat.count > 0 ? stat.total / stat.count : 0,
     count: stat.count,
   })).filter(d => d.count >= 2)
-  
+
   if (dayAvgs.length < 3) return null
-  
+
   const sorted = [...dayAvgs].sort((a, b) => b.avg - a.avg)
   const highest = sorted[0]
   const lowest = sorted[sorted.length - 1]
-  
+
   if (highest.avg - lowest.avg < 1.5) return null
-  
+
+  // For neutral polarity, just report variation without "toughest" framing
+  if (polarity === 'neutral') {
+    return {
+      type: 'peak',
+      title: 'Day-of-week pattern',
+      description: `${highest.day}s average ${highest.avg.toFixed(1)} vs ${lowest.day}s at ${lowest.avg.toFixed(1)}.`,
+      severity: 'info',
+      data: { highest, lowest, dayAvgs, polarity },
+    }
+  }
+
+  // Determine toughest/best days based on polarity
+  // high_bad: highest avg = toughest (more pain)
+  // low_bad: lowest avg = toughest (lower mood)
+  const toughest = polarity === 'low_bad' ? lowest : highest
+  const best = polarity === 'low_bad' ? highest : lowest
+
   return {
     type: 'peak',
-    title: `${highest.day}s are toughest`,
-    description: `Average intensity is ${highest.avg.toFixed(1)} on ${highest.day}s vs ${lowest.avg.toFixed(1)} on ${lowest.day}s.`,
+    title: `${toughest.day}s are toughest`,
+    description: `Average is ${toughest.avg.toFixed(1)} on ${toughest.day}s vs ${best.avg.toFixed(1)} on ${best.day}s.`,
     severity: 'info',
-    data: { highest, lowest, dayAvgs },
+    data: { toughest, best, dayAvgs, polarity },
   }
 }
 
 /**
- * Detect trigger correlations with high intensity
+ * Detect trigger correlations with problematic intensity
+ *
+ * Polarity determines what "problematic" means:
+ * - high_bad (pain): trigger linked to HIGHEST avg = concerning
+ * - low_bad (mood): trigger linked to LOWEST avg = concerning
+ * - neutral: report most significant deviation either direction
  */
-function detectTriggerCorrelation(entries: PainEntry[]): InsightPattern | null {
+function detectTriggerCorrelation(
+  entries: PainEntry[],
+  polarity: IntensityScale
+): InsightPattern | null {
   const triggerStats = new Map<string, { total: number; count: number }>()
-  
+
   for (const entry of entries) {
     for (const trigger of entry.triggers ?? []) {
       const existing = triggerStats.get(trigger) ?? { total: 0, count: 0 }
@@ -559,61 +648,162 @@ function detectTriggerCorrelation(entries: PainEntry[]): InsightPattern | null {
       triggerStats.set(trigger, existing)
     }
   }
-  
-  // Find trigger with highest average intensity
-  let highestTrigger: { name: string; avg: number; count: number } | null = null
-  
+
+  if (triggerStats.size === 0) return null
+
+  const overallAvg = entries.reduce((sum, e) => sum + e.intensity, 0) / entries.length
+
+  // Calculate averages for all triggers with sufficient data
+  const triggerAvgs: { name: string; avg: number; count: number; deviation: number }[] = []
   for (const [name, stats] of triggerStats) {
     if (stats.count < 3) continue
     const avg = stats.total / stats.count
-    
-    if (!highestTrigger || avg > highestTrigger.avg) {
-      highestTrigger = { name, avg, count: stats.count }
+    triggerAvgs.push({ name, avg, count: stats.count, deviation: avg - overallAvg })
+  }
+
+  if (triggerAvgs.length === 0) return null
+
+  // Find the most problematic trigger based on polarity
+  let problematicTrigger: typeof triggerAvgs[0] | null = null
+
+  if (polarity === 'low_bad') {
+    // For mood: find trigger with LOWEST avg (most concerning)
+    const sorted = [...triggerAvgs].sort((a, b) => a.avg - b.avg)
+    const lowest = sorted[0]
+    // Only report if significantly below average (deviation < -1.5)
+    if (lowest.deviation < -1.5) {
+      problematicTrigger = lowest
+    }
+  } else if (polarity === 'high_bad') {
+    // For pain: find trigger with HIGHEST avg (most concerning)
+    const sorted = [...triggerAvgs].sort((a, b) => b.avg - a.avg)
+    const highest = sorted[0]
+    // Only report if significantly above average and high enough to matter
+    if (highest.avg >= 6 && highest.deviation > 1.5) {
+      problematicTrigger = highest
+    }
+  } else {
+    // Neutral: find largest deviation in either direction
+    const sorted = [...triggerAvgs].sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation))
+    const mostDeviant = sorted[0]
+    if (Math.abs(mostDeviant.deviation) > 1.5) {
+      problematicTrigger = mostDeviant
     }
   }
-  
-  if (!highestTrigger || highestTrigger.avg < 6) return null
-  
-  const overallAvg = entries.reduce((sum, e) => sum + e.intensity, 0) / entries.length
-  
-  if (highestTrigger.avg - overallAvg < 1.5) return null
-  
+
+  if (!problematicTrigger) return null
+
+  // Build appropriate message based on polarity
+  if (polarity === 'neutral') {
+    const direction = problematicTrigger.deviation > 0 ? 'higher' : 'lower'
+    return {
+      type: 'correlation',
+      title: `"${problematicTrigger.name}" affects intensity`,
+      description: `When you report "${problematicTrigger.name}", average is ${direction} at ${problematicTrigger.avg.toFixed(1)} (vs ${overallAvg.toFixed(1)} overall).`,
+      severity: 'info',
+      data: { trigger: problematicTrigger, overallAvg, polarity },
+    }
+  }
+
+  // For polarized trackers, frame as "linked to worse outcomes"
+  const direction = polarity === 'low_bad' ? 'lower' : 'higher'
   return {
     type: 'correlation',
-    title: `"${highestTrigger.name}" linked to higher intensity`,
-    description: `When you report "${highestTrigger.name}", average intensity is ${highestTrigger.avg.toFixed(1)} (vs ${overallAvg.toFixed(1)} overall).`,
+    title: `"${problematicTrigger.name}" linked to ${direction} values`,
+    description: `When you report "${problematicTrigger.name}", average is ${problematicTrigger.avg.toFixed(1)} (vs ${overallAvg.toFixed(1)} overall).`,
     severity: 'warning',
-    data: { trigger: highestTrigger, overallAvg },
+    data: { trigger: problematicTrigger, overallAvg, polarity },
   }
 }
 
 /**
- * Detect intensity anomalies (sudden spikes)
+ * Detect intensity anomalies (sudden spikes or drops)
+ *
+ * Polarity determines what type of anomaly to look for:
+ * - high_bad (pain): HIGH spikes are concerning (8+ with 3+ deviation)
+ * - low_bad (mood): LOW drops are concerning (3 or below with 3+ deviation)
+ * - neutral: report any significant deviation
  */
-function detectAnomalies(entries: PainEntry[]): InsightPattern | null {
+function detectAnomalies(
+  entries: PainEntry[],
+  polarity: IntensityScale
+): InsightPattern | null {
   const recent = filterByDateRange(entries, 7)
-  
+
   if (recent.length < 2) return null
-  
+
   const recentMax = Math.max(...recent.map(e => e.intensity))
+  const recentMin = Math.min(...recent.map(e => e.intensity))
   const recentAvg = recent.reduce((sum, e) => sum + e.intensity, 0) / recent.length
-  
-  // Check if there's a significant spike
-  if (recentMax >= 8 && recentMax - recentAvg >= 3) {
-    const spikeEntry = recent.find(e => e.intensity === recentMax)
-    const spikeDate = spikeEntry
-      ? formatDateShort(spikeEntry.timestamp)
-      : 'recently'
-    
-    return {
-      type: 'anomaly',
-      title: 'Intensity spike detected',
-      description: `You recorded a ${recentMax}/10 on ${spikeDate}, which is ${(recentMax - recentAvg).toFixed(1)} points above your weekly average.`,
-      severity: 'warning',
-      data: { spikeEntry, recentAvg, recentMax },
+
+  if (polarity === 'low_bad') {
+    // For mood: detect LOW drops (e.g., 2/10 when avg is 6)
+    if (recentMin <= 3 && recentAvg - recentMin >= 3) {
+      const dropEntry = recent.find(e => e.intensity === recentMin)
+      const dropDate = dropEntry
+        ? formatDateShort(dropEntry.timestamp)
+        : 'recently'
+
+      return {
+        type: 'anomaly',
+        title: 'Low point detected',
+        description: `You recorded a ${recentMin}/10 on ${dropDate}, which is ${(recentAvg - recentMin).toFixed(1)} points below your weekly average.`,
+        severity: 'warning',
+        data: { anomalyEntry: dropEntry, recentAvg, recentMin, polarity },
+      }
+    }
+  } else if (polarity === 'high_bad') {
+    // For pain: detect HIGH spikes (existing logic)
+    if (recentMax >= 8 && recentMax - recentAvg >= 3) {
+      const spikeEntry = recent.find(e => e.intensity === recentMax)
+      const spikeDate = spikeEntry
+        ? formatDateShort(spikeEntry.timestamp)
+        : 'recently'
+
+      return {
+        type: 'anomaly',
+        title: 'Intensity spike detected',
+        description: `You recorded a ${recentMax}/10 on ${spikeDate}, which is ${(recentMax - recentAvg).toFixed(1)} points above your weekly average.`,
+        severity: 'warning',
+        data: { anomalyEntry: spikeEntry, recentAvg, recentMax, polarity },
+      }
+    }
+  } else {
+    // Neutral: report any significant deviation
+    const maxDeviation = recentMax - recentAvg
+    const minDeviation = recentAvg - recentMin
+
+    if (maxDeviation >= 3 && maxDeviation >= minDeviation) {
+      const spikeEntry = recent.find(e => e.intensity === recentMax)
+      const spikeDate = spikeEntry
+        ? formatDateShort(spikeEntry.timestamp)
+        : 'recently'
+
+      return {
+        type: 'anomaly',
+        title: 'Unusual high recorded',
+        description: `You recorded a ${recentMax}/10 on ${spikeDate}, which is ${maxDeviation.toFixed(1)} points above your weekly average.`,
+        severity: 'info',
+        data: { anomalyEntry: spikeEntry, recentAvg, recentMax, polarity },
+      }
+    }
+
+    if (minDeviation >= 3) {
+      const dropEntry = recent.find(e => e.intensity === recentMin)
+      const dropDate = dropEntry
+        ? formatDateShort(dropEntry.timestamp)
+        : 'recently'
+
+      return {
+        type: 'anomaly',
+        title: 'Unusual low recorded',
+        description: `You recorded a ${recentMin}/10 on ${dropDate}, which is ${minDeviation.toFixed(1)} points below your weekly average.`,
+        severity: 'info',
+        data: { anomalyEntry: dropEntry, recentAvg, recentMin, polarity },
+      }
     }
   }
-  
+
   return null
 }
 

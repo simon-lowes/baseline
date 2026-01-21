@@ -8,6 +8,7 @@
 import { useMemo } from 'react'
 import { generateInsights, type InsightPattern } from '@/lib/analytics-utils'
 import type { PainEntry } from '@/types/pain-entry'
+import type { Tracker } from '@/types/tracker'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import {
@@ -22,16 +23,21 @@ import {
 
 interface InsightsPanelProps {
   entries: PainEntry[]
+  /** Tracker context for polarity-aware insights */
+  tracker?: Tracker | null
   onInsightClick?: (insight: InsightPattern) => void
 }
 
 export function InsightsPanel({
   entries,
+  tracker,
   onInsightClick,
 }: InsightsPanelProps) {
+  // Generate insights with tracker context for polarity awareness
+  // Without tracker, defaults to 'high_bad' (pain) interpretation
   const insights = useMemo(() => {
-    return generateInsights(entries)
-  }, [entries])
+    return generateInsights(entries, tracker)
+  }, [entries, tracker])
 
   if (insights.length === 0) {
     return (
