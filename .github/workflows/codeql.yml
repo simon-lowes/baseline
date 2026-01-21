@@ -1,5 +1,5 @@
 # Custom CodeQL workflow
-# Using pinned version to avoid repository properties API issues
+# Using v4 with explicit permissions (the default setup was failing)
 name: "CodeQL"
 
 on:
@@ -19,8 +19,6 @@ jobs:
       actions: read
       contents: read
       security-events: write
-      # Try adding metadata permission to help with repo properties
-      metadata: read
 
     strategy:
       fail-fast: false
