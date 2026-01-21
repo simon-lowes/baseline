@@ -34,6 +34,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Magic links now work when email clients pre-fetch/scan links (PKCE flow)
 - Auth errors in URL hash now display user-friendly error messages instead of silent failure
 - Users trying to sign up with existing email now see clear guidance to sign in instead
+- AI insights now understand tracker polarity (high_bad vs low_bad)
+  - For pain trackers: decreasing intensity = "improving trend"
+  - For mood/sleep trackers: increasing intensity = "improving trend"
+  - Peak days, trigger correlations, and anomaly detection all respect polarity
+  - Previously all trackers were treated like pain (decreasing = better)
 
 ---
 

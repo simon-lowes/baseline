@@ -382,6 +382,59 @@ const configMap: Record<TrackerPresetId, TrackerConfig> = {
   exercise: exerciseConfig,
 };
 
+// =============================================================================
+// Polarity Mapping - What does "high" vs "low" mean for each tracker?
+// =============================================================================
+
+/**
+ * Maps preset IDs to their intensity scale polarity.
+ *
+ * - 'high_bad': Higher values are concerning (pain, symptoms, cramping)
+ * - 'low_bad': Lower values are concerning (mood, sleep quality)
+ * - 'neutral': No inherent good/bad judgment (exercise intensity, medication dosage)
+ */
+const PRESET_POLARITIES: Record<TrackerPresetId, IntensityScale> = {
+  chronic_pain: 'high_bad',    // 10 = extreme pain (bad)
+  mood: 'low_bad',             // 1 = very low mood (bad)
+  sleep: 'low_bad',            // 1 = terrible sleep (bad)
+  menstrual_cycle: 'high_bad', // 10 = severe symptoms (bad)
+  medication: 'low_bad',       // 1 = no effect (could be bad depending on context)
+  exercise: 'neutral',         // intensity is just a measure, not good/bad
+};
+
+/**
+ * Get the polarity for a preset tracker type.
+ * Used by insights to interpret whether increasing/decreasing values are good or bad.
+ */
+export function getPresetPolarity(presetId: TrackerPresetId): IntensityScale {
+  return PRESET_POLARITIES[presetId] ?? 'high_bad';
+}
+
+/**
+ * Get the polarity for any tracker (preset or custom).
+ * Checks generated_config first, then falls back to preset polarity.
+ *
+ * @param tracker - The tracker object (or just preset_id and generated_config)
+ * @returns The intensity scale polarity
+ */
+export function getTrackerPolarity(tracker: {
+  preset_id?: TrackerPresetId | null;
+  generated_config?: GeneratedTrackerConfig | null;
+}): IntensityScale {
+  // Custom trackers with AI-generated config have explicit polarity
+  if (tracker.generated_config?.intensityScale) {
+    return tracker.generated_config.intensityScale;
+  }
+
+  // Preset trackers use the hardcoded mapping
+  if (tracker.preset_id) {
+    return PRESET_POLARITIES[tracker.preset_id] ?? 'high_bad';
+  }
+
+  // Default for unknown trackers (pain-like behavior)
+  return 'high_bad';
+}
+
 /**
  * Get intensity labels based on scale type
  */
