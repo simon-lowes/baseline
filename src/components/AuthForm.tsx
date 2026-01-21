@@ -570,16 +570,20 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         title: 'Check your email',
         message: 'We\'ve sent you a sign-in link',
         action: 'Click the link to sign in',
+        warning: null,
       },
       passwordReset: {
         title: 'Check your email',
         message: 'We\'ve sent you a password reset link',
         action: 'Click the link to reset your password',
+        warning: null,
       },
       signUpConfirmation: {
         title: 'Verify your email',
         message: 'We\'ve sent you a confirmation link',
         action: 'Click the link to activate your account',
+        // Warning about potential silent failure for existing users
+        warning: 'Already have an account? You won\'t receive a new email — try signing in instead.',
       },
     };
 
@@ -601,6 +605,15 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
 
         {/* Action hint */}
         <p className="text-sm text-muted-foreground">{config.action}</p>
+
+        {/* Warning for signup (existing user won't receive email) */}
+        {config.warning && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 text-left">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              {config.warning}
+            </p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-3 pt-2">

@@ -12,16 +12,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Theme CTA (colour picker pulse) shows max 6 times, persists via server for auth users
   - Mode indicator tooltip (Light/Dark/System) shows once per session, auto-dismisses
   - Server-side sync via `profiles.theme_onboarding_completed` column
+- Authentication recovery dialog for expired/invalid magic links
+  - Clear explanation of what happened (link expired, pre-fetched by email client)
+  - Option to request a new magic link directly from the dialog
+  - Option to switch to password sign-in
+- PKCE-based magic link verification (`/auth/confirm` route)
+  - Immune to email client link pre-fetching (requires JS execution)
+  - Dedicated landing page with loading, success, and error states
 
 ### Changed
 
 - Legal documents updated to British English spelling
 - Terms of Service liability cap simplified for free app (£100 flat cap)
 - Theme CTA tooltip changed from "Pick your theme! 🎨" to "Personalise your theme"
+- Magic link redirects now use `/auth/confirm` for PKCE flow (improved reliability)
+- Signup confirmation screen now warns existing users they won't receive an email
 
 ### Fixed
 
 - Theme onboarding tooltips no longer overlap on mobile (mode indicator hidden when CTA active)
+- Magic links now work when email clients pre-fetch/scan links (PKCE flow)
+- Auth errors in URL hash now display user-friendly error messages instead of silent failure
+- Users trying to sign up with existing email now see clear guidance to sign in instead
 
 ---
 

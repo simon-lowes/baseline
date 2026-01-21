@@ -223,10 +223,13 @@ export const supabaseAuth: AuthPort = {
   },
 
   async signInWithMagicLink(params: MagicLinkParams) {
+    // Use PKCE flow by redirecting to /auth/confirm
+    // This is immune to email client pre-fetching because the token
+    // exchange requires JavaScript execution (verifyOtp call)
     const { error } = await supabaseClient.auth.signInWithOtp({
       email: params.email,
       options: {
-        emailRedirectTo: params.redirectTo ?? globalThis.location.origin,
+        emailRedirectTo: params.redirectTo ?? `${globalThis.location.origin}/auth/confirm`,
       },
     });
 
