@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - For mood/sleep trackers: increasing intensity = "improving trend"
   - Peak days, trigger correlations, and anomaly detection all respect polarity
   - Previously all trackers were treated like pain (decreasing = better)
+- Aggregated "View Your Progress" insights now analyze each tracker with correct polarity
+  - Entries are grouped by tracker and analyzed with their respective polarity
+  - Insight titles now prefixed with tracker name (e.g., "Mood: Improving trend!")
+  - Previously all entries were analyzed as pain (high_bad) in aggregated view
 
 ---
 

@@ -23,21 +23,68 @@ import {
 
 interface InsightsPanelProps {
   entries: PainEntry[]
-  /** Tracker context for polarity-aware insights */
+  /** Tracker context for polarity-aware insights (single tracker view) */
   tracker?: Tracker | null
+  /** All trackers for aggregated view - used to look up polarity per entry */
+  trackers?: Tracker[]
   onInsightClick?: (insight: InsightPattern) => void
 }
 
 export function InsightsPanel({
   entries,
   tracker,
+  trackers,
   onInsightClick,
 }: InsightsPanelProps) {
-  // Generate insights with tracker context for polarity awareness
-  // Without tracker, defaults to 'high_bad' (pain) interpretation
+  // Generate insights with proper polarity awareness
+  // - Single tracker: use that tracker's polarity
+  // - Aggregated view: group by tracker_id and generate per-tracker insights
   const insights = useMemo(() => {
-    return generateInsights(entries, tracker)
-  }, [entries, tracker])
+    // Single tracker mode - use existing logic
+    if (tracker) {
+      return generateInsights(entries, tracker)
+    }
+
+    // Aggregated view with trackers available - generate per-tracker insights
+    if (trackers && trackers.length > 0 && entries.length > 0) {
+      // Group entries by tracker_id
+      const entriesByTracker: Record<string, PainEntry[]> = {}
+      for (const entry of entries) {
+        const tid = entry.tracker_id
+        if (!entriesByTracker[tid]) {
+          entriesByTracker[tid] = []
+        }
+        entriesByTracker[tid].push(entry)
+      }
+
+      // Generate insights for each tracker with correct polarity
+      const allInsights: InsightPattern[] = []
+      for (const [trackerId, trackerEntries] of Object.entries(entriesByTracker)) {
+        const trackerObj = trackers.find(t => t.id === trackerId)
+        if (!trackerObj || trackerEntries.length < 3) continue
+
+        const trackerInsights = generateInsights(trackerEntries, trackerObj)
+
+        // Prefix insight titles with tracker name for clarity
+        trackerInsights.forEach(insight => {
+          insight.title = `${trackerObj.name}: ${insight.title}`
+        })
+
+        allInsights.push(...trackerInsights)
+      }
+
+      // Limit to avoid overwhelming UI - prioritize success/warning over info
+      const sorted = allInsights.sort((a, b) => {
+        const priority = { warning: 0, success: 1, info: 2 }
+        return priority[a.severity] - priority[b.severity]
+      })
+
+      return sorted.slice(0, 8)
+    }
+
+    // Fallback: no tracker context, use default (backward compatible)
+    return generateInsights(entries, null)
+  }, [entries, tracker, trackers])
 
   if (insights.length === 0) {
     return (

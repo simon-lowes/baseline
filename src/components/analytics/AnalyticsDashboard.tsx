@@ -639,6 +639,7 @@ export function AnalyticsDashboard({
                     interlinkPairs={interlinkPairs}
                     onInterlinkPairsChange={setInterlinkPairs}
                     currentTracker={currentTracker}
+                    trackers={trackers}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -702,8 +703,10 @@ interface ChartContentProps {
   interlinkPairs: TrackerPair[]
   /** Callback to update interlink pairs */
   onInterlinkPairsChange: (pairs: TrackerPair[]) => void
-  /** Current tracker for polarity-aware insights */
+  /** Current tracker for polarity-aware insights (single tracker view) */
   currentTracker?: Tracker | null
+  /** All trackers for aggregated view insights */
+  trackers: Tracker[]
 }
 
 function ChartContent({
@@ -717,10 +720,11 @@ function ChartContent({
   interlinkPairs,
   onInterlinkPairsChange,
   currentTracker,
+  trackers,
 }: ChartContentProps) {
   switch (section) {
     case 'insights':
-      return <InsightsPanel entries={entries} tracker={currentTracker} />
+      return <InsightsPanel entries={entries} tracker={currentTracker} trackers={trackers} />
     case 'interlinked':
       return (
         <div className="space-y-6">
