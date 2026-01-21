@@ -44,6 +44,8 @@ import { ThemeSwitcher } from '@/components/ThemeSwitcher'
 import { AccountSettings } from '@/components/AccountSettings'
 import { PrivacyPolicy, TermsOfService } from '@/components/legal'
 import { HelpCenter } from '@/components/help'
+import { AuthExpiredDialog } from '@/components/AuthExpiredDialog'
+import { AuthConfirm } from '@/components/AuthConfirm'
 
 // Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
@@ -70,6 +72,7 @@ function AppContent({ authState }: AppContentProps) {
   const [loading, setLoading] = useState(true)
   const [emailConfirmed, setEmailConfirmed] = useState(false)
   const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false)
+  const [authExpiredOpen, setAuthExpiredOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [updatingPassword, setUpdatingPassword] = useState(false)
@@ -118,6 +121,32 @@ function AppContent({ authState }: AppContentProps) {
 
   // Create sync controller (stable reference)
   const [syncController] = useState(() => createSyncController())
+
+  // Handle auth errors in URL hash (expired/invalid magic links)
+  // This runs BEFORE the auth state handler to catch errors from failed link clicks
+  useEffect(() => {
+    const hashParams = new URLSearchParams(globalThis.location.hash.substring(1))
+    const errorDescription = hashParams.get('error_description')
+    const errorCode = hashParams.get('error_code')
+
+    if (errorDescription) {
+      // Decode the error message (URL-encoded)
+      const message = decodeURIComponent(errorDescription.replace(/\+/g, ' '))
+
+      // Check if this is an expired/invalid link error
+      if (message.includes('expired') || message.includes('invalid') || errorCode === '403') {
+        // Show recovery dialog
+        setAuthExpiredOpen(true)
+        toast.error('This sign-in link has expired or was already used.')
+      } else {
+        // Generic auth error
+        toast.error(`Authentication error: ${message}`)
+      }
+
+      // Clean up the URL
+      globalThis.history.replaceState(null, '', globalThis.location.pathname)
+    }
+  }, [])
 
   // Handle auth events (email confirmation, password recovery)
   useEffect(() => {
@@ -700,6 +729,12 @@ function AppContent({ authState }: AppContentProps) {
         onAccountDeleted={handleSignOut}
       />
 
+      {/* Auth Expired Dialog - shown when magic link fails */}
+      <AuthExpiredDialog
+        open={authExpiredOpen}
+        onOpenChange={setAuthExpiredOpen}
+      />
+
       {/* Email confirmed banner */}
       {emailConfirmed && (
         <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-3 text-center">
@@ -1121,6 +1156,22 @@ function AppContent({ authState }: AppContentProps) {
  */
 function App() {
   const authState = useSupabaseAuth();
+
+  // Handle /auth/confirm route for PKCE magic link verification
+  // This path is used when users click magic links from email
+  if (globalThis.location.pathname === '/auth/confirm') {
+    return (
+      <>
+        <Toaster />
+        <AuthConfirm
+          onReturnToApp={() => {
+            globalThis.location.href = '/'
+          }}
+        />
+      </>
+    )
+  }
+
   return <AppContent authState={authState} />;
 }
 
