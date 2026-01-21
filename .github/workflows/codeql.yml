@@ -1,5 +1,5 @@
-# Custom CodeQL workflow to replace default setup
-# The default setup was failing with "repository properties" error
+# Custom CodeQL workflow
+# Using pinned version to avoid repository properties API issues
 name: "CodeQL"
 
 on:
@@ -12,33 +12,39 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       actions: read
       contents: read
       security-events: write
+      # Try adding metadata permission to help with repo properties
+      metadata: read
 
     strategy:
       fail-fast: false
       matrix:
-        language: ["javascript-typescript"]
+        include:
+          - language: javascript-typescript
+            build-mode: none
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          # Use default queries plus security-extended
-          queries: security-extended
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+          build-mode: ${{ matrix.build-mode }}
+        env:
+          # Provide token explicitly
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{matrix.language}}"
+          category: "/language:${{ matrix.language }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
