@@ -12,26 +12,37 @@ const STORAGE_KEY = 'baseline-custom-accent'
 
 /**
  * Apply a custom accent color to the document
+ *
+ * Sets both --primary and --accent since shadcn/ui uses:
+ * - --primary for main UI elements (buttons, switches, badges)
+ * - --accent for secondary highlighting (hover states, focus backgrounds)
  */
 function applyAccentToDOM(oklch: string) {
   const root = document.documentElement
 
-  // Set the main accent color
-  root.style.setProperty('--accent', oklch)
-
-  // Set contrasting foreground for text on accent backgrounds
+  // Calculate contrasting foreground for text on colored backgrounds
   const foreground = getContrastingForeground(oklch)
+
+  // Set primary color (used by buttons, switches, progress bars, etc.)
+  root.style.setProperty('--primary', oklch)
+  root.style.setProperty('--primary-foreground', foreground)
+
+  // Set accent color (used for hover states, focus backgrounds, etc.)
+  root.style.setProperty('--accent', oklch)
   root.style.setProperty('--accent-foreground', foreground)
 
-  // Also update ring color for focus states
+  // Update ring color for focus states
   root.style.setProperty('--ring', oklch)
 }
 
 /**
  * Remove custom accent colors from the document
+ * This restores the theme's default colors
  */
 function removeAccentFromDOM() {
   const root = document.documentElement
+  root.style.removeProperty('--primary')
+  root.style.removeProperty('--primary-foreground')
   root.style.removeProperty('--accent')
   root.style.removeProperty('--accent-foreground')
   root.style.removeProperty('--ring')
