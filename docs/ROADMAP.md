@@ -12,7 +12,45 @@ Transform the Chronic Pain Diary into **Baseline** — a flexible, user-centric 
 
 - **Current Version**: v4.1.0 (Account Settings & GDPR Compliance)
 - **Completed Phases**: 1, 2, 3, 3b, 4, 5, 7, Account Settings (see [ROADMAP_COMPLETED.md](ROADMAP_COMPLETED.md))
-- **Next Up**: Phase 6 (AI-Powered Health Reports)
+- **Next Up**: Authentication polish, then Phase 6 (AI-Powered Health Reports)
+
+---
+
+## Pending: Authentication & Email Flow Polish
+
+### Background
+
+Supabase email links (magic links, password reset, etc.) are vulnerable to email client link pre-fetching, where security scanners like Microsoft SafeLinks or Gmail's link preview consume the one-time token before the user clicks. We've implemented PKCE-based verification flows that require JavaScript execution, making them immune to pre-fetching.
+
+### Status
+
+| Email Template | PKCE Route | Status |
+|----------------|------------|--------|
+| Magic link (sign in) | `/auth/confirm` | ✅ Complete |
+| Password reset | `/reset-password` | ✅ Complete |
+| Confirm signup | N/A | Not needed (`enable_confirmations = false`) |
+| Invite user | N/A | Not needed (open signups, no invite system) |
+| **Change email address** | `/auth/confirm-email-change` (proposed) | ⚠️ **TODO** |
+| Reauthentication (2FA) | TBD | Deferred until 2FA implemented |
+
+### TODO: Change Email Address PKCE Flow
+
+When a user changes their email in Account Settings, Supabase sends a confirmation link to the new address. This link is vulnerable to the same pre-fetch issue.
+
+**Implementation needed:**
+1. Create `/auth/confirm-email-change` route in `App.tsx`
+2. Create `ConfirmEmailChange.tsx` component (similar to `ResetPassword.tsx`)
+3. Update Supabase email template to use PKCE format:
+   ```
+   {{ .SiteURL }}/auth/confirm-email-change?token_hash={{ .TokenHash }}&type=email_change
+   ```
+4. Handle the `email_change` token type in the component
+
+**Supabase Dashboard location:** Authentication → Email Templates → "Change Email Address"
+
+### Future: Social Auth ("Sign in with...")
+
+Currently deferred. Plan is to add OAuth providers (Google, Apple, etc.) once core app is stable. This will reduce reliance on email-based auth flows.
 
 ---
 
@@ -59,4 +97,4 @@ All previously identified technical debt (offline support, accessibility, perfor
 
 ---
 
-_Last updated: January 15, 2026_
+_Last updated: January 22, 2026_
