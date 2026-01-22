@@ -41,3 +41,4 @@ pids
 .playwright-mcp/
 .vercel
 .env*.local
+sbom.json
