@@ -408,7 +408,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
           </div>
         </div>
 
-        {/* Magic link option */}
+        {/* Magic link option - works for both sign-in and sign-up */}
         <Button
           type="button"
           variant="outline"
@@ -416,7 +416,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
           className="w-full h-11"
         >
           <EnvelopeSimple className="w-4 h-4 mr-2" />
-          Sign in with email link
+          Continue with email
         </Button>
 
         {/* Sign up link */}
@@ -522,9 +522,9 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
     return (
       <form onSubmit={handleMagicLink} className="space-y-4">
         <div className="mb-2">
-          <h2 className="text-lg font-semibold text-foreground">Sign in with email link</h2>
+          <h2 className="text-lg font-semibold text-foreground">Continue with email</h2>
           <p className="text-sm text-muted-foreground">
-            We'll send you a secure link to sign in — no password needed
+            We'll email you a secure link — works for new and existing accounts
           </p>
         </div>
 
@@ -552,7 +552,7 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
           className="flex items-center justify-center gap-1 w-full text-sm text-muted-foreground hover:text-foreground transition-colors pt-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to sign in with password
+          Back to password sign in
         </button>
 
         {trustBadge}
@@ -568,8 +568,8 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
     const purposeConfig = {
       magicLink: {
         title: 'Check your email',
-        message: 'We\'ve sent you a sign-in link',
-        action: 'Click the link to sign in',
+        message: 'We\'ve sent you a link to continue',
+        action: 'Click the link to sign in or create your account',
         warning: null,
       },
       passwordReset: {

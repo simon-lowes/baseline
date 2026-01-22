@@ -22,6 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Magic links now work for both sign-in AND account creation (dual-purpose)
+  - Button changed from "Sign in with email link" to "Continue with email"
+  - Subtitle now says "works for new and existing accounts"
+  - Check email screen messaging updated to reflect dual purpose
+  - Improves accessibility for neurodiverse users who may miss smaller "Create account" link
 - Legal documents updated to British English spelling
 - Terms of Service liability cap simplified for free app (£100 flat cap)
 - Theme CTA tooltip changed from "Pick your theme! 🎨" to "Personalise your theme"
