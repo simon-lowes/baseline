@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Theme colour intensity increased for better visibility
+  - Background, card, and border chroma values boosted 2-3x across all 9 colour themes
+  - Light mode: backgrounds now have 0.025 chroma (was ~0.01), borders have 0.05 (was ~0.02)
+  - Dark mode: backgrounds now have 0.03 chroma (was ~0.02), borders have 0.05 (was ~0.02)
+  - Theme changes are now noticeably visible while remaining subtle and professional
+  - High-contrast accessibility theme unchanged
+
 ### Added
 
 - Theme onboarding system with respectful, non-intrusive indicators
