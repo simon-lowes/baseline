@@ -46,6 +46,7 @@ import { PrivacyPolicy, TermsOfService } from '@/components/legal'
 import { HelpCenter } from '@/components/help'
 import { AuthExpiredDialog } from '@/components/AuthExpiredDialog'
 import { AuthConfirm } from '@/components/AuthConfirm'
+import { ResetPassword } from '@/components/ResetPassword'
 
 // Supabase auth hook
 import { useSupabaseAuth, type UseAuthResult } from '@/hooks/useAuth'
@@ -1164,6 +1165,21 @@ function App() {
       <>
         <Toaster />
         <AuthConfirm
+          onReturnToApp={() => {
+            globalThis.location.href = '/'
+          }}
+        />
+      </>
+    )
+  }
+
+  // Handle /reset-password route for password reset flow
+  // This path is used when users click password reset links from email
+  if (globalThis.location.pathname === '/reset-password') {
+    return (
+      <>
+        <Toaster />
+        <ResetPassword
           onReturnToApp={() => {
             globalThis.location.href = '/'
           }}

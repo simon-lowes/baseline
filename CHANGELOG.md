@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - PKCE-based magic link verification (`/auth/confirm` route)
   - Immune to email client link pre-fetching (requires JS execution)
   - Dedicated landing page with loading, success, and error states
+- Password reset page (`/reset-password` route)
+  - Dedicated landing page with token verification and password form
+  - Uses PKCE flow for reliability (immune to email client pre-fetching)
+  - Clear error handling for expired/invalid links
 
 ### Changed
 
