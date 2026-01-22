@@ -48,6 +48,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Entries are grouped by tracker and analyzed with their respective polarity
   - Insight titles now prefixed with tracker name (e.g., "Mood: Improving trend!")
   - Previously all entries were analyzed as pain (high_bad) in aggregated view
+- Custom accent colour now properly overrides theme colours
+  - Now sets both `--primary` (buttons, switches) and `--accent` (hover states)
+  - Previously only set `--accent`, leaving main UI elements unchanged
 
 ---
 
