@@ -48,6 +48,41 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // JWT Authentication - Require valid user token
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  const authHeader = req.headers.get('authorization') || '';
+  const match = authHeader.match(/^Bearer\s+(.*)$/i);
+
+  if (!match) {
+    console.error('Missing or invalid Authorization header');
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid Authorization header' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const userToken = match[1];
+
+  // Verify token by fetching user from Supabase Auth
+  const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseServiceKey,
+    },
+  });
+
+  if (!userResp.ok) {
+    const text = await userResp.text();
+    console.error('Failed to verify user token:', userResp.status, text);
+    return new Response(
+      JSON.stringify({ error: 'Invalid user token' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     let term = '';
     let max = DEFAULT_MAX;
