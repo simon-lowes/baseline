@@ -485,8 +485,8 @@ function AppContent({ authState }: AppContentProps) {
       filtered = filtered.filter(entry => {
         const text = [
           entry.notes,
-          entry.triggers.join(' '),
-          entry.locations.join(' '),
+          (entry.triggers ?? []).join(' '),
+          (entry.locations ?? []).join(' '),
           (entry.hashtags ?? []).map(tag => `#${tag}`).join(' '),
           String(entry.intensity),
         ]

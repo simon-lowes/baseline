@@ -13,7 +13,7 @@ describe('supabaseTracker.createTracker (server-side guard)', () => {
     // Spy on from to ensure insert is NOT called
     const fromSpy = vi.spyOn(supabaseClient, 'from');
 
-    const result = await supabaseTracker.createTracker({ name: 'Flying' });
+    const result = await supabaseTracker.createTracker({ name: 'Flying', type: 'preset' });
     expect(result.error).toBeDefined();
     expect(result.error?.message.toLowerCase()).toContain('ambiguous');
     // ensure we did attempt to use supabase client (auth.getUser) but not call insert (can't assert insert easily);
@@ -31,7 +31,7 @@ describe('supabaseTracker.createTracker (server-side guard)', () => {
     };
     vi.spyOn(supabaseClient, 'from').mockReturnValue(insertMock as any);
 
-    const result = await supabaseTracker.createTracker({ name: 'Flying', confirmed_interpretation: 'air-travel' });
+    const result = await supabaseTracker.createTracker({ name: 'Flying', type: 'preset', confirmed_interpretation: 'air-travel' });
     expect(result.error).toBeNull();
     expect(result.data).toBeDefined();
     expect(result.data?.name).toBe('Flying');
