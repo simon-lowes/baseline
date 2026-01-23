@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Search crash when entries have null `triggers` or `locations` arrays
+  - Added nullish coalescing (`?? []`) before calling `.join()` in search filter
+  - Matches existing defensive pattern used for `hashtags` field
+- Failing unit tests for ambiguous tracker name guard
+  - Tests were hitting `generated_config` validation before reaching ambiguous name check
+  - Added `type: 'preset'` to test inputs to bypass unrelated validation
+
 ### Changed
 
 - Theme colour intensity increased for better visibility
