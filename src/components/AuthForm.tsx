@@ -409,15 +409,20 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
         </div>
 
         {/* Magic link option - works for both sign-in and sign-up */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => goToStage('magicLink')}
-          className="w-full h-11"
-        >
-          <EnvelopeSimple className="w-4 h-4 mr-2" />
-          Continue with email
-        </Button>
+        <div className="space-y-2">
+          <p className="text-center text-sm text-muted-foreground">
+            New or returning? We'll email you a sign-in link
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => goToStage('magicLink')}
+            className="w-full h-11"
+          >
+            <EnvelopeSimple className="w-4 h-4 mr-2" />
+            Email me a sign-in link
+          </Button>
+        </div>
 
         {/* Sign up link */}
         <p className="text-center text-sm text-muted-foreground pt-2">
