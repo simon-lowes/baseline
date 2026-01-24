@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- High Contrast theme is now toggleable (click again to exit)
+  - Follows accessibility best practice: accessibility features should be toggleable
+  - Remembers previous theme and restores it when toggling off
+  - Falls back to Zinc if no previous theme stored
 - Magic link button on sign-in page now clearly explains its dual purpose
   - Added helper text above button: "New or returning? We'll email you a sign-in link"
   - Renamed button from "Continue with email" to "Email me a sign-in link"
@@ -49,6 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Custom accent colour picker now works when High Contrast theme is active
+  - Previously, picking a custom colour while on High Contrast didn't visually change the UI
+  - Now automatically switches to Zinc theme before applying custom accent
+  - High Contrast's stark black/white was overriding the custom colour effect
 - Custom accent colour now cleared when selecting a preset theme
   - Previously, custom accent inline styles overrode preset theme CSS due to specificity
   - Now clicking any preset theme (Zinc, Rose, Violet, etc.) clears the custom accent
