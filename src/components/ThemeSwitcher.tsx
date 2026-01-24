@@ -356,11 +356,22 @@ export function ColorThemePicker() {
   }
 
   const handleColorChange = (newColor: ColorTheme) => {
+    // Clear any custom accent so the preset theme colors take effect
+    // (inline styles from custom accent would otherwise override theme CSS)
+    if (customAccent) {
+      clearCustomAccent()
+    }
+
     setTheme(buildTheme(newColor, isDark))
 
     // Sync to server for authenticated users
     if (isAuthenticated) {
-      updatePreferences({ themeColor: newColor })
+      // If we had a custom accent, clear it on server too
+      if (customAccent) {
+        updatePreferences({ themeColor: newColor, customAccent: null })
+      } else {
+        updatePreferences({ themeColor: newColor })
+      }
     }
   }
 

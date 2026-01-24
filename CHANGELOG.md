@@ -49,6 +49,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Custom accent colour now cleared when selecting a preset theme
+  - Previously, custom accent inline styles overrode preset theme CSS due to specificity
+  - Now clicking any preset theme (Zinc, Rose, Violet, etc.) clears the custom accent
+  - Also syncs the clearing to server for authenticated users
 - Search crash when entries have null `triggers` or `locations` arrays
   - Added nullish coalescing (`?? []`) before calling `.join()` in search filter
   - Matches existing defensive pattern used for `hashtags` field
