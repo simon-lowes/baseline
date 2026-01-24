@@ -36,6 +36,7 @@ import { useUserPreferences } from '@/hooks/use-user-preferences'
 import { useThemeOnboarding } from '@/hooks/use-theme-onboarding'
 
 const THEME_MODE_KEY = 'baseline-theme-mode'
+const PREVIOUS_THEME_KEY = 'baseline-previous-theme' // For toggling out of high contrast
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -362,6 +363,27 @@ export function ColorThemePicker() {
       clearCustomAccent()
     }
 
+    // High Contrast toggle behavior:
+    // - If clicking High Contrast while not on it: save current theme, switch to High Contrast
+    // - If clicking High Contrast while already on it: restore previous theme (toggle off)
+    if (newColor === 'highcontrast') {
+      if (currentColor === 'highcontrast') {
+        // Toggle OFF: restore previous theme
+        const previousTheme = localStorage.getItem(PREVIOUS_THEME_KEY) as ColorTheme | null
+        const restoreColor = previousTheme || 'zinc'
+        setTheme(buildTheme(restoreColor, isDark))
+        localStorage.removeItem(PREVIOUS_THEME_KEY)
+
+        if (isAuthenticated) {
+          updatePreferences({ themeColor: restoreColor, customAccent: customAccent ? null : undefined })
+        }
+        return
+      } else {
+        // Toggle ON: save current theme before switching
+        localStorage.setItem(PREVIOUS_THEME_KEY, currentColor)
+      }
+    }
+
     setTheme(buildTheme(newColor, isDark))
 
     // Sync to server for authenticated users
@@ -376,12 +398,19 @@ export function ColorThemePicker() {
   }
 
   const handleCustomAccentChange = (oklch: string) => {
-    setCustomAccent(oklch)
-
-    // Sync to server for authenticated users
-    if (isAuthenticated) {
+    // If currently on high contrast, switch to zinc first
+    // High contrast is an accessibility mode with intentionally stark colours;
+    // picking a custom accent implies the user wants a normal UI with their colour
+    if (currentColor === 'highcontrast') {
+      setTheme(buildTheme('zinc', isDark))
+      if (isAuthenticated) {
+        updatePreferences({ themeColor: 'zinc', customAccent: oklch })
+      }
+    } else if (isAuthenticated) {
       updatePreferences({ customAccent: oklch })
     }
+
+    setCustomAccent(oklch)
   }
 
   const handleCustomAccentClear = () => {
