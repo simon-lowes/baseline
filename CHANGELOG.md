@@ -6,24 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
-
-- Search crash when entries have null `triggers` or `locations` arrays
-  - Added nullish coalescing (`?? []`) before calling `.join()` in search filter
-  - Matches existing defensive pattern used for `hashtags` field
-- Failing unit tests for ambiguous tracker name guard
-  - Tests were hitting `generated_config` validation before reaching ambiguous name check
-  - Added `type: 'preset'` to test inputs to bypass unrelated validation
-
-### Changed
-
-- Theme colour intensity increased for better visibility
-  - Background, card, and border chroma values boosted 2-3x across all 9 colour themes
-  - Light mode: backgrounds now have 0.025 chroma (was ~0.01), borders have 0.05 (was ~0.02)
-  - Dark mode: backgrounds now have 0.03 chroma (was ~0.02), borders have 0.05 (was ~0.02)
-  - Theme changes are now noticeably visible while remaining subtle and professional
-  - High-contrast accessibility theme unchanged
-
 ### Added
 
 - Theme onboarding system with respectful, non-intrusive indicators
@@ -44,6 +26,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Magic link button on sign-in page now clearly explains its dual purpose
+  - Added helper text above button: "New or returning? We'll email you a sign-in link"
+  - Renamed button from "Continue with email" to "Email me a sign-in link"
+  - Users now understand the button works for both sign-up and sign-in before clicking
+- Theme colour intensity increased for better visibility
+  - Background, card, and border chroma values boosted 2-3x across all 9 colour themes
+  - Light mode: backgrounds now have 0.025 chroma (was ~0.01), borders have 0.05 (was ~0.02)
+  - Dark mode: backgrounds now have 0.03 chroma (was ~0.02), borders have 0.05 (was ~0.02)
+  - Theme changes are now noticeably visible while remaining subtle and professional
+  - High-contrast accessibility theme unchanged
 - Magic links now work for both sign-in AND account creation (dual-purpose)
   - Button changed from "Sign in with email link" to "Continue with email"
   - Subtitle now says "works for new and existing accounts"
@@ -57,6 +49,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Search crash when entries have null `triggers` or `locations` arrays
+  - Added nullish coalescing (`?? []`) before calling `.join()` in search filter
+  - Matches existing defensive pattern used for `hashtags` field
+- Failing unit tests for ambiguous tracker name guard
+  - Tests were hitting `generated_config` validation before reaching ambiguous name check
+  - Added `type: 'preset'` to test inputs to bypass unrelated validation
 - Theme onboarding tooltips no longer overlap on mobile (mode indicator hidden when CTA active)
 - Magic links now work when email clients pre-fetch/scan links (PKCE flow)
 - Auth errors in URL hash now display user-friendly error messages instead of silent failure
