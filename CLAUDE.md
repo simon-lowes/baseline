@@ -66,6 +66,19 @@ npm run lint         # ESLint check
 - `README.md` - Setup instructions
 - `src/components/ui/` - shadcn component library
 
+## GitHub Repository Configuration
+
+**Branch protection on `main`** (configured Jan 2026):
+- Required status checks: CodeQL (`Analyze (javascript-typescript)`) and Vercel
+- Strict mode: branches must be up-to-date before merging
+- Enforce admins: true (even admins can't bypass)
+- No force pushes or branch deletion allowed
+- No required PR reviews (solo project - automated checks are the safety net)
+
+**Dependabot auto-merge**: Enabled. PRs auto-merge after CodeQL and Vercel pass.
+
+**Security rationale**: CodeQL scans every PR for vulnerabilities before merge. Human review not required for solo dev, but automated security scanning is enforced. If collaborators are added, revisit and enable required reviews.
+
 ## When Making Changes
 1. Check existing patterns in codebase first
 2. Maintain TypeScript strict mode compliance
