@@ -26,6 +26,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_tools: "Bash,Read,Write,Edit,WebSearch,WebFetch"
+          allowed_bots: "dependabot[bot]"
           prompt: |
             You are the dependency maintainer for this project. A dependabot PR has been opened.
             Your job is to ensure this update is safe, fix any problems it introduces, and approve it — or request changes if it's genuinely dangerous.
