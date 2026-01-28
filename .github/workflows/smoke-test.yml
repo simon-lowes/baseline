@@ -7,6 +7,9 @@ on:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://placeholder.supabase.co
+      VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder
     steps:
       - uses: actions/checkout@v4
 
