@@ -13,26 +13,76 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
-      - name: Review dependency update
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Review and fix dependency update
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "Bash,Read,Write,Edit,WebSearch,WebFetch"
           prompt: |
-            You are reviewing a dependabot dependency update PR. Analyse the changes and post a concise review.
+            You are the dependency maintainer for this project. A dependabot PR has been opened.
+            Your job is to ensure this update is safe, fix any problems it introduces, and approve it — or request changes if it's genuinely dangerous.
 
-            Check the following:
-            1. **React consistency**: If react or react-dom is updated, verify both are the same version in package.json. Mismatches cause fatal runtime errors (React error #527).
-            2. **Peer dependencies**: Check if the updated package has peer dependency requirements that conflict with other dependencies in package.json.
-            3. **Breaking changes**: Look at what changed in the update. Flag any breaking changes or deprecations.
-            4. **Security**: Note if this is a security fix.
+            AUTONOMOUS MODE — do NOT ask questions or wait for input. Make all decisions yourself.
 
-            Output format:
-            - A brief summary of what the update contains (1-2 sentences)
-            - Any concerns found (or "No concerns found")
-            - Your verdict: APPROVE or REQUEST_CHANGES
+            ## Step 1: Identify what changed
 
-            If you find no issues, approve the PR. If you find concerns (especially React version mismatches or breaking changes), request changes and explain what needs fixing.
+            Read package.json and the PR diff. Identify:
+            - Which package(s) were bumped
+            - From what version to what version
+            - Whether this is patch, minor, or major
+
+            ## Step 2: React version consistency (CRITICAL)
+
+            This project has been broken before by react/react-dom version mismatches (React error #527, white screen crash).
+
+            Check package.json:
+            - "react" and "react-dom" in dependencies MUST be the exact same version, pinned without ^ or ~
+            - The "overrides" block MUST pin both to the same version
+            - If dependabot bumped react but not react-dom (or vice versa), YOU MUST FIX THIS:
+              1. Update the lagging package to match the bumped one
+              2. Update the overrides block to match
+              3. Run: npm install --legacy-peer-deps
+              4. Verify the build passes: npm run build
+              5. Commit and push the fix to this PR branch
+
+            ## Step 3: Peer dependency check
+
+            Run: npm ls --all 2>&1 | grep "ERESOLVE\|peer dep\|invalid" || echo "No peer dep issues"
+            If there are peer dependency conflicts, assess whether they are blocking (build fails) or cosmetic (warnings only).
+
+            ## Step 4: Changelog review
+
+            Search the web for the changelog or release notes of the updated package. Summarise:
+            - Security fixes (flag these prominently)
+            - Breaking changes (flag these as blockers for major updates)
+            - Notable new features or deprecations
+            - If you can't find a changelog, note that and check the npm page instead
+
+            ## Step 5: Build verification
+
+            Run: npm run build
+            If the build fails, investigate and fix if possible. If you can't fix it, request changes.
+
+            ## Step 6: Post your review
+
+            Post a PR review with:
+            - **Package**: name, old version → new version
+            - **Type**: patch/minor/major
+            - **What changed**: 1-2 sentence summary from the changelog
+            - **Security**: any security fixes (or "None noted")
+            - **Concerns**: any issues found and what you did about them (or "None")
+            - **Fixes applied**: list any commits you pushed to this branch (or "None needed")
+
+            If everything is safe: APPROVE the PR.
+            If you found unfixable issues: REQUEST CHANGES with clear explanation.
 
   auto-merge:
     runs-on: ubuntu-latest
