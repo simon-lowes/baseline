@@ -19,8 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Dependabot verification pipeline** — two-layer safety net before auto-merge
   - Playwright smoke test that loads the production build and catches fatal JS errors (React #527, chunk load failures, uncaught exceptions)
-  - Claude Code review job that analyses changelogs, checks React version consistency, and validates peer dependencies before approving
-  - Smoke test runs as a separate GitHub Actions workflow on all PRs to `main`
+  - Claude Code review job that reviews changelogs, verifies version consistency, checks peer deps, runs a build, and **fixes mismatches** (e.g. bumping react-dom to match react) before approving
+  - Smoke test is a required status check — no PR merges without it passing
 - Theme onboarding system with respectful, non-intrusive indicators
   - Theme CTA (colour picker pulse) shows max 6 times, persists via server for auth users
   - Mode indicator tooltip (Light/Dark/System) shows once per session, auto-dismisses
