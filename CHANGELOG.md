@@ -6,8 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **White screen crash** caused by React error #527 (mismatched react/react-dom versions)
+  - Pinned react and react-dom to exact version 19.2.3 (no caret ranges)
+  - Added npm `overrides` to force consistent React versions across all dependencies
+  - Removed stale `workspaces` config leftover from Convex migration
+- CSP `frame-ancestors` directive moved from unsupported `<meta>` tag to Vercel HTTP headers
+- Added SVG favicon to fix 404 on `/favicon.ico`
+
 ### Added
 
+- **Dependabot verification pipeline** — two-layer safety net before auto-merge
+  - Playwright smoke test that loads the production build and catches fatal JS errors (React #527, chunk load failures, uncaught exceptions)
+  - Claude Code review job that analyses changelogs, checks React version consistency, and validates peer dependencies before approving
+  - Smoke test runs as a separate GitHub Actions workflow on all PRs to `main`
 - Theme onboarding system with respectful, non-intrusive indicators
   - Theme CTA (colour picker pulse) shows max 6 times, persists via server for auth users
   - Mode indicator tooltip (Light/Dark/System) shows once per session, auto-dismisses
