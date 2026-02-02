@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Gemini image generation safety blocks** — tracker names like "Using the toilet" no longer fail silently; edge function now detects `promptFeedback.blockReason` and `finishReason: SAFETY` and retries with progressively safer prompts (standard → abstract → generic)
+- **Silent image generation failures** — all 11 call sites across Dashboard, TrackerSelector, and WelcomeScreen now show toast error feedback instead of swallowing errors
+
+### Added
+
+- **Regenerate Icon** menu item in tracker dropdown (desktop) — lets users retry icon generation after failures
+- Shared `gemini-image.ts` module for Gemini image generation with safety block detection and progressive retry
+
 ### Security
 
 - Fix ungated `?e2e=true` debug bypass in `logger.ts` — previously enabled console debug output in production builds
