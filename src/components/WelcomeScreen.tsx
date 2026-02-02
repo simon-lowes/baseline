@@ -78,10 +78,12 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             console.log(`Image generated for preset tracker: ${preset.name}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch (err) {
@@ -158,10 +160,12 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             console.log(`Image generated for custom tracker: ${name}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch (err) {

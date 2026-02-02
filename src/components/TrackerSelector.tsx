@@ -490,9 +490,12 @@ function DialogContentArea({
                     if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
                       await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
                       console.log(`Image generated for preset tracker: ${preset.name}`);
+                    } else {
+                      toast.error('Could not generate a custom icon for this tracker');
                     }
                   } catch (error) {
                     console.warn('Failed to generate preset tracker image:', error);
+                    toast.error('Could not generate a custom icon for this tracker');
                   }
                 }
                 setCreating(false);
@@ -728,10 +731,12 @@ export function TrackerSelector({
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             debug(`Image generated for tracker: ${trackerName}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
         return; // Don't close dialog yet - let user configure fields
       }
@@ -803,10 +808,12 @@ export function TrackerSelector({
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             debug(`Image generated for tracker: ${newTrackerName.trim()}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch (error) {
@@ -898,9 +905,12 @@ export function TrackerSelector({
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             debug(`Image generated for tracker: ${trackerName}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch (error) {
@@ -943,10 +953,12 @@ export function TrackerSelector({
         if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
           await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
           console.log(`Image generated for tracker: ${trackerName}`);
+        } else {
+          toast.error('Could not generate a custom icon for this tracker');
         }
       } catch (error) {
         console.warn('Failed to generate tracker image:', error);
-        // Don't show error to user - image generation is non-critical
+        toast.error('Could not generate a custom icon for this tracker');
       }
     }
     
