@@ -42,10 +42,12 @@ describe('Edge Functions - Gemini 3.0 Model Strings', () => {
 
   describe('generate-tracker-image', () => {
     const functionPath = join(FUNCTIONS_DIR, 'generate-tracker-image', 'index.ts');
+    const sharedGeminiPath = join(FUNCTIONS_DIR, '_shared', 'gemini-image.ts');
     let functionCode: string;
 
     try {
-      functionCode = readFileSync(functionPath, 'utf-8');
+      // Include the shared gemini-image module since the Gemini API call was extracted there
+      functionCode = readFileSync(functionPath, 'utf-8') + '\n' + readFileSync(sharedGeminiPath, 'utf-8');
     } catch {
       functionCode = '';
     }
@@ -73,10 +75,12 @@ describe('Edge Functions - Gemini 3.0 Model Strings', () => {
 
   describe('backfill-tracker-images', () => {
     const functionPath = join(FUNCTIONS_DIR, 'backfill-tracker-images', 'index.ts');
+    const sharedGeminiPath = join(FUNCTIONS_DIR, '_shared', 'gemini-image.ts');
     let functionCode: string;
 
     try {
-      functionCode = readFileSync(functionPath, 'utf-8');
+      // Include the shared gemini-image module since the Gemini API call was extracted there
+      functionCode = readFileSync(functionPath, 'utf-8') + '\n' + readFileSync(sharedGeminiPath, 'utf-8');
     } catch {
       functionCode = '';
     }

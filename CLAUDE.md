@@ -99,6 +99,15 @@ Automated security tests enforce invariants via static analysis (no mocking, no 
 - `configGenerationService.ts` and `Dashboard.tsx` have ungated `e2e=true` checks (non-auth, but should be DEV-gated) — allowlisted in auth-security test with TODO
 - Cyrillic homoglyphs can evade prompt sanitizer ASCII regex — documented in prompt-sanitizer test
 
+## Image Generation Architecture
+
+Gemini image generation uses a shared module at `supabase/functions/_shared/gemini-image.ts`:
+- **Safety block detection**: Checks both `promptFeedback.blockReason` and `finishReason: SAFETY/PROHIBITED_CONTENT`
+- **Progressive retry**: 3 prompt strategies (standard → abstract → generic) to handle content safety blocks
+- **Used by**: `generate-tracker-image` and `backfill-tracker-images` edge functions
+- **Frontend**: `src/services/imageGenerationService.ts` propagates `isContentBlock` flag; all 11 call sites in Dashboard, TrackerSelector, and WelcomeScreen show toast errors on failure
+- **Regenerate**: Desktop tracker dropdown menu includes "Regenerate Icon" option
+
 ## When Making Changes
 1. Check existing patterns in codebase first
 2. Maintain TypeScript strict mode compliance
@@ -108,4 +117,5 @@ Automated security tests enforce invariants via static analysis (no mocking, no 
 6. Run `npm run lint` and `npm run test` before committing
 7. When adding a new edge function, update the `EDGE_FUNCTIONS` list in `supabase/functions/__tests__/edge-function-security.test.ts`
 8. When adding raw HTML injection patterns or innerHTML, update the allowlist in `src/lib/__tests__/xss-safety.test.ts`
+9. When modifying Gemini image generation (model, prompts, API URL), update both `_shared/gemini-image.ts` and the `gemini-model-strings.test.ts` static analysis test
 

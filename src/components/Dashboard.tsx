@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback, type FocusEvent, type TouchEvent } from 'react';
-import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3, TrendingUp, TrendingDown, Minus, MoreVertical, Settings } from 'lucide-react';
+import { Activity, Plus, Loader2, Sparkles, Trash2, BarChart3, TrendingUp, TrendingDown, Minus, MoreVertical, Settings, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -314,10 +314,12 @@ export function Dashboard({
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             console.log(`Image generated for preset tracker: ${preset.name}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate preset tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch {
@@ -444,10 +446,12 @@ export function Dashboard({
           if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
             await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
             debug(`Image generated for tracker: ${name}`);
+          } else {
+            toast.error('Could not generate a custom icon for this tracker');
           }
         } catch (error) {
           console.warn('Failed to generate tracker image:', error);
-          // Don't show error to user - image generation is non-critical
+          toast.error('Could not generate a custom icon for this tracker');
         }
       }
     } catch {
@@ -668,9 +672,12 @@ export function Dashboard({
                 const imageResult = await generateTrackerImage(customName, result.data.id);
                 if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
                   await updateTrackerImage(result.data.id, imageResult.imageUrl, imageResult.modelName);
+                } else {
+                  toast.error('Could not generate a custom icon for this tracker');
                 }
               } catch (err) {
                 console.warn('Failed to generate tracker image:', err);
+                toast.error('Could not generate a custom icon for this tracker');
               }
             }
           } catch (err) {
@@ -924,6 +931,28 @@ export function Dashboard({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            toast.info(`Regenerating icon for ${tracker.name}...`);
+                            try {
+                              const { generateTrackerImage: genImage, updateTrackerImage: updateImage } = await import('@/services/imageGenerationService');
+                              const imageResult = await genImage(tracker.name, tracker.id);
+                              if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+                                await updateImage(tracker.id, imageResult.imageUrl, imageResult.modelName);
+                                toast.success('Icon regenerated! Refresh to see the new icon.');
+                              } else {
+                                toast.error('Could not generate a custom icon for this tracker');
+                              }
+                            } catch (err) {
+                              console.warn('Failed to regenerate tracker image:', err);
+                              toast.error('Could not generate a custom icon for this tracker');
+                            }
+                          }}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate Icon
+                        </DropdownMenuItem>
                         {hasEditableFields && (
                           <DropdownMenuItem
                             onClick={(e) => {
@@ -1184,10 +1213,18 @@ export function Dashboard({
                   onTrackerCreated(result.data);
 
                   // Generate image asynchronously (fire and forget)
-                  import('@/services/imageGenerationService').then(({ generateTrackerImageAsync }) => {
-                    generateTrackerImageAsync(name, result.data!.id).catch((err) => {
+                  import('@/services/imageGenerationService').then(async ({ generateTrackerImage: genImage, updateTrackerImage: updateImage }) => {
+                    try {
+                      const imageResult = await genImage(name, result.data!.id);
+                      if (imageResult.success && imageResult.imageUrl && imageResult.modelName) {
+                        await updateImage(result.data!.id, imageResult.imageUrl, imageResult.modelName);
+                      } else {
+                        toast.error('Could not generate a custom icon for this tracker');
+                      }
+                    } catch (err) {
                       console.warn('Image generation failed:', err);
-                    });
+                      toast.error('Could not generate a custom icon for this tracker');
+                    }
                   });
                 } else if (result.error) {
                   toast.error(`Failed to create tracker: ${result.error.message}`);

@@ -12,6 +12,7 @@ export interface ImageGenerationResult {
   storagePath?: string;
   modelName?: string;
   error?: string;
+  isContentBlock?: boolean;
 }
 
 /**
@@ -38,17 +39,19 @@ export async function generateTrackerImage(
 
     if (error) {
       console.error('Edge function error:', error);
-      return { 
-        success: false, 
-        error: `Image generation failed: ${error.message}` 
+      return {
+        success: false,
+        error: `Image generation failed: ${error.message}`,
+        isContentBlock: data?.isContentBlock ?? false,
       };
     }
 
     if (!data?.imageUrl) {
       console.error('No image URL returned:', data);
-      return { 
-        success: false, 
-        error: 'No image URL returned from generation service' 
+      return {
+        success: false,
+        error: 'No image URL returned from generation service',
+        isContentBlock: data?.isContentBlock ?? false,
       };
     }
 

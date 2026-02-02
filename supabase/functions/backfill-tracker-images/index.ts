@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { generateImageWithRetry } from '../_shared/gemini-image.ts';
 
 // Secure CORS configuration
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -64,67 +65,14 @@ async function generateImageForTracker(
     // Apply rate limiting
     await rateLimit();
     
-    // Create image prompt
-    const imagePrompt = `Create a minimal, clean, flat design icon for a health tracking app. The icon represents "${trackerName}". 
-    
-Style requirements:
-- Square 1:1 aspect ratio
-- Minimal flat design
-- Clean simple shapes
-- No text or labels in the image
-- Suitable for mobile app card display
-- Modern healthcare/wellness aesthetic
-- Single solid background color
-- Icon should be centered and fill most of the square
-- Use healthcare-appropriate colors (blues, greens, or neutral tones)
-    
-The icon should visually represent the concept of "${trackerName}" in a simple, recognizable way that users will understand at a glance.`;
+    // Generate image with safety block detection and progressive retry
+    const geminiResult = await generateImageWithRetry(trackerName, geminiApiKey);
 
-    // Call Gemini Image API (Nano Banana)
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': geminiApiKey
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: imagePrompt
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            temperature: 0.3,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini Image API error:', errorText);
-      return { success: false, error: `Gemini API error: ${response.status}` };
+    if (!geminiResult.success || !geminiResult.imageData) {
+      return { success: false, error: geminiResult.error || 'Image generation failed' };
     }
 
-    const data = await response.json();
-    
-    // Find the first part that contains image data
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    let imageData = null;
-    
-    for (const part of parts) {
-      if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
-        imageData = part.inlineData;
-        break;
-      }
-    }
-    
-    if (!imageData || !imageData.data) {
-      return { success: false, error: 'No image data returned' };
-    }
+    const imageData = geminiResult.imageData;
 
     // Convert base64 to Uint8Array
     const imageBytes = Uint8Array.from(atob(imageData.data), c => c.charCodeAt(0));
