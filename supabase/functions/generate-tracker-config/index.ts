@@ -352,7 +352,7 @@ Make it medically/scientifically informed but accessible to regular users.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API error response:', errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 200)}`);
+      throw new Error('AI service temporarily unavailable');
     }
 
     const data = await response.json();

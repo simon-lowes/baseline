@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- Fix ungated `?e2e=true` debug bypass in `logger.ts` — previously enabled console debug output in production builds
+- Add security test suite (5 unit, 3 E2E) verifying prompt injection defence, CSP, XSS safety, edge function auth/CORS, and auth bypass gating
+- Fix `ambiguous_terms` RLS policies that referenced non-existent `user_id` column — replaced with intentional read-only access for authenticated users
+- Fix `create_default_tracker` function `search_path` from `'pg_catalog', 'public'` to `''` to match security standard
+- Add missing HTTP security headers to Vercel config: `X-Content-Type-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`
+- Strip Gemini API error details from client-facing responses in all Edge Functions — return generic "AI service temporarily unavailable" instead
+- Add `permissions: contents: read` to smoke-test workflow for least privilege
+- Backfill 6 stub migration files with actual SQL from database for audit trail
+
 ### Fixed
 
 - **White screen crash** caused by React error #527 (mismatched react/react-dom versions)

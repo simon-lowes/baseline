@@ -1,8 +1,8 @@
 export function debug(...args: unknown[]) {
   try {
     if (typeof window === 'undefined') return;
-    // Enable debug when in DEV, or when `?e2e=true` is present, or if window.__debug flag set
-    if (import.meta.env.DEV || (window.location && window.location.search.includes('e2e=true')) || (window as any).__debug) {
+    // Enable debug in DEV mode only (import.meta.env.DEV is statically replaced at build time)
+    if (import.meta.env.DEV || (window as any).__debug) {
       // eslint-disable-next-line no-console
       console.log(...args);
     }

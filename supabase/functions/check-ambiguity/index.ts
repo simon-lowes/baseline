@@ -346,7 +346,7 @@ RULES:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API error response:', errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText.substring(0, 200)}`);
+      throw new Error('AI service temporarily unavailable');
     }
 
     let data = await response.json();
