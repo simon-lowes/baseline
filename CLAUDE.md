@@ -79,6 +79,26 @@ npm run lint         # ESLint check
 
 **Security rationale**: CodeQL scans every PR for vulnerabilities before merge. Human review not required for solo dev, but automated security scanning is enforced. If collaborators are added, revisit and enable required reviews.
 
+## Security Test Suite
+
+Automated security tests enforce invariants via static analysis (no mocking, no runtime deps). Tests run in ~250ms total.
+
+### Unit Tests (Vitest)
+- **`supabase/functions/__tests__/prompt-sanitizer.test.ts`** — Prompt injection detection (15+ OWASP patterns), character stripping, truncation
+- **`src/lib/__tests__/security-headers.test.ts`** — CSP meta tag properties, Vercel headers (HSTS, X-Frame-Options, Permissions-Policy), no dev artefacts
+- **`src/lib/__tests__/xss-safety.test.ts`** — Raw HTML injection allowlist (chart.tsx only), innerHTML allowlist (Dashboard.tsx only), 8 forbidden DOM patterns
+- **`supabase/functions/__tests__/edge-function-security.test.ts`** — Auth enforcement on all 9 edge functions, CORS allowlist, error sanitisation, prompt sanitizer imports, SECURITY DEFINER + search_path. **Explicit function list — adding a new edge function requires updating `EDGE_FUNCTIONS` array in this test.**
+- **`src/adapters/__tests__/auth-security.test.ts`** — `e2e=true`/`dev=true` gated by `import.meta.env.DEV`, no JWT in localStorage
+
+### E2E Tests (Playwright)
+- **`tests/e2e/security-csp.spec.ts`** — CSP meta tag present in production build
+- **`tests/e2e/security-auth.spec.ts`** — `?e2e=true` and `?dev=true` ignored in production, `window.__dev` undefined
+- **`tests/e2e/security-headers.spec.ts`** — CSP present, no server version disclosure
+
+### Known Gaps (tracked in tests)
+- `configGenerationService.ts` and `Dashboard.tsx` have ungated `e2e=true` checks (non-auth, but should be DEV-gated) — allowlisted in auth-security test with TODO
+- Cyrillic homoglyphs can evade prompt sanitizer ASCII regex — documented in prompt-sanitizer test
+
 ## When Making Changes
 1. Check existing patterns in codebase first
 2. Maintain TypeScript strict mode compliance
@@ -86,3 +106,6 @@ npm run lint         # ESLint check
 4. Keep the calming, accessible UX
 5. **Update CHANGELOG.md** before every commit (add to Unreleased section)
 6. Run `npm run lint` and `npm run test` before committing
+7. When adding a new edge function, update the `EDGE_FUNCTIONS` list in `supabase/functions/__tests__/edge-function-security.test.ts`
+8. When adding raw HTML injection patterns or innerHTML, update the allowlist in `src/lib/__tests__/xss-safety.test.ts`
+
