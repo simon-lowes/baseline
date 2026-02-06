@@ -20,6 +20,11 @@ interface EntryWithFieldValues extends PainEntry {
 function escapeCSV(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return ''
   const str = String(value)
+  // Formula injection protection: prefix dangerous characters with a single quote
+  // Skip for numeric values (e.g., negative numbers like -3)
+  if (typeof value !== 'number' && /^[=+\-@\t\r]/.test(str)) {
+    return `"'${str.replace(/"/g, '""')}"`
+  }
   // Escape quotes and wrap in quotes if contains comma, quote, or newline
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`

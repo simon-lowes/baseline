@@ -48,6 +48,7 @@ export function ProfileSection({ user }: ProfileSectionProps) {
         }
       } catch (err) {
         console.error('Failed to load profile:', err)
+        toast.error('Could not load profile data')
       } finally {
         setIsLoadingProfile(false)
       }

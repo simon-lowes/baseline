@@ -256,7 +256,8 @@ export function Dashboard({
               recentAvgIntensity: recentAvg !== null ? Math.round(recentAvg * 10) / 10 : null,
               trend,
             };
-          } catch {
+          } catch (error) {
+            console.error('Failed to compute stats for tracker:', tracker.id, error);
             newStats[tracker.id] = { entryCount: 0, lastEntryDate: null, recentAvgIntensity: null, trend: null };
           }
         })
@@ -277,7 +278,8 @@ export function Dashboard({
     if (!timestamp) return 'No entries yet';
     try {
       return `Last: ${formatDistanceToNow(new Date(timestamp), { addSuffix: true })}`;
-    } catch {
+    } catch (error) {
+      console.error('Failed to format entry date:', error);
       return 'No entries yet';
     }
   }
@@ -322,8 +324,9 @@ export function Dashboard({
           toast.error('Could not generate a custom icon for this tracker');
         }
       }
-    } catch {
-      toast.error('Something went wrong');
+    } catch (error) {
+      console.error('Failed to create preset tracker:', error);
+      toast.error('Failed to create tracker');
     } finally {
       setCreatingPreset(null);
     }
@@ -454,8 +457,9 @@ export function Dashboard({
           toast.error('Could not generate a custom icon for this tracker');
         }
       }
-    } catch {
-      toast.error('Something went wrong');
+    } catch (error) {
+      console.error('Failed to create custom tracker:', error);
+      toast.error('Failed to create tracker');
     } finally {
       setCreating(false);
     }
@@ -474,8 +478,9 @@ export function Dashboard({
         toast.success(`Deleted "${trackerToDelete.name}" tracker`);
         onTrackerDeleted(trackerToDelete.id);
       }
-    } catch {
-      toast.error('Something went wrong');
+    } catch (error) {
+      console.error('Failed to delete tracker:', error);
+      toast.error('Failed to delete tracker');
     } finally {
       setDeleting(false);
       setDeleteDialogOpen(false);

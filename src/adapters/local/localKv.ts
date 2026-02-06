@@ -13,7 +13,8 @@ export const localKv: KvPort = {
       const item = localStorage.getItem(STORAGE_PREFIX + key);
       if (item === null) return null;
       return JSON.parse(item) as T;
-    } catch {
+    } catch (e) {
+      console.error('[localKv] read failed for key:', key, e);
       return null;
     }
   },

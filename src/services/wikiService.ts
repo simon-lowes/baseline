@@ -78,7 +78,7 @@ export async function fetchWikipediaContext(term: string): Promise<WikipediaCont
       categories: categories && categories.length > 0 ? categories : undefined,
     };
   } catch (err) {
-    // Fail silently; caller decides fallback
+    console.error('Wiki API failed:', err);
     return null;
   }
 }

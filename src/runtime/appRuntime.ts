@@ -214,7 +214,7 @@ if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') |
   try {
     const raw = window.localStorage.getItem(DEV_KEY);
     if (raw) devStore = JSON.parse(raw) as Tracker[];
-  } catch {}
+  } catch (e) { console.error('[appRuntime] localStorage read failed (dev trackers):', e); }
 
   if (devStore.length === 0) {
     const nowIso = new Date().toISOString();
@@ -230,9 +230,9 @@ if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') |
       created_at: nowIso,
       updated_at: nowIso,
     } as Tracker);
-    try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch {}
+    try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
   }
-  const saveDev = () => { try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch {} };
+  const saveDev = () => { try { window.localStorage.setItem(DEV_KEY, JSON.stringify(devStore)); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); } };
 
   _tracker = {
     async getTrackers() {
@@ -265,7 +265,7 @@ if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') |
         updated_at: nowIso,
       } as Tracker;
       devStore.push(newTracker);
-      try { saveDev(); } catch {}
+      try { saveDev(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       console.log('[devStore] createTracker -> id:', newTracker.id, 'name:', newTracker.name, 'count:', devStore.length);
       return { data: newTracker, error: null };
     },
@@ -274,14 +274,14 @@ if (import.meta.env.DEV && ((!hasSupabaseEnv && typeof window !== 'undefined') |
       const idx = devStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       devStore[idx] = { ...devStore[idx], ...(input as any) };
-      try { saveDev(); } catch {}
+      try { saveDev(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       return { data: devStore[idx], error: null };
     },
     async deleteTracker(id) {
       const idx = devStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       devStore.splice(idx, 1);
-      try { saveDev(); } catch {}
+      try { saveDev(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       return { data: null, error: null };
     },
     async setDefaultTracker(id: string) {
@@ -343,9 +343,9 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.sear
       created_at: nowIso,
       updated_at: nowIso,
     } as Tracker);
-    try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch {};
+    try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
   }
-  const saveE2E = () => { try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch {} };
+  const saveE2E = () => { try { window.localStorage.setItem(E2E_KEY, JSON.stringify(e2eStore)); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); } };
 
   _tracker = {
     async getTrackers() {
@@ -378,7 +378,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.sear
         updated_at: nowIso,
       } as Tracker;
       e2eStore.push(newTracker);
-      try { saveE2E(); } catch {}
+      try { saveE2E(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       console.log('[e2eStore] createTracker -> id:', newTracker.id, 'name:', newTracker.name, 'count:', e2eStore.length);
       return { data: newTracker, error: null };
     },
@@ -387,19 +387,19 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.sear
       const idx = e2eStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       e2eStore[idx] = { ...e2eStore[idx], ...(input as any) };
-      try { saveE2E(); } catch {}
+      try { saveE2E(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       return { data: e2eStore[idx], error: null };
     },
     async deleteTracker(id) {
       const idx = e2eStore.findIndex(t => t.id === id);
       if (idx === -1) return { data: null, error: new Error('Not found') };
       e2eStore.splice(idx, 1);
-      try { saveE2E(); } catch {}
+      try { saveE2E(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       return { data: null, error: null };
     },
     async setDefaultTracker(id: string) {
       e2eStore.forEach(t => (t.is_default = t.id === id));
-      try { saveE2E(); } catch {}
+      try { saveE2E(); } catch (e) { console.error('[appRuntime] localStorage write failed:', e); }
       const found = e2eStore.find(t => t.id === id) || null;
       return { data: found, error: null };
     },
@@ -439,11 +439,11 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.location.sear
         if (res && res.data) {
           window.dispatchEvent(new CustomEvent('__dev:trackerCreated', { detail: res.data }));
         }
-      } catch (e) {}
+      } catch (e) { console.error('[appRuntime] dev event dispatch failed:', e); }
       return res;
     };
   } catch (e) {
-    // ignore
+    console.error('[appRuntime] dev helper setup failed:', e);
   }
 }
 
