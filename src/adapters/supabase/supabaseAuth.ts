@@ -156,7 +156,9 @@ export const supabaseAuth: AuthPort = {
         console.log('[ensureDefaultTracker] default tracker created or already exists');
       }
     } catch (err) {
-      console.error('[ensureDefaultTracker] invocation failed:', err);
+      console.error('[ensureDefaultTracker] invocation failed (will not retry automatically):', err);
+      // Note: Calling code should handle this gracefully. The default tracker
+      // will be created on the next sign-in or can be created manually.
     }
   },
 

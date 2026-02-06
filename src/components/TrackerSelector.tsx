@@ -6,8 +6,8 @@
  * Includes AI-powered context generation for custom trackers.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Plus, ChevronDown, Check, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, Plus, ChevronDown, Check, Sparkles, Loader2, Trash2, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -521,6 +521,7 @@ export function TrackerSelector({
   const isMobile = useIsMobile();
   const [trackers, setTrackers] = useState<Tracker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTrackerName, setNewTrackerName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -548,10 +549,6 @@ export function TrackerSelector({
   const [editingField, setEditingField] = useState<TrackerField | null>(null);
   const [showFieldPanel, setShowFieldPanel] = useState(false);
 
-  // Capture whether we should auto-select a tracker on mount
-  // This prevents the race condition where currentTracker changes during async loadTrackers
-  const shouldAutoSelectRef = useRef(!currentTracker);
-
   // Use field suggestions hook
   const fieldSuggestions = useFieldSuggestions(
     newlyCreatedTracker?.name || '',
@@ -570,34 +567,36 @@ export function TrackerSelector({
 
   async function loadTrackers() {
     setLoading(true);
+    setLoadError(null);
     try {
       debug('[TrackerSelector] Loading trackers...');
       // Add timeout to prevent infinite loading
       const result = await Promise.race([
         trackerService.getTrackers(),
-        new Promise<{ data: null; error: Error }>((resolve) => 
+        new Promise<{ data: null; error: Error }>((resolve) =>
           setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 5000)
         ),
       ]);
-      
+
       debug('[TrackerSelector] Result:', result);
-      
+
       if (result.data) {
         debug('[TrackerSelector] Loaded', result.data.length, 'trackers');
         setTrackers(result.data);
 
-        // Only auto-select if there was no tracker when component mounted
-        // Using ref prevents race condition where currentTracker changes during async load
-        if (shouldAutoSelectRef.current && result.data.length > 0) {
+        // Auto-select if no tracker is currently selected
+        // Check currentTracker directly to avoid stale ref values
+        if (!currentTracker && result.data.length > 0) {
           const defaultTracker = result.data.find(t => t.is_default) || result.data[0];
           onTrackerChange(defaultTracker);
-          shouldAutoSelectRef.current = false; // Only auto-select once
         }
       } else if (result.error) {
         console.error('[TrackerSelector] Error loading trackers:', result.error);
+        setLoadError(result.error.message || 'Failed to load trackers');
       }
     } catch (err) {
       console.error('Failed to load trackers:', err);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load trackers');
     }
     setLoading(false);
   }
@@ -1030,6 +1029,24 @@ export function TrackerSelector({
   if (loading) {
     return (
       <div className={cn("h-9 w-40 animate-pulse rounded-md bg-muted", className)} />
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className={cn("flex items-center gap-2 h-9 px-3 text-sm text-destructive", className)}>
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span className="truncate">Failed to load trackers</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0"
+          onClick={() => loadTrackers()}
+          aria-label="Retry loading trackers"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </Button>
+      </div>
     );
   }
 

@@ -123,7 +123,7 @@ export function useInterlinkData(
         { manualPairs: manualPairs.length > 0 ? manualPairs : undefined }
       )
     } catch (err) {
-      console.error('Interlink analysis error:', err)
+      console.error('Interlink analysis failed for', trackers.length, 'trackers with', entries.length, 'entries:', err)
       return []
     }
   }, [entries, trackers, fieldsMap, dataStatus.hasEnoughData, autoDetect, manualPairs])

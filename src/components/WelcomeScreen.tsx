@@ -117,7 +117,8 @@ export function WelcomeScreen({ onTrackerCreated }: Readonly<WelcomeScreenProps>
         if (result.success && result.config) {
           generatedConfig = result.config;
         }
-      } catch {
+      } catch (error) {
+        console.error('AI config generation failed:', error);
         // Fall back to generic config if AI fails
       }
       
