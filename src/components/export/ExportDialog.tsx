@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { subDays, endOfDay, startOfDay } from 'date-fns'
 import { Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import {
   Dialog,
@@ -80,10 +81,12 @@ export function ExportDialog({
         includeCharts,
         includeInsights,
       })
+      setIsExporting(false)
+      setProgress(null)
       onOpenChange(false)
     } catch (error) {
       console.error('Export failed:', error)
-    } finally {
+      toast.error('Export failed. Please try again.')
       setIsExporting(false)
       setProgress(null)
     }

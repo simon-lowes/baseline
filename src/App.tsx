@@ -587,7 +587,7 @@ function AppContent({ authState }: AppContentProps) {
           handleTrackerCreated(custom.detail as any);
         }
       } catch (err) {
-        // ignore
+        console.error('[App] dev event handler error:', err);
       }
     };
 

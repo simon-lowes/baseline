@@ -30,7 +30,11 @@ export function decodeState(encoded: string): AppState | null {
   try {
     const json = LZString.decompressFromEncodedURIComponent(encoded);
     if (!json) return null;
-    return JSON.parse(json) as AppState;
+    const parsed = JSON.parse(json);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as AppState;
+    }
+    return null;
   } catch {
     return null;
   }

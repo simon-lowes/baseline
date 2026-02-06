@@ -7,22 +7,34 @@ export function debug(...args: unknown[]) {
       console.log(...args);
     }
   } catch (e) {
-    // ignore
+    /* logger must not throw */
   }
 }
 
 export function info(...args: unknown[]) {
-  // Keep info logs always visible (for now) - these are less noisy
-  // eslint-disable-next-line no-console
-  console.log(...args);
+  try {
+    // Keep info logs always visible (for now) - these are less noisy
+    // eslint-disable-next-line no-console
+    console.log(...args);
+  } catch (e) {
+    /* logger must not throw */
+  }
 }
 
 export function warn(...args: unknown[]) {
-  // eslint-disable-next-line no-console
-  console.warn(...args);
+  try {
+    // eslint-disable-next-line no-console
+    console.warn(...args);
+  } catch (e) {
+    /* logger must not throw */
+  }
 }
 
 export function error(...args: unknown[]) {
-  // eslint-disable-next-line no-console
-  console.error(...args);
+  try {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  } catch (e) {
+    /* logger must not throw */
+  }
 }

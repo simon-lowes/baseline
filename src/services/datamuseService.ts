@@ -25,7 +25,8 @@ export async function fetchDatamuseRelated(term: string, max: number = 10): Prom
       ? data.terms.filter((w: unknown) => typeof w === 'string' && w.trim().length > 0)
       : [];
     return terms.length ? { terms } : null;
-  } catch {
+  } catch (e) {
+    console.error('Datamuse API failed:', e);
     return null;
   }
 }
