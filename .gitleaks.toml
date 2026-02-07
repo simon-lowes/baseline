@@ -1,0 +1,16 @@
+[extend]
+# Use the default gitleaks rules
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''node_modules''',
+  '''dist''',
+  '''package-lock\.json''',
+]
+regexTarget = "match"
+regexes = [
+  # Placeholder Supabase anon key used in CI smoke tests (not a real credential)
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.placeholder''',
+]

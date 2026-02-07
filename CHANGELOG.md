@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Test infrastructure** — eslint-plugin-security for security-focused lint rules, @axe-core/playwright for accessibility testing, cross-browser Playwright projects (Firefox, WebKit), gitleaks config for secret scanning
+- New npm scripts: `test:a11y` (accessibility tests), `test:e2e:all` (all browser projects)
+
 ### Fixed
 
 - **Gemini image generation safety blocks** — tracker names like "Using the toilet" no longer fail silently; edge function now detects `promptFeedback.blockReason` and `finishReason: SAFETY` and retries with progressively safer prompts (standard → abstract → generic)
