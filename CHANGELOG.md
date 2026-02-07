@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Test infrastructure** — eslint-plugin-security for security-focused lint rules, @axe-core/playwright for accessibility testing, cross-browser Playwright projects (Firefox, WebKit), gitleaks config for secret scanning
 - New npm scripts: `test:a11y` (accessibility tests), `test:e2e:all` (all browser projects)
+- **Accessibility E2E tests** — axe-core WCAG 2.1 scan, lang attribute check, keyboard accessibility, image alt text validation
+- **Lib unit tests** (119 tests) — color-utils, date-utils, pain-utils, contrast-utils, contrast-audit, analytics-utils, interlink-utils, stateEncoder
+- **Service unit tests** (24 tests) — configGenerationService (ambiguity fallback, generic config), syncService (mergeEntriesWithQueue)
+- **Adapter unit tests** (19 tests) — noopDb and noopAuth contract compliance
 
 ### Fixed
 
