@@ -1,3 +1,5 @@
+const security = require('eslint-plugin-security');
+
 module.exports = [
   {
     ignores: ['dist/', 'node_modules/'],
@@ -17,8 +19,11 @@ module.exports = [
         process: 'readonly',
       },
     },
-    plugins: { '@typescript-eslint': require('@typescript-eslint/eslint-plugin') },
-    rules: Object.assign({}, require('@typescript-eslint/eslint-plugin').configs.recommended.rules, {
+    plugins: {
+      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+      security,
+    },
+    rules: Object.assign({}, require('@typescript-eslint/eslint-plugin').configs.recommended.rules, security.configs.recommended.rules, {
       'no-unused-vars': 'off',
       'no-undef': 'off',
       '@typescript-eslint/no-explicit-any': 'off',

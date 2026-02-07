@@ -16,7 +16,9 @@
         "build": "tsc -b --noCheck && vite build",
         "lint": "eslint .",
         "test": "vitest run",
+        "test:a11y": "playwright test a11y",
         "test:e2e": "playwright test --project=chromium",
+        "test:e2e:all": "playwright test",
         "test:watch": "vitest",
         "optimize": "vite optimize",
         "preview": "vite preview"
@@ -97,6 +99,7 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
+        "@axe-core/playwright": "^4.11.1",
         "@eslint/js": "^9.39.2",
         "@playwright/test": "^1.58.1",
         "@tailwindcss/postcss": "^4.1.18",
@@ -110,6 +113,7 @@
         "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^7.0.1",
         "eslint-plugin-react-refresh": "^0.5.0",
+        "eslint-plugin-security": "^3.0.1",
         "globals": "^17.3.0",
         "tailwindcss": "^4.1.11",
         "typescript": "~5.9.3",
