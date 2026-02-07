@@ -108,6 +108,9 @@ Gemini image generation uses a shared module at `supabase/functions/_shared/gemi
 - **Frontend**: `src/services/imageGenerationService.ts` propagates `isContentBlock` flag; all 11 call sites in Dashboard, TrackerSelector, and WelcomeScreen show toast errors on failure
 - **Regenerate**: Desktop tracker dropdown menu includes "Regenerate Icon" option
 
+## Testing Standards
+When testing this project, read `testing-standards.md` from the memory directory first. Before running tests, do a quick web search for updates to the specific tools being used. Update the memory file with any changes found.
+
 ## When Making Changes
 1. Check existing patterns in codebase first
 2. Maintain TypeScript strict mode compliance
