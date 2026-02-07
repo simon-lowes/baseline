@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **CI pipeline expansion** — Vitest unit tests and ESLint lint check now run in smoke-test workflow before Playwright tests
+- **Gitleaks CI workflow** — secret scanning on push to main and pull requests
 - **Test infrastructure** — eslint-plugin-security for security-focused lint rules, @axe-core/playwright for accessibility testing, cross-browser Playwright projects (Firefox, WebKit), gitleaks config for secret scanning
 - New npm scripts: `test:a11y` (accessibility tests), `test:e2e:all` (all browser projects)
 - **Accessibility E2E tests** — axe-core WCAG 2.1 scan, lang attribute check, keyboard accessibility, image alt text validation
