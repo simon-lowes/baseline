@@ -1,7 +1,7 @@
 /**
  * Security Headers Tests
  *
- * Static analysis of index.html CSP and security headers defined in vercel.json.
+ * Static analysis of index.html CSP and security headers defined in security-headers.json.
  * These tests verify security properties of the deployed config —
  * they fail if someone weakens a header.
  */
@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '..', '..', '..');
 const indexHtml = readFileSync(resolve(ROOT, 'index.html'), 'utf-8');
-const vercelJson = JSON.parse(readFileSync(resolve(ROOT, 'vercel.json'), 'utf-8'));
+const headersConfig = JSON.parse(readFileSync(resolve(ROOT, 'security-headers.json'), 'utf-8'));
 
 // Extract the CSP meta tag content
 // The content attribute uses double quotes but the CSP value contains single quotes
@@ -22,12 +22,12 @@ const cspMatch = indexHtml.match(
 const csp = cspMatch?.[1] ?? '';
 
 // Extract security headers for the catch-all route
-const catchAllRoute = vercelJson.headers?.find(
+const catchAllRoute = headersConfig.headers?.find(
   (h: { source: string }) => h.source === '/(.*)',
 );
-const vercelHeaders: Record<string, string> = {};
+const securityHeaders: Record<string, string> = {};
 for (const { key, value } of catchAllRoute?.headers ?? []) {
-  vercelHeaders[key.toLowerCase()] = value;
+  securityHeaders[key.toLowerCase()] = value;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,33 +67,33 @@ describe('CSP meta tag in index.html', () => {
 // ---------------------------------------------------------------------------
 describe('Security response headers', () => {
   it('X-Frame-Options is DENY', () => {
-    expect(vercelHeaders['x-frame-options']).toBe('DENY');
+    expect(securityHeaders['x-frame-options']).toBe('DENY');
   });
 
   it('X-Content-Type-Options is nosniff', () => {
-    expect(vercelHeaders['x-content-type-options']).toBe('nosniff');
+    expect(securityHeaders['x-content-type-options']).toBe('nosniff');
   });
 
   it('HSTS max-age >= 31536000', () => {
-    const hsts = vercelHeaders['strict-transport-security'] ?? '';
+    const hsts = securityHeaders['strict-transport-security'] ?? '';
     const maxAgeMatch = hsts.match(/max-age=(\d+)/);
     expect(maxAgeMatch).toBeTruthy();
     expect(Number(maxAgeMatch![1])).toBeGreaterThanOrEqual(31536000);
   });
 
   it('Referrer-Policy is set', () => {
-    expect(vercelHeaders['referrer-policy']).toBeTruthy();
+    expect(securityHeaders['referrer-policy']).toBeTruthy();
   });
 
   it('Permissions-Policy restricts camera, microphone, and geolocation', () => {
-    const pp = vercelHeaders['permissions-policy'] ?? '';
+    const pp = securityHeaders['permissions-policy'] ?? '';
     expect(pp).toContain('camera=()');
     expect(pp).toContain('microphone=()');
     expect(pp).toContain('geolocation=()');
   });
 
   it('no wildcard Access-Control-Allow-Origin', () => {
-    expect(vercelHeaders['access-control-allow-origin']).not.toBe('*');
+    expect(securityHeaders['access-control-allow-origin']).not.toBe('*');
   });
 });
 

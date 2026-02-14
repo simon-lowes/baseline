@@ -39,6 +39,5 @@ pids
 
 .spark-workbench-id
 .playwright-mcp/
-.vercel
 .env*.local
 sbom.json
