@@ -2,6 +2,8 @@
 
 > Know your baseline, spot the changes.
 
+**Live site:** [baseline.simonlowes.cloud](https://baseline.simonlowes.cloud)
+
 A flexible, user-centric tracking platform that empowers users to monitor any aspect of their life—pain, mood, menstrual cycles, habits, or entirely custom metrics—with beautiful visualizations and actionable insights.
 
 ## Features
