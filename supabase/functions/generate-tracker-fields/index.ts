@@ -212,7 +212,7 @@ Generate contextually appropriate fields now:`;
 
     console.log('Calling Gemini API...');
     const geminiResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
       {
         method: 'POST',
         headers: {

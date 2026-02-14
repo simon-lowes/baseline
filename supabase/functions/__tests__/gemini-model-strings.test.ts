@@ -73,6 +73,60 @@ describe('Edge Functions - Gemini 3.0 Model Strings', () => {
     });
   });
 
+  describe('check-ambiguity', () => {
+    const functionPath = join(FUNCTIONS_DIR, 'check-ambiguity', 'index.ts');
+    let functionCode: string;
+
+    try {
+      functionCode = readFileSync(functionPath, 'utf-8');
+    } catch {
+      functionCode = '';
+    }
+
+    it('should use gemini-2.5-flash-lite for ambiguity checking', () => {
+      expect(functionCode).toContain('gemini-2.5-flash-lite');
+    });
+
+    it('should NOT use deprecated gemini-2.5-flash (non-lite)', () => {
+      expect(functionCode).not.toContain('models/gemini-2.5-flash:');
+    });
+
+    it('should NOT use expensive gemini-3-flash-preview', () => {
+      expect(functionCode).not.toContain('models/gemini-3-flash-preview:');
+    });
+
+    it('should call the v1beta API endpoint', () => {
+      expect(functionCode).toContain('generativelanguage.googleapis.com/v1beta');
+    });
+  });
+
+  describe('generate-tracker-fields', () => {
+    const functionPath = join(FUNCTIONS_DIR, 'generate-tracker-fields', 'index.ts');
+    let functionCode: string;
+
+    try {
+      functionCode = readFileSync(functionPath, 'utf-8');
+    } catch {
+      functionCode = '';
+    }
+
+    it('should use gemini-2.5-flash-lite for field generation', () => {
+      expect(functionCode).toContain('gemini-2.5-flash-lite');
+    });
+
+    it('should NOT use deprecated gemini-2.0-flash-exp', () => {
+      expect(functionCode).not.toContain('gemini-2.0-flash-exp');
+    });
+
+    it('should NOT use expensive gemini-3-flash-preview', () => {
+      expect(functionCode).not.toContain('models/gemini-3-flash-preview:');
+    });
+
+    it('should call the v1beta API endpoint', () => {
+      expect(functionCode).toContain('generativelanguage.googleapis.com/v1beta');
+    });
+  });
+
   describe('backfill-tracker-images', () => {
     const functionPath = join(FUNCTIONS_DIR, 'backfill-tracker-images', 'index.ts');
     const sharedGeminiPath = join(FUNCTIONS_DIR, '_shared', 'gemini-image.ts');
