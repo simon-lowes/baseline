@@ -3,7 +3,7 @@
  *
  * Vite preview does not serve production security headers, so this test is
  * limited to what the HTML itself provides. The unit test
- * (security-headers.test.ts) covers vercel.json headers via static analysis.
+ * (security-headers.test.ts) covers security-headers.json headers via static analysis.
  */
 import { test, expect } from "@playwright/test";
 
