@@ -75,7 +75,7 @@ Security misconfiguration is the most common issue, often from insecure defaults
 | Unnecessary features disabled | [ ] | Review Supabase dashboard |
 | Error messages don't leak stack traces | [ ] | ErrorBoundary in place |
 | Security headers configured | [ ] | See SECURITY.md |
-| HTTPS enforced | [ ] | Vercel/hosting handles |
+| HTTPS enforced | [ ] | Traefik handles via Let's Encrypt |
 
 **Baseline-specific checks:**
 - [ ] Supabase anon key has minimal permissions
@@ -412,7 +412,7 @@ Alternative tools:
 When rotating secrets:
 
 - [ ] Generate new secret in provider dashboard
-- [ ] Update in GitHub Secrets / Vercel env vars
+- [ ] Update in GitHub Secrets / hosting env vars
 - [ ] Deploy with new secret
 - [ ] Verify application works
 - [ ] Revoke old secret
@@ -575,7 +575,7 @@ RPO = Recovery Point Objective
 ### Scope Definition
 
 **In Scope:**
-- Web application (yourbaseline.app)
+- Web application (baseline.simonlowes.cloud)
 - Authentication flows
 - Data access controls
 - API endpoints
@@ -583,7 +583,7 @@ RPO = Recovery Point Objective
 
 **Out of Scope:**
 - Supabase infrastructure
-- Vercel infrastructure
+- Hosting infrastructure (Dokploy/Traefik)
 - Third-party APIs
 - Social engineering
 - Physical security

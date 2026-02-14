@@ -152,7 +152,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: geolocation=(), microphone=(), camera=()
 ```
 
-**Note**: Vercel and similar platforms often set these automatically.
+**Note**: These headers are configured via Traefik (reverse proxy) in the Dokploy deployment.
 
 ---
 
