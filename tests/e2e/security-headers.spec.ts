@@ -1,9 +1,9 @@
 /**
  * E2E: Security Headers (limited scope)
  *
- * Vite preview does not serve Vercel headers, so this test is limited to
- * what the HTML itself provides. The unit test (security-headers.test.ts)
- * covers vercel.json headers via static analysis.
+ * Vite preview does not serve production security headers, so this test is
+ * limited to what the HTML itself provides. The unit test
+ * (security-headers.test.ts) covers vercel.json headers via static analysis.
  */
 import { test, expect } from "@playwright/test";
 
@@ -18,7 +18,7 @@ test.describe("security headers (preview server)", () => {
     const response = await page.goto("/");
     expect(response).toBeTruthy();
     const poweredBy = response!.headers()["x-powered-by"];
-    // Vite preview may set this, but in production (Vercel) it should not.
+    // Vite preview may set this, but in production it should not.
     // This test documents the current behaviour.
     // If x-powered-by is present, it's informational leakage.
     if (poweredBy) {

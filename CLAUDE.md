@@ -69,13 +69,13 @@ npm run lint         # ESLint check
 ## GitHub Repository Configuration
 
 **Branch protection on `main`** (configured Jan 2026):
-- Required status checks: CodeQL (`Analyze (javascript-typescript)`) and Vercel
+- Required status checks: CodeQL (`Analyze (javascript-typescript)`) and Smoke Test
 - Strict mode: branches must be up-to-date before merging
 - Enforce admins: true (even admins can't bypass)
 - No force pushes or branch deletion allowed
 - No required PR reviews (solo project - automated checks are the safety net)
 
-**Dependabot auto-merge**: Enabled. PRs auto-merge after CodeQL and Vercel pass.
+**Dependabot auto-merge**: Enabled. PRs auto-merge after CodeQL and Smoke Test pass.
 
 **Security rationale**: CodeQL scans every PR for vulnerabilities before merge. Human review not required for solo dev, but automated security scanning is enforced. If collaborators are added, revisit and enable required reviews.
 
@@ -85,7 +85,7 @@ Automated security tests enforce invariants via static analysis (no mocking, no 
 
 ### Unit Tests (Vitest)
 - **`supabase/functions/__tests__/prompt-sanitizer.test.ts`** — Prompt injection detection (15+ OWASP patterns), character stripping, truncation
-- **`src/lib/__tests__/security-headers.test.ts`** — CSP meta tag properties, Vercel headers (HSTS, X-Frame-Options, Permissions-Policy), no dev artefacts
+- **`src/lib/__tests__/security-headers.test.ts`** — CSP meta tag properties, security headers (HSTS, X-Frame-Options, Permissions-Policy), no dev artefacts
 - **`src/lib/__tests__/xss-safety.test.ts`** — Raw HTML injection allowlist (chart.tsx only), innerHTML allowlist (Dashboard.tsx only), 8 forbidden DOM patterns
 - **`supabase/functions/__tests__/edge-function-security.test.ts`** — Auth enforcement on all 9 edge functions, CORS allowlist, error sanitisation, prompt sanitizer imports, SECURITY DEFINER + search_path. **Explicit function list — adding a new edge function requires updating `EDGE_FUNCTIONS` array in this test.**
 - **`src/adapters/__tests__/auth-security.test.ts`** — `e2e=true`/`dev=true` gated by `import.meta.env.DEV`, no JWT in localStorage
