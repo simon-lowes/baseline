@@ -1,7 +1,7 @@
 /**
  * Security Headers Tests
  *
- * Static analysis of index.html CSP and vercel.json headers.
+ * Static analysis of index.html CSP and security headers defined in vercel.json.
  * These tests verify security properties of the deployed config —
  * they fail if someone weakens a header.
  */
@@ -21,7 +21,7 @@ const cspMatch = indexHtml.match(
 );
 const csp = cspMatch?.[1] ?? '';
 
-// Extract Vercel headers for the catch-all route
+// Extract security headers for the catch-all route
 const catchAllRoute = vercelJson.headers?.find(
   (h: { source: string }) => h.source === '/(.*)',
 );
@@ -63,9 +63,9 @@ describe('CSP meta tag in index.html', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Vercel response headers
+// Security response headers
 // ---------------------------------------------------------------------------
-describe('Vercel security headers', () => {
+describe('Security response headers', () => {
   it('X-Frame-Options is DENY', () => {
     expect(vercelHeaders['x-frame-options']).toBe('DENY');
   });
