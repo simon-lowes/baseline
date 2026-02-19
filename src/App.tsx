@@ -1,12 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { Toaster } from '@/components/ui/sonner'
-import { AuthForm } from '@/components/AuthForm'
 import { useSupabaseAuth } from '@/hooks/useAuth'
+import { AuthForm } from '@/components/AuthForm'
+import { Toaster } from '@/components/ui/sonner'
 
-// Lazy load everything that isn't needed for the main auth form.
-// AuthForm is eagerly loaded because it's the Lighthouse-critical path —
-// a single HTTP request for the entry bundle is faster than entry + lazy chunk
-// on simulated slow 4G (750ms RTT per request).
+// Lazy-load non-critical routes. The entry bundle contains React + Supabase +
+// AuthForm (the Lighthouse-critical path). Everything else loads on demand.
 const AppContent = lazy(() => import('./AppContent'))
 const AuthConfirm = lazy(() =>
   import('@/components/AuthConfirm').then(m => ({ default: m.AuthConfirm }))
@@ -26,7 +24,8 @@ function LoadingSpinner() {
 
 /**
  * Main App Component
- * Thin auth shell - loads heavy authenticated content lazily
+ * Auth form loads eagerly for fastest FCP/LCP on the login page.
+ * Authenticated content lazy-loads after sign-in.
  */
 function App() {
   const authState = useSupabaseAuth();

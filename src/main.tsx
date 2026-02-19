@@ -5,8 +5,6 @@ import { ThemeProvider } from 'next-themes'
 import { initSentry } from './lib/sentry'
 import App from './App'
 import { ErrorFallback } from './ErrorFallback.tsx'
-import { AccessibilityProvider } from './contexts/AccessibilityContext.tsx'
-import { ChartPatternDefs } from './components/charts/ChartPatterns.tsx'
 
 import "./main.css"
 
@@ -49,10 +47,7 @@ function AppWithProviders() {
       enableColorScheme={false}
       storageKey="baseline-theme"
     >
-      <AccessibilityProvider>
-        <ChartPatternDefs />
-        <App />
-      </AccessibilityProvider>
+      <App />
     </ThemeProvider>
   );
 }

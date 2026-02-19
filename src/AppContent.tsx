@@ -1,5 +1,7 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
 import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react'
+import { AccessibilityProvider } from '@/contexts/AccessibilityContext'
+import { ChartPatternDefs } from '@/components/charts/ChartPatterns'
 import { useInvisibleRouter } from '@/hooks/useInvisibleRouter'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp, Gear } from '@phosphor-icons/react'
@@ -620,6 +622,8 @@ export default function AppContent({ authState }: AppContentProps) {
   }
 
   return (
+    <AccessibilityProvider>
+    <ChartPatternDefs />
     <div className="min-h-screen bg-background">
       {/* Skip to main content link for keyboard users */}
       <a
@@ -1139,5 +1143,6 @@ export default function AppContent({ authState }: AppContentProps) {
         </div>
       </footer>
     </div>
+    </AccessibilityProvider>
   )
 }

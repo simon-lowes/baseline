@@ -14,11 +14,22 @@ const appVersion = packageJson.version
 // https://vite.dev/config/
 export default defineConfig({
   build: {
-    // No manualChunks — Rollup naturally splits based on lazy boundaries.
-    // Single entry chunk + lazy AppContent + lazy AnalyticsDashboard.
     target: 'es2022',
-    // Inline small assets to reduce HTTP requests
     assetsInlineLimit: 4096,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Split heavy vendor deps so the browser can parse them in parallel
+          // with the entry chunk. Vite auto-adds modulepreload hints for these.
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/@supabase')) {
+            return 'supabase-vendor'
+          }
+        },
+      },
+    },
   },
   plugins: [
     react(),
@@ -54,20 +65,16 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Allow bundles up to 2.5 MiB to be precached (default is 2 MiB)
-        // With code splitting, individual chunks should be much smaller
-        maximumFileSizeToCacheInBytes: 2.5 * 1024 * 1024, // 2.5 MiB
-        // Cache strategies for different resource types
+        maximumFileSizeToCacheInBytes: 2.5 * 1024 * 1024,
         runtimeCaching: [
           {
-            // Cache API responses with network-first strategy
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-api-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                maxAgeSeconds: 60 * 60 * 24,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -75,35 +82,32 @@ export default defineConfig({
             },
           },
           {
-            // Cache static assets with cache-first strategy
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'image-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
             },
           },
           {
-            // Cache Google Fonts
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                maxAgeSeconds: 60 * 60 * 24 * 365,
               },
             },
           },
         ],
-        // Don't precache source maps
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
       devOptions: {
-        enabled: false, // Disable PWA in development to avoid caching issues
+        enabled: false,
       },
     }),
   ],
