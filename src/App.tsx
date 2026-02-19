@@ -36,11 +36,13 @@ function App() {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <Toaster />
-        <AuthConfirm
-          onReturnToApp={() => {
-            globalThis.location.href = '/'
-          }}
-        />
+        <main>
+          <AuthConfirm
+            onReturnToApp={() => {
+              globalThis.location.href = '/'
+            }}
+          />
+        </main>
       </Suspense>
     )
   }
@@ -50,11 +52,13 @@ function App() {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <Toaster />
-        <ResetPassword
-          onReturnToApp={() => {
-            globalThis.location.href = '/'
-          }}
-        />
+        <main>
+          <ResetPassword
+            onReturnToApp={() => {
+              globalThis.location.href = '/'
+            }}
+          />
+        </main>
       </Suspense>
     )
   }
@@ -69,7 +73,9 @@ function App() {
     return (
       <>
         <Toaster />
-        <AuthForm />
+        <main>
+          <AuthForm />
+        </main>
       </>
     )
   }

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Accessibility** — Added `<main>` landmark to all render paths (auth form, auth confirm, reset password, and authenticated app content) to resolve Lighthouse "Document does not have a main landmark" failure. Removed duplicate nested `<main>` from tracker view to avoid invalid landmark nesting.
+
 ### Changed
 
 - **Performance optimization** — Lighthouse Performance score improved from 32 to 96-97 via route-based code splitting, lazy loading, pre-rendered HTML shell, and dependency reduction
