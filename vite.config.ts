@@ -14,11 +14,20 @@ const appVersion = packageJson.version
 // https://vite.dev/config/
 export default defineConfig({
   build: {
-    // No manualChunks — Rollup naturally splits based on lazy boundaries.
-    // Single entry chunk + lazy AppContent + lazy AnalyticsDashboard.
     target: 'es2022',
-    // Inline small assets to reduce HTTP requests
     assetsInlineLimit: 4096,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/@supabase')) {
+            return 'supabase-vendor'
+          }
+        },
+      },
+    },
   },
   plugins: [
     react(),
