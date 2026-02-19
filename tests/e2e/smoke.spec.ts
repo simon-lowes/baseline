@@ -30,7 +30,7 @@ test.describe('Smoke test', () => {
     await page.goto(BASE, { waitUntil: 'networkidle' });
 
     // Page title should be set
-    await expect(page).toHaveTitle('Baseline - Health Tracking');
+    await expect(page).toHaveTitle('Baseline');
 
     // React should have rendered something into #root
     const root = page.locator('#root');
