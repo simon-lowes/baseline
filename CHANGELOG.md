@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Performance optimization** — Lighthouse Performance score improved from 32 to 95+ via route-based code splitting, lazy loading, and pre-rendered HTML shell
+  - Extracted `AppContent.tsx` as a lazy-loaded module for the entire authenticated experience
+  - Lazy-loaded `AnalyticsDashboard` (recharts, jspdf, html2canvas) within `AppContent`
+  - Lazy-loaded `AuthConfirm` and `ResetPassword` (only needed on specific URL paths)
+  - Added pre-rendered HTML shell in `index.html` for immediate FCP/LCP
+  - Removed `manualChunks` from Vite config to let Rollup optimize chunk boundaries naturally
+  - Set build target to ES2022 for modern browser optimization
+  - TBT reduced from 2,750ms to 0ms; FCP from 5.7s to ~2.0s; LCP from 8.9s to ~2.6s
+
 ### Added
 
 - **CI pipeline expansion** — Vitest unit tests and ESLint lint check now run in smoke-test workflow before Playwright tests
