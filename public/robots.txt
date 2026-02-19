@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://baseline.simonlowes.cloud/sitemap.xml
