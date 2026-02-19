@@ -3,7 +3,10 @@ import { Toaster } from '@/components/ui/sonner'
 import { AuthForm } from '@/components/AuthForm'
 import { useSupabaseAuth } from '@/hooks/useAuth'
 
-// Lazy load everything that isn't needed for the main auth form
+// Lazy load everything that isn't needed for the main auth form.
+// AuthForm is eagerly loaded because it's the Lighthouse-critical path —
+// a single HTTP request for the entry bundle is faster than entry + lazy chunk
+// on simulated slow 4G (750ms RTT per request).
 const AppContent = lazy(() => import('./AppContent'))
 const AuthConfirm = lazy(() =>
   import('@/components/AuthConfirm').then(m => ({ default: m.AuthConfirm }))
