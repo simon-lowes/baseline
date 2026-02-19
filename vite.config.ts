@@ -11,23 +11,6 @@ const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
 const packageJson = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf-8'))
 const appVersion = packageJson.version
 
-// Plugin: convert render-blocking CSS <link> to async preload+onload pattern.
-// The pre-rendered HTML shell provides instant FCP with inline styles,
-// so the full CSS can load asynchronously without FOUC.
-function asyncCssPlugin() {
-  return {
-    name: 'async-css',
-    enforce: 'post' as const,
-    transformIndexHtml(html: string) {
-      return html.replace(
-        /<link rel="stylesheet"([^>]*) href="([^"]*\.css)"([^>]*)>/g,
-        '<link rel="preload" as="style"$1 href="$2"$3 onload="this.onload=null;this.rel=\'stylesheet\'">' +
-        '<noscript><link rel="stylesheet"$1 href="$2"$3></noscript>'
-      )
-    },
-  }
-}
-
 // https://vite.dev/config/
 export default defineConfig({
   build: {
@@ -40,7 +23,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    asyncCssPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
