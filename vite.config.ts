@@ -14,16 +14,77 @@ const appVersion = packageJson.version
 // https://vite.dev/config/
 export default defineConfig({
   build: {
-    target: 'es2022',
-    assetsInlineLimit: 4096,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
-            return 'react-vendor'
+          // NOTE: React is intentionally NOT in a separate chunk.
+          // It must be in the main bundle to ensure it loads before
+          // any components that depend on it (like recharts).
+
+          // Charts - only needed for analytics
+          if (id.includes('node_modules/recharts/') ||
+              id.includes('node_modules/d3')) {
+            return 'vendor-charts'
           }
-          if (id.includes('node_modules/@supabase')) {
-            return 'supabase-vendor'
+
+          // Animation library
+          if (id.includes('node_modules/framer-motion/')) {
+            return 'vendor-motion'
+          }
+
+          // PDF export - rarely used, load on demand
+          if (id.includes('node_modules/jspdf/') ||
+              id.includes('node_modules/html2canvas/')) {
+            return 'vendor-pdf'
+          }
+
+          // Form handling
+          if (id.includes('node_modules/react-hook-form/') ||
+              id.includes('node_modules/@hookform/') ||
+              id.includes('node_modules/zod/')) {
+            return 'vendor-forms'
+          }
+
+          // Supabase client
+          if (id.includes('node_modules/@supabase/')) {
+            return 'vendor-supabase'
+          }
+
+          // TanStack libraries
+          if (id.includes('node_modules/@tanstack/')) {
+            return 'vendor-tanstack'
+          }
+
+          // Date utilities
+          if (id.includes('node_modules/date-fns/')) {
+            return 'vendor-date'
+          }
+
+          // Drag and drop
+          if (id.includes('node_modules/@dnd-kit/')) {
+            return 'vendor-dnd'
+          }
+
+          // Icons - separate chunk to avoid bloating main bundle
+          if (id.includes('node_modules/lucide-react/') ||
+              id.includes('node_modules/@heroicons/') ||
+              id.includes('node_modules/@phosphor-icons/')) {
+            return 'vendor-icons'
+          }
+
+          // Radix UI primitives - shared across components
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'vendor-radix'
+          }
+
+          // Carousel
+          if (id.includes('node_modules/embla-carousel')) {
+            return 'vendor-carousel'
+          }
+
+          // Command menu
+          if (id.includes('node_modules/cmdk/')) {
+            return 'vendor-cmdk'
           }
         },
       },

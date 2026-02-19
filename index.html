@@ -5,73 +5,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Baseline - Health Tracking</title>
+    <title>Baseline</title>
     <meta name="description" content="Know your baseline, spot the changes. Track pain, mood, and any metric that matters." />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://baseline.simonlowes.cloud/" />
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Baseline - Health Tracking" />
-    <meta property="og:description" content="Know your baseline, spot the changes. Track pain, mood, and any metric that matters." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://baseline.simonlowes.cloud/" />
-    <meta property="og:site_name" content="Baseline" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Baseline - Health Tracking" />
-    <meta name="twitter:description" content="Know your baseline, spot the changes. Track pain, mood, and any metric that matters." />
-
-    <!-- Content Security Policy — TODO: migrate to Traefik HTTP header for reduced parsing overhead -->
+    <!-- Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.convex.cloud wss://*.convex.cloud https://generativelanguage.googleapis.com https://api.datamuse.com https://en.wikipedia.org;" />
-
-    <!-- Fonts: async loading with print/onload pattern to avoid render-blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&display=swap">
-    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
-
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="/src/main.css" rel="stylesheet" />
-
-    <!-- Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Baseline",
-        "description": "Know your baseline, spot the changes. Track pain, mood, and any metric that matters.",
-        "url": "https://baseline.simonlowes.cloud",
-        "applicationCategory": "HealthApplication",
-        "operatingSystem": "Web"
-    }
-    </script>
 </head>
 
 <body>
-    <!-- Skip to main content link for keyboard/screen reader users -->
-    <a href="#root" class="skip-link">Skip to main content</a>
-    <div id="root">
-      <!-- Pre-rendered auth form shell: matches AuthForm dimensions for instant LCP -->
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:oklch(0.985 0.015 250);font-family:'Source Sans 3',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-        <div style="width:100%;max-width:28rem;border-radius:0.75rem;border:1px solid oklch(0.88 0.04 250);background:oklch(0.995 0.012 250);box-shadow:0 10px 15px -3px rgba(0,0,0,.1);padding:2rem 1.5rem">
-          <div style="text-align:center;margin-bottom:2rem">
-            <h1 style="font-size:1.5rem;font-weight:600;color:oklch(0.145 0 0);margin:0">Baseline</h1>
-            <p style="color:oklch(0.45 0.01 260);margin:0.25rem 0 0">Know your baseline, spot the changes</p>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:1rem">
-            <div><label style="display:block;font-size:0.875rem;font-weight:500;color:oklch(0.145 0 0);margin-bottom:0.375rem">Email</label><div style="height:2.75rem;border-radius:0.375rem;border:1px solid oklch(0.82 0.02 250);background:transparent"></div></div>
-            <div><label style="display:block;font-size:0.875rem;font-weight:500;color:oklch(0.145 0 0);margin-bottom:0.375rem">Password</label><div style="height:2.75rem;border-radius:0.375rem;border:1px solid oklch(0.82 0.02 250);background:transparent"></div></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.875rem"><span style="color:oklch(0.45 0.01 260)">Keep me signed in for 7 days</span><span style="color:oklch(0.55 0.18 250)">Forgot password?</span></div>
-            <div style="height:2.75rem;border-radius:0.375rem;background:oklch(0.21 0 0);color:white;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:1rem">Sign in</div>
-            <div style="text-align:center;color:oklch(0.45 0.01 260);font-size:0.75rem;text-transform:uppercase;padding:0.25rem 0">or</div>
-            <div style="height:2.75rem;border-radius:0.375rem;border:1px solid oklch(0.82 0.02 250);display:flex;align-items:center;justify-content:center;font-size:0.875rem;color:oklch(0.145 0 0)">Email me a sign-in link</div>
-            <p style="text-align:center;font-size:0.875rem;color:oklch(0.45 0.01 260);padding-top:0.5rem">Don't have an account? <span style="color:oklch(0.55 0.18 250);font-weight:500">Create one</span></p>
-            <div style="display:flex;align-items:center;justify-content:center;gap:0.375rem;font-size:0.75rem;color:oklch(0.45 0.01 260);padding-top:0.5rem"><span>Your data stays private and secure</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="root"></div>
     <!-- SECURITY: E2E helpers removed from production HTML. E2E mode is only available in development builds via appRuntime.ts -->
     <script type="module" src="/src/main.tsx"></script>
 </body>
