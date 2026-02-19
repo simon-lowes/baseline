@@ -9,12 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { auth } from '@/runtime/appRuntime';
 import { toast } from 'sonner';
 import { 
@@ -659,21 +653,13 @@ export function AuthForm({ onSuccess, initialStage = 'signIn' }: Readonly<AuthFo
                 <h1 className="text-2xl font-semibold text-foreground">
                   Baseline
                 </h1>
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        className="-mt-0.5 ml-0.5 w-4 h-4 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold hover:bg-primary/20 hover:border-primary/60 transition-all"
-                        aria-label="About Baseline"
-                      >
-                        i
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-[220px] text-xs">
-                      <p>Track health patterns with AI-powered insights. Private, secure, and personalized to you.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <button
+                  className="-mt-0.5 ml-0.5 w-4 h-4 rounded-full border border-primary/40 bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold hover:bg-primary/20 hover:border-primary/60 transition-all"
+                  aria-label="About Baseline"
+                  title="Track health patterns with AI-powered insights. Private, secure, and personalized to you."
+                >
+                  i
+                </button>
               </div>
               <p className="text-muted-foreground mt-1">
                 Know your baseline, spot the changes
