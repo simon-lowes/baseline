@@ -822,7 +822,7 @@ export default function AppContent({ authState }: AppContentProps) {
       </header>
 
       {/* Main content with view transitions */}
-      <div id="main-content" tabIndex={-1} className="outline-none">
+      <main id="main-content" tabIndex={-1} className="outline-none">
       <AnimatePresence mode="wait">
         {/* Welcome screen for new users */}
         {currentView === 'welcome' && (
@@ -888,7 +888,7 @@ export default function AppContent({ authState }: AppContentProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <main className="container max-w-4xl mx-auto px-6 py-8 space-y-8">
+            <div className="container max-w-4xl mx-auto px-6 py-8 space-y-8">
               <AnimatePresence mode="wait">
                 {showForm ? (
                   <motion.div
@@ -1073,7 +1073,7 @@ export default function AppContent({ authState }: AppContentProps) {
         )}
 
         {entryCount === 0 && !showForm && <EmptyState tracker={currentTracker} />}
-            </main>
+            </div>
           </motion.div>
         )}
 
@@ -1116,7 +1116,7 @@ export default function AppContent({ authState }: AppContentProps) {
           </motion.div>
         )}
       </AnimatePresence>
-      </div>
+      </main>
 
       <footer className="border-t mt-16">
         <div className="container max-w-4xl mx-auto px-6 py-6 flex flex-col sm:flex-row gap-2 justify-center items-center text-sm text-muted-foreground">
