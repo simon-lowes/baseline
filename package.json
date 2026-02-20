@@ -71,7 +71,7 @@
         "date-fns": "^4.1.0",
         "detect-node-es": "^1.1.0",
         "embla-carousel-react": "^8.5.2",
-        "framer-motion": "^12.34.2",
+        "framer-motion": "^12.34.3",
         "html2canvas": "^1.4.1",
         "input-otp": "^1.4.2",
         "jspdf": "^4.2.0",
