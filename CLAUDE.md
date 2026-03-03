@@ -14,21 +14,27 @@ When running unattended: Never ask questions, never present options, make all de
 - **Charts**: Recharts, D3
 - **Testing**: Vitest, Playwright
 
+## Environment Setup
+Requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` — see `README.md` for details.
+
 ## Key Commands
 ```bash
 npm run dev          # Start dev server (port 5173)
 npm run build        # Production build
 npm run test         # Run unit tests
+npm run test:watch   # Run unit tests in watch mode
 npm run test:e2e     # Run Playwright tests
 npm run lint         # ESLint check
+npm run preview      # Preview production build locally
 ```
 
 ## Architecture
 - **Ports & Adapters pattern** - Clean separation of concerns
 - Components in `src/components/ui/` (shadcn)
 - Pages/features in `src/components/`
+- Services in `src/services/` (image generation, config generation, sync, dictionary, wiki, datamuse)
 - Supabase client in `src/lib/supabase.ts`
-- Types in `src/types/`
+- Types in `src/types/` (includes tracker presets in `tracker.ts`)
 
 ## Database
 - Supabase with Row Level Security (RLS)
@@ -45,7 +51,7 @@ npm run lint         # ESLint check
 
 ### Adding a New Tracker Type
 1. Add type to `src/types/tracker.ts`
-2. Create preset in `src/data/presets.ts`
+2. Add preset to `TRACKER_PRESETS` in `src/types/tracker.ts`
 3. Add UI components for the new metric type
 4. Update Supabase RLS policies if needed
 
