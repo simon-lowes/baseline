@@ -77,7 +77,7 @@
         "jspdf": "^4.2.0",
         "lucide-react": "^0.577.0",
         "lz-string": "^1.5.0",
-        "marked": "^17.0.3",
+        "marked": "^17.0.4",
         "motion-dom": "^12.35.0",
         "next-themes": "^0.4.6",
         "octokit": "^5.0.5",
