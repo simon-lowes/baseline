@@ -6,9 +6,11 @@
  */
 import { test, expect } from "@playwright/test";
 
+const BASE = process.env.E2E_BASE || "http://localhost:5173";
+
 test.describe("CSP enforcement", () => {
   test("CSP meta tag is present in production build", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(BASE);
     const cspTag = page.locator('meta[http-equiv="Content-Security-Policy"]');
     await expect(cspTag).toHaveCount(1);
 
@@ -28,7 +30,7 @@ test.describe("CSP enforcement", () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto(BASE);
 
     // Try to inject a script — CSP should block it
     await page.evaluate(() => {

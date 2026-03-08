@@ -48,7 +48,7 @@ async function getSessionFromCache(): Promise<AuthUser | null> {
     
     return currentUser;
   } catch (error) {
-    console.error('Get session from cache failed:', error);
+    if (import.meta.env.DEV) console.error('Get session from cache failed:', error);
     currentUser = null;
     return null;
   }
@@ -82,7 +82,7 @@ async function validateSessionWithServer(): Promise<AuthUser | null> {
     
     return currentUser;
   } catch (error) {
-    console.error('Session validation failed:', error);
+    if (import.meta.env.DEV) console.error('Session validation failed:', error);
     currentUser = null;
     lastValidatedUserId = null;
     await supabaseClient.auth.signOut();
@@ -138,6 +138,35 @@ supabaseClient.auth.onAuthStateChange((_event, session) => {
   }
 });
 
+/**
+ * Clear all client-side data: localStorage, service workers, Cache Storage.
+ * Called on sign-out and account deletion to prevent health data leakage.
+ */
+async function clearClientData(): Promise<void> {
+  // Clear all localStorage (Supabase re-creates its own keys on next login)
+  try {
+    localStorage.clear();
+  } catch { /* storage access may throw in some contexts */ }
+
+  // Unregister all service workers
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(r => r.unregister()));
+    }
+  } catch { /* SW API may be unavailable */ }
+
+  // Delete known Cache Storage entries
+  try {
+    if ('caches' in globalThis) {
+      await Promise.all([
+        caches.delete('supabase-api-cache'),
+        caches.delete('image-cache'),
+      ]);
+    }
+  } catch { /* Cache API may be unavailable */ }
+}
+
 export const supabaseAuth: AuthPort = {
   // Ensure a default tracker exists for the signed-in user by invoking the server-side edge function
   async ensureDefaultTracker(accessToken?: string) {
@@ -151,12 +180,12 @@ export const supabaseAuth: AuthPort = {
       });
 
       if (error) {
-        console.warn('[ensureDefaultTracker] edge function error:', error);
+        if (import.meta.env.DEV) console.warn('[ensureDefaultTracker] edge function error:', error);
       } else {
-        console.log('[ensureDefaultTracker] default tracker created or already exists');
+        if (import.meta.env.DEV) console.log('[ensureDefaultTracker] default tracker created or already exists');
       }
     } catch (err) {
-      console.error('[ensureDefaultTracker] invocation failed (will not retry automatically):', err);
+      if (import.meta.env.DEV) console.error('[ensureDefaultTracker] invocation failed (will not retry automatically):', err);
       // Note: Calling code should handle this gracefully. The default tracker
       // will be created on the next sign-in or can be created manually.
     }
@@ -285,6 +314,8 @@ export const supabaseAuth: AuthPort = {
     if (error) {
       return { error: new Error(error.message) };
     }
+
+    await clearClientData();
 
     return { error: null };
   },
@@ -420,6 +451,8 @@ export const supabaseAuth: AuthPort = {
 
       // Sign out locally (the auth user should already be deleted server-side)
       await supabaseClient.auth.signOut();
+
+      await clearClientData();
 
       return { error: null };
     } catch (err) {

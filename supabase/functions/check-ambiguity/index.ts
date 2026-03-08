@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    console.log('Request body:', JSON.stringify(body));
+    console.log('Request received:', { keys: Object.keys(body), trackerNameLength: body.trackerName?.length });
 
     const { trackerName, allDefinitions, relatedTerms, wikiSummary, wikiCategories } = body;
 
@@ -314,9 +314,9 @@ RULES:
 
     async function callGemini(promptText: string) {
       console.log('Calling Gemini API for ambiguity check:', trackerName);
-      console.log('Using model: gemini-2.5-flash-lite');
+      console.log('Using model: gemini-2.5-flash');
       const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         {
           method: 'POST',
           headers: {

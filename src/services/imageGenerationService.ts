@@ -27,7 +27,7 @@ export async function generateTrackerImage(
   trackerId: string
 ): Promise<ImageGenerationResult> {
   try {
-    console.log(`Generating image for tracker: ${trackerName} (ID: ${trackerId})`);
+    if (import.meta.env.DEV) console.log(`Generating image for tracker: ${trackerName} (ID: ${trackerId})`);
     
     // Call edge function to generate image
     const { data, error } = await supabaseClient.functions.invoke('generate-tracker-image', {
@@ -38,7 +38,7 @@ export async function generateTrackerImage(
     });
 
     if (error) {
-      console.error('Edge function error:', error);
+      if (import.meta.env.DEV) console.error('Edge function error:', error);
       return {
         success: false,
         error: `Image generation failed: ${error.message}`,
@@ -47,7 +47,7 @@ export async function generateTrackerImage(
     }
 
     if (!data?.imageUrl) {
-      console.error('No image URL returned:', data);
+      if (import.meta.env.DEV) console.error('No image URL returned:', data);
       return {
         success: false,
         error: 'No image URL returned from generation service',
@@ -55,7 +55,7 @@ export async function generateTrackerImage(
       };
     }
 
-    console.log('Image generation successful:', data.imageUrl);
+    if (import.meta.env.DEV) console.log('Image generation successful:', data.imageUrl);
 
     return {
       success: true,
@@ -65,7 +65,7 @@ export async function generateTrackerImage(
     };
 
   } catch (error) {
-    console.error('Image generation service error:', error);
+    if (import.meta.env.DEV) console.error('Image generation service error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
@@ -103,18 +103,18 @@ export async function updateTrackerImage(
       .eq('id', trackerId);
 
     if (error) {
-      console.error('Failed to update tracker with image:', error);
+      if (import.meta.env.DEV) console.error('Failed to update tracker with image:', error);
       return { 
         success: false, 
         error: `Failed to save image info: ${error.message}` 
       };
     }
 
-    console.log(`Successfully updated tracker ${trackerId} with image`);
+    if (import.meta.env.DEV) console.log(`Successfully updated tracker ${trackerId} with image`);
     return { success: true };
 
   } catch (error) {
-    console.error('Update tracker image error:', error);
+    if (import.meta.env.DEV) console.error('Update tracker image error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 

@@ -6,9 +6,11 @@
  */
 import { test, expect } from "@playwright/test";
 
+const BASE = process.env.E2E_BASE || "http://localhost:5173";
+
 test.describe("auth security in production build", () => {
   test("?e2e=true is ignored — login UI shown", async ({ page }) => {
-    await page.goto("/?e2e=true");
+    await page.goto(`${BASE}/?e2e=true`);
     // In production, e2e=true should have no effect.
     // The app should show the sign-in page (not a dashboard or test UI).
     // Look for the sign-in form or "sign in" text.
@@ -17,13 +19,13 @@ test.describe("auth security in production build", () => {
   });
 
   test("?dev=true is ignored — login UI shown", async ({ page }) => {
-    await page.goto("/?dev=true");
+    await page.goto(`${BASE}/?dev=true`);
     const signIn = page.getByText(/sign in|log in|email/i).first();
     await expect(signIn).toBeVisible({ timeout: 10_000 });
   });
 
   test("window.__dev is undefined in production", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(BASE);
     const devHelper = await page.evaluate(() => (window as any).__dev);
     expect(devHelper).toBeUndefined();
   });

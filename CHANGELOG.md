@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- **CRITICAL: Incomplete logout cleanup** — `signOut()` and `deleteAccount()` now clear all localStorage, unregister service workers, and delete Cache Storage (`supabase-api-cache`, `image-cache`) to prevent health data leakage on shared devices
+- **Sanitize `previousSuggestions` in AI prompt** — field labels from prior suggestions are now passed through `sanitizeForPrompt()` before interpolation into the Gemini prompt in `generate-tracker-fields`
+- **Generic error responses** — `generate-tracker-fields` catch block no longer returns raw `error.message` to client; returns fixed "Failed to generate tracker fields" message
+- **Redact request body logging** — both `check-ambiguity` and `generate-tracker-fields` edge functions now log only metadata (keys, lengths) instead of full request bodies containing user health data
+- **Remove stale Convex CSP entries** — removed `https://*.convex.cloud` and `wss://*.convex.cloud` from `connect-src` in Content Security Policy
+- **Guard console.log in production** — `imageGenerationService.ts` and `supabaseAuth.ts` now wrap non-critical console calls with `import.meta.env.DEV` so they are tree-shaken from production builds
+
+### Fixed
+
+- **E2E security test URLs** — `security-auth`, `security-csp`, and `security-headers` spec files now use `const BASE` pattern matching `smoke.spec.ts` to prevent "Cannot navigate to invalid URL" errors
+
 ### Added
 
 - **CI pipeline expansion** — Vitest unit tests and ESLint lint check now run in smoke-test workflow before Playwright tests
