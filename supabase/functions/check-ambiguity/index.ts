@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    console.log('Request body:', JSON.stringify(body));
+    console.log('Request received:', { keys: Object.keys(body), trackerNameLength: body.trackerName?.length });
 
     const { trackerName, allDefinitions, relatedTerms, wikiSummary, wikiCategories } = body;
 

@@ -134,7 +134,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    console.log('Request body:', JSON.stringify(body));
+    console.log('Request received:', { keys: Object.keys(body), trackerNameLength: body.trackerName?.length });
 
     const { trackerName, context, previousSuggestions } = body;
 
@@ -158,7 +158,9 @@ Deno.serve(async (req: Request) => {
     const safeContext = sanitizedContext.value;
 
     // Build prompt with sanitized context
-    const previousFieldNames = previousSuggestions?.map((s: any) => s.label).join(', ') || 'none';
+    const previousFieldNames = previousSuggestions
+      ?.map((s: any) => sanitizeForPrompt(s.label || '', { maxLength: 50 }).value)
+      .join(', ') || 'none';
 
     const prompt = `You are helping design custom fields for a health/wellness tracking app.
 
@@ -275,7 +277,7 @@ Generate contextually appropriate fields now:`;
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Failed to generate tracker fields' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
