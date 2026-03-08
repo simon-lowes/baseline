@@ -314,9 +314,9 @@ RULES:
 
     async function callGemini(promptText: string) {
       console.log('Calling Gemini API for ambiguity check:', trackerName);
-      console.log('Using model: gemini-2.5-flash');
+      console.log('Using model: gemini-2.5-flash-lite');
       const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
         {
           method: 'POST',
           headers: {
