@@ -390,6 +390,12 @@ function AppContent({ authState }: AppContentProps) {
   }
 
   const handleEditEntry = (entry: PainEntry) => {
+    // Ensure we're on the tracker view — edit form only renders when currentView === 'tracker'
+    const tracker = trackers.find(t => t.id === entry.tracker_id)
+    if (tracker) {
+      setCurrentTracker(tracker)
+      navigate({ view: 'tracker', trackerId: tracker.id })
+    }
     setEditingEntry(entry)
     setShowForm(true)
   }
