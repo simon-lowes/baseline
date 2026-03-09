@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Edit entry not showing form** — `handleEditEntry` now navigates to the tracker view before setting form state, fixing cases where edit was triggered from analytics but the form never rendered (gated on `currentView === 'tracker'`)
+- **Drawer/dialog animation race on edit** — `PainEntryCard.handleEdit` now delays `onEdit` callback by 150ms to let the Vaul drawer close animation finish before `AnimatePresence` swaps to the form
 - **E2E security test URLs** — `security-auth`, `security-csp`, and `security-headers` spec files now use `const BASE` pattern matching `smoke.spec.ts` to prevent "Cannot navigate to invalid URL" errors
 
 ### Added
