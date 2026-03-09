@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Edit entry not showing form** — `handleEditEntry` now navigates to the tracker view before setting form state, fixing cases where edit was triggered from analytics but the form never rendered (gated on `currentView === 'tracker'`)
+- **Drawer/dialog animation race on edit** — `PainEntryCard.handleEdit` now delays `onEdit` callback by 150ms to let the Vaul drawer close animation finish before `AnimatePresence` swaps to the form
+
 ### Added
 
 - **CI pipeline expansion** — Vitest unit tests and ESLint lint check now run in smoke-test workflow before Playwright tests

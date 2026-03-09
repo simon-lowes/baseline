@@ -62,7 +62,8 @@ export function PainEntryCard({ entry, tracker, onDelete, onEdit }: Readonly<Pai
 
   const handleEdit = () => {
     setShowDetails(false)
-    onEdit(entry)
+    // Delay onEdit until drawer/dialog close animation finishes to avoid AnimatePresence race
+    setTimeout(() => onEdit(entry), 150)
   }
 
   // Shared content for both Dialog and Drawer
