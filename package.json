@@ -81,9 +81,9 @@
         "motion-dom": "^12.38.0",
         "next-themes": "^0.4.6",
         "octokit": "^5.0.5",
-        "react": "19.2.5",
+        "react": "19.2.6",
         "react-day-picker": "^9.14.0",
-        "react-dom": "19.2.5",
+        "react-dom": "19.2.6",
         "react-error-boundary": "^6.1.1",
         "react-hook-form": "^7.75.0",
         "react-resizable-panels": "^4.11.0",
@@ -124,8 +124,8 @@
         "workbox-window": "^7.4.0"
     },
     "overrides": {
-        "react": "19.2.5",
-        "react-dom": "19.2.5",
+        "react": "19.2.6",
+        "react-dom": "19.2.6",
         "serialize-javascript": ">=7.0.3"
     }
 }
