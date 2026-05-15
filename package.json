@@ -104,7 +104,7 @@
         "@playwright/test": "^1.60.0",
         "@tailwindcss/postcss": "^4.3.0",
         "@types/lz-string": "^1.5.0",
-        "@types/node": "^25.7.0",
+        "@types/node": "^25.8.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.0.4",
         "@typescript-eslint/eslint-plugin": "^8.58.0",
