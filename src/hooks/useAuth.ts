@@ -33,17 +33,22 @@ export function useSupabaseAuth(): UseAuthResult {
         const rememberSession = localStorage.getItem('baseline-remember-session');
         const activeSession = sessionStorage.getItem('baseline-active-session');
 
-        // If user didn't check "remember me" and browser was closed, sign them out
-        // (sessionStorage gets cleared when browser closes)
-        if (!rememberSession && !activeSession) {
-          // For now, be permissive - don't force sign out legacy users
-          console.log('[useAuth] No session preference flags found');
-        }
-
         const session = await Promise.race([
           auth.getSession(),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
         ]);
+
+        // If the user did NOT check "remember me" the browser-close path stores a
+        // sessionStorage flag (which is cleared when the browser closes). When
+        // neither flag is present, an existing session means the browser was
+        // closed and reopened after a no-remember sign-in: enforce sign-out so the
+        // documented "don't keep me signed in" behavior actually takes effect.
+        if (session?.user && !rememberSession && !activeSession) {
+          console.log('[useAuth] Session present without remember-me flag after browser close; signing out');
+          await auth.signOut();
+          setUser(null);
+          return;
+        }
 
         if (session?.user) {
           setUser(session.user);

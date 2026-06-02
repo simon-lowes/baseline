@@ -17,7 +17,7 @@ interface EntryWithFieldValues extends PainEntry {
 /**
  * Escape a value for CSV (handle quotes and commas)
  */
-function escapeCSV(value: string | number | boolean | null | undefined): string {
+export function escapeCSV(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return ''
   const str = String(value)
   // Formula injection protection: prefix dangerous characters with a single quote
@@ -112,7 +112,9 @@ export function generateSchemaV2CSV(
   fields: TrackerField[]
 ): string {
   // Build headers: Date, Time, then each custom field
-  const headers = ['Date', 'Time', ...fields.map((f) => f.label)]
+  // Field labels are user/AI-supplied and may contain commas/quotes/newlines,
+  // so they must be escaped like data cells.
+  const headers = ['Date', 'Time', ...fields.map((f) => escapeCSV(f.label))]
 
   const rows = entries.map((entry) => {
     const date = new Date(entry.timestamp)
@@ -166,28 +168,23 @@ export function generateEntriesCSV(
     return generateSchemaV1CSV(trackerEntries)
   }
 
-  // Multiple trackers: generate combined CSV with tracker name column
-  // Use schema v1 format for simplicity when combining
-  const headers = ['Tracker', 'Date', 'Time', 'Intensity', 'Locations', 'Triggers', 'Hashtags', 'Notes']
-
-  const rows = entries.map((entry) => {
-    const tracker = trackerMap.get(entry.tracker_id)
+  // Multiple trackers: emit one section per tracker so custom (schema v2)
+  // field data is preserved. Trackers with custom fields use the v2 layout;
+  // others fall back to v1. Each section is prefixed with its tracker name.
+  const sections: string[] = []
+  for (const [trackerId, trackerEntries] of entriesByTracker) {
+    const tracker = trackerMap.get(trackerId)
     const trackerName = tracker?.name ?? 'Unknown'
-    const date = new Date(entry.timestamp)
+    const fields = tracker ? getTrackerFields(tracker) : []
 
-    return [
-      escapeCSV(trackerName),
-      format(date, 'yyyy-MM-dd'),
-      format(date, 'HH:mm:ss'),
-      escapeCSV(entry.intensity),
-      escapeCSV(formatArray(entry.locations)),
-      escapeCSV(formatArray(entry.triggers)),
-      escapeCSV(formatArray(entry.hashtags)),
-      escapeCSV(entry.notes),
-    ].join(',')
-  })
+    const body = fields.length > 0
+      ? generateSchemaV2CSV(trackerEntries, fields)
+      : generateSchemaV1CSV(trackerEntries)
 
-  return [headers.join(','), ...rows].join('\n')
+    sections.push(`Tracker: ${escapeCSV(trackerName)}\n${body}`)
+  }
+
+  return sections.join('\n\n')
 }
 
 /**

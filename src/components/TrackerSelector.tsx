@@ -886,7 +886,7 @@ export function TrackerSelector({
         type: 'custom',
         generated_config: genResult.config,
         user_description: description,
-        confirmed_interpretation: selectedInterpretation?.value ?? null,
+        confirmed_interpretation: selectedInterpretation?.value === 'other' ? null : (selectedInterpretation?.value ?? null),
       });
 
       if (result.error) {

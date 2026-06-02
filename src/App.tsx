@@ -1,5 +1,5 @@
 import { db, auth, tracker as trackerService } from '@/runtime/appRuntime'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useInvisibleRouter, type AppView } from '@/hooks/useInvisibleRouter'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, List, Calendar, SignOut, TrendUp, Gear } from '@phosphor-icons/react'
@@ -84,6 +84,9 @@ function AppContent({ authState }: AppContentProps) {
   // Multi-tracker and view state
   const [trackers, setTrackers] = useState<Tracker[]>([])
   const [trackersLoading, setTrackersLoading] = useState(true)
+  // One-shot guard so the empty-state welcome redirect only fires on the first
+  // tracker load per authenticated session, not on every navigation.
+  const welcomeRedirectDone = useRef(false)
   const [allEntries, setAllEntries] = useState<PainEntry[]>([]) // For analytics cross-tracker view
   const [analyticsTracker, setAnalyticsTracker] = useState<Tracker | null>(null) // Which tracker to show analytics for (null = all)
 
@@ -176,12 +179,16 @@ function AppContent({ authState }: AppContentProps) {
     return () => unsubscribe()
   }, [])
 
-  // Load all trackers when user is authenticated
+  // Load all trackers once per authenticated session.
+  // NOTE: This intentionally does NOT depend on currentView. Re-running on every
+  // navigation caused a redundant DB round-trip per view change and could clobber
+  // an optimistically-added tracker with a stale server read (read-after-write lag).
   useEffect(() => {
     if (!user) {
       setLoading(false)
       setTrackersLoading(false)
       setTrackers([])
+      welcomeRedirectDone.current = false
       return
     }
 
@@ -192,21 +199,22 @@ function AppContent({ authState }: AppContentProps) {
       if (result.data) {
         setTrackers(result.data)
 
-        // Only redirect on initial load (when at dashboard view)
-        // Don't redirect if user has navigated to a specific view
-        if (currentView === 'dashboard') {
+        // Only redirect to the welcome screen on the FIRST load for this session,
+        // when the user has no trackers. A one-shot ref avoids re-triggering on
+        // later navigations.
+        if (!welcomeRedirectDone.current) {
+          welcomeRedirectDone.current = true
           if (result.data.length === 0) {
             navigate({ view: 'welcome' })
             setCurrentTracker(null)
           }
-          // If at dashboard with trackers, stay at dashboard
         }
       }
       setTrackersLoading(false)
     }
 
     loadTrackers()
-  }, [user, currentView, navigate])
+  }, [user, navigate])
 
   // Load ALL entries for analytics view (cross-tracker)
   const loadAllEntries = useCallback(async () => {

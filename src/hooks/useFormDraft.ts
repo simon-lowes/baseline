@@ -22,6 +22,13 @@ interface UseFormDraftOptions {
   expiryMs?: number;
   /** Autosave interval in ms (default: 10 seconds) */
   autosaveIntervalMs?: number;
+  /**
+   * Whether draft persistence is active (default: true). When false, the
+   * autosave interval, visibilitychange, and pagehide handlers do NOT write to
+   * storage. Use this when the form is editing an existing record so it does not
+   * clobber the new-entry draft stored under the same key.
+   */
+  enabled?: boolean;
 }
 
 interface UseFormDraftReturn<T> {
@@ -74,6 +81,7 @@ export function useFormDraft<T>(
   const {
     expiryMs = DEFAULT_EXPIRY_MS,
     autosaveIntervalMs = DEFAULT_AUTOSAVE_INTERVAL_MS,
+    enabled = true,
   } = options;
 
   // Keep a ref to the latest data for use in event handlers
@@ -136,6 +144,7 @@ export function useFormDraft<T>(
 
   // Save on visibility change (most reliable mobile signal)
   useEffect(() => {
+    if (!enabled) return;
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // Save immediately when page becomes hidden
@@ -148,19 +157,21 @@ export function useFormDraft<T>(
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [saveDraft]);
+  }, [saveDraft, enabled]);
 
   // Autosave periodically as a backup
   useEffect(() => {
+    if (!enabled) return;
     const interval = setInterval(() => {
       saveDraft(dataRef.current);
     }, autosaveIntervalMs);
 
     return () => clearInterval(interval);
-  }, [saveDraft, autosaveIntervalMs]);
+  }, [saveDraft, autosaveIntervalMs, enabled]);
 
   // Also save on pagehide (catches some cases visibilitychange misses)
   useEffect(() => {
+    if (!enabled) return;
     const handlePageHide = () => {
       saveDraft(dataRef.current);
     };
@@ -169,7 +180,7 @@ export function useFormDraft<T>(
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [saveDraft]);
+  }, [saveDraft, enabled]);
 
   return {
     hadDraft,

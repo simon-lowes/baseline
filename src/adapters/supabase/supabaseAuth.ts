@@ -59,34 +59,62 @@ async function getSessionFromCache(): Promise<AuthUser | null> {
  * This is the ONLY way to know if a user is truly authenticated.
  * Call this in background after initial render.
  */
+/**
+ * Decide whether an auth error is a definitive credential rejection (the session
+ * is genuinely invalid) versus a transient transport/server problem.
+ * Only definitive auth failures should destroy the local session; a network blip
+ * or temporary 5xx must NOT sign the user out.
+ */
+function isDefinitiveAuthError(error: { status?: number; name?: string } | null): boolean {
+  if (!error) return false;
+  // 401/403 mean the JWT/session was rejected by the auth server.
+  if (error.status === 401 || error.status === 403) return true;
+  // 5xx and 408/429 are server/transport conditions — treat as transient.
+  return false;
+}
+
 async function validateSessionWithServer(): Promise<AuthUser | null> {
   try {
     // getUser() makes a server request to validate the JWT
     // This will fail if user was deleted, token expired, etc.
     const { data: { user }, error } = await supabaseClient.auth.getUser();
-    
-    if (error || !user) {
-      // Invalid session - clear everything
+
+    if (error) {
+      if (isDefinitiveAuthError(error)) {
+        // Genuinely invalid session - clear everything
+        currentUser = null;
+        lastValidatedUserId = null;
+        // Also clear Supabase's local storage to prevent stale state
+        await supabaseClient.auth.signOut();
+        return null;
+      }
+      // Transient network/server error: keep the existing session intact and
+      // let a later validation retry. Return the cached user so the UI is not
+      // forced to log out over a momentary connectivity blip.
+      if (import.meta.env.DEV) console.warn('Session validation transient error (keeping session):', error);
+      return currentUser;
+    }
+
+    if (!user) {
+      // No error but no user: definitive — no valid session.
       currentUser = null;
       lastValidatedUserId = null;
-      // Also clear Supabase's local storage to prevent stale state
       await supabaseClient.auth.signOut();
       return null;
     }
-    
+
     currentUser = {
       id: user.id,
       email: user.email ?? undefined,
     };
     lastValidatedUserId = user.id;
-    
+
     return currentUser;
   } catch (error) {
-    if (import.meta.env.DEV) console.error('Session validation failed:', error);
-    currentUser = null;
-    lastValidatedUserId = null;
-    await supabaseClient.auth.signOut();
-    return null;
+    // Thrown errors here are transport failures (network down, CORS, fetch reject),
+    // NOT credential rejections. Do not destroy the refresh token; retry later.
+    if (import.meta.env.DEV) console.error('Session validation failed (transient, keeping session):', error);
+    return currentUser;
   }
 }
 

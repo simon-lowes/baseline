@@ -241,7 +241,10 @@ export function calculateLaggedCorrelation(
 
   for (const date1 of dates1) {
     // Calculate date2 = date1 + lagDays
-    const d1 = new Date(date1)
+    // Parse the YYYY-MM-DD key as a LOCAL date (new Date('YYYY-MM-DD') parses
+    // as UTC midnight, which shifts the day for negative-offset timezones).
+    const [y, m, d] = date1.split('-').map(Number)
+    const d1 = new Date(y, m - 1, d)
     d1.setDate(d1.getDate() + lagDays)
     const date2 = getLocalDateString(d1.getTime())
 

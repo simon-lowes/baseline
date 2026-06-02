@@ -10,6 +10,14 @@
 export interface DistributedRateLimitConfig {
   maxRequests: number;      // Max requests per window
   windowSeconds: number;    // Window size in seconds (default: 3600 = 1 hour)
+  /**
+   * Behavior when the rate-limit backend is unavailable.
+   * Defaults to false (fail CLOSED): deny the request so an outage of the
+   * limiter cannot silently disable quota enforcement on paid AI endpoints.
+   * Set true only for non-sensitive endpoints where availability outweighs
+   * abuse/cost risk.
+   */
+  failOpen?: boolean;
 }
 
 export interface DistributedRateLimitResult {
@@ -37,6 +45,15 @@ export async function checkDistributedRateLimit(
   config: DistributedRateLimitConfig
 ): Promise<DistributedRateLimitResult> {
   const windowSeconds = config.windowSeconds || 3600;
+  // Fail CLOSED by default: when the limiter backend errors we deny the request
+  // rather than silently allowing unlimited paid AI calls.
+  const failOpen = config.failOpen === true;
+  const onBackendFailure = (): DistributedRateLimitResult => ({
+    allowed: failOpen,
+    remaining: failOpen ? config.maxRequests : 0,
+    resetAt: new Date(Date.now() + windowSeconds * 1000),
+    currentCount: 0,
+  });
 
   try {
     // Call the database function to check and increment rate limit
@@ -57,13 +74,8 @@ export async function checkDistributedRateLimit(
 
     if (!response.ok) {
       console.error('Rate limit check failed:', response.status, await response.text());
-      // On error, allow the request but log it (fail open for availability)
-      return {
-        allowed: true,
-        remaining: config.maxRequests,
-        resetAt: new Date(Date.now() + windowSeconds * 1000),
-        currentCount: 0,
-      };
+      // Backend error: fail closed by default so quota enforcement is not silently lost.
+      return onBackendFailure();
     }
 
     const result = await response.json();
@@ -73,12 +85,7 @@ export async function checkDistributedRateLimit(
 
     if (!data) {
       console.error('Empty rate limit response');
-      return {
-        allowed: true,
-        remaining: config.maxRequests,
-        resetAt: new Date(Date.now() + windowSeconds * 1000),
-        currentCount: 0,
-      };
+      return onBackendFailure();
     }
 
     return {
@@ -89,13 +96,8 @@ export async function checkDistributedRateLimit(
     };
   } catch (error) {
     console.error('Rate limit error:', error);
-    // On error, allow the request but log it (fail open for availability)
-    return {
-      allowed: true,
-      remaining: config.maxRequests,
-      resetAt: new Date(Date.now() + windowSeconds * 1000),
-      currentCount: 0,
-    };
+    // Transport error: fail closed by default.
+    return onBackendFailure();
   }
 }
 
