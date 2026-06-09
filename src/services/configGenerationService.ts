@@ -26,13 +26,22 @@ function isLikelyGenericConfig(config: GeneratedTrackerConfig | undefined): bool
   const genericLocations = ['general', 'positive', 'negative', 'neutral'];
   const genericTriggers = ['note', 'important', 'follow-up', 'recurring'];
 
-  const locLabels = (config.locations || []).map((l) => l.label.toLowerCase());
-  const trigLabels = (config.triggers || []).map((t) => t.toLowerCase());
+  // Guard against malformed AI output: items may be missing label or be non-strings.
+  const locLabels = (config.locations || [])
+    .map((l) => (typeof l?.label === 'string' ? l.label : ''))
+    .filter((l) => l.length > 0)
+    .map((l) => l.toLowerCase());
+  const trigLabels = (config.triggers || [])
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => t.toLowerCase());
 
+  // A config is "generic" only when its labels actually match the generic
+  // vocabulary — a small number of highly specific labels (e.g. Espresso/Latte/Drip)
+  // must NOT be rejected just for being few.
   const looksGenericLocations =
-    locLabels.length <= 3 || locLabels.every((l) => genericLocations.includes(l));
+    locLabels.length > 0 && locLabels.every((l) => genericLocations.includes(l));
   const looksGenericTriggers =
-    trigLabels.length <= 4 && trigLabels.every((t) => genericTriggers.includes(t));
+    trigLabels.length > 0 && trigLabels.every((t) => genericTriggers.includes(t));
 
   return looksGenericLocations || looksGenericTriggers;
 }

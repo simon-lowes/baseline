@@ -140,7 +140,10 @@ export function DateRangePicker({
               numberOfMonths={2}
               disabled={(date) => {
                 if (maxDate && date > maxDate) return true
-                if (minDate && date < minDate) return true
+                // Calendar cells are at local midnight; minDate carries the
+                // earliest entry's time-of-day. Compare against the START of that
+                // day so the earliest entry's own day remains selectable.
+                if (minDate && date < startOfDay(minDate)) return true
                 return date > new Date()
               }}
             />

@@ -34,6 +34,17 @@ export function getLocalDateString(timestamp: number): string {
 }
 
 /**
+ * Parse a YYYY-MM-DD string into a local Date (at local midnight).
+ * CRITICAL: `new Date('YYYY-MM-DD')` parses as UTC midnight, which renders as
+ * the previous calendar day for users at a negative UTC offset. Constructing
+ * from numeric parts keeps the date in local time, matching getLocalDateString.
+ */
+export function parseLocalDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/**
  * Format time in 24-hour format (e.g., "14:30")
  */
 export function formatTime24(timestamp: number): string {
@@ -153,7 +164,7 @@ export function formatRelativeDateTime(timestamp: number): string {
  * Format short date for charts (e.g., "14 Jan")
  */
 export function formatChartDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  const date = parseLocalDateString(dateStr)
   return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -164,7 +175,7 @@ export function formatChartDate(dateStr: string): string {
  * Format date for tooltips (e.g., "Mon, 14 Jan")
  */
 export function formatTooltipDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  const date = parseLocalDateString(dateStr)
   return date.toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',

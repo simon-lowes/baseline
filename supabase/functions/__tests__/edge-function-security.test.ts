@@ -77,7 +77,11 @@ describe('auth enforcement', () => {
 
   it.each([...EDGE_FUNCTIONS])('%s returns 401 for missing/invalid auth', (fn) => {
     const source = readFn(fn);
-    expect(source).toContain('401');
+    // Strengthened: a bare '401' substring (e.g. in a comment or error map) is
+    // NOT sufficient. Require an actual 401 HTTP status returned from a Response,
+    // co-located with the auth check, so the invariant ("missing/invalid auth =>
+    // 401 response") is genuinely verified rather than incidentally satisfied.
+    expect(source).toMatch(/new\s+Response\b[\s\S]{0,400}?status:\s*401\b/);
   });
 });
 
@@ -98,19 +102,38 @@ describe('CORS configuration', () => {
 // ---------------------------------------------------------------------------
 describe('error sanitisation', () => {
   it.each([...AI_FUNCTIONS])(
-    '%s does not expose external API error text in thrown errors',
+    '%s does not expose external API error text in thrown errors or responses',
     (fn) => {
       const source = readFn(fn);
-      const lines = source.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        // If a line reads external error text via response.text()
-        // the subsequent lines should NOT pass that variable into a thrown Error or response
-        if (/errorText\s*=\s*await\s+.*\.text\(\)/.test(line)) {
-          const lookahead = lines.slice(i + 1, i + 4).join('\n');
-          expect(lookahead).not.toMatch(/throw\s+new\s+Error\s*\(.*errorText/);
-          expect(lookahead).not.toMatch(/JSON\.stringify\s*\(.*errorText/);
-        }
+
+      // Find EVERY variable that captures external response body text via .text(),
+      // regardless of the variable name (errorText, text, errBody, detail, ...).
+      // Scanning the whole file (not a fixed 3-line window) and matching the
+      // captured name (not a hard-coded literal) closes the gaps the old test had.
+      const assignRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+[\w.$]+\.text\(\)/g;
+      const captured = new Set<string>();
+      let m: RegExpExecArray | null;
+      while ((m = assignRe.exec(source)) !== null) {
+        captured.add(m[1]);
+      }
+
+      for (const varName of captured) {
+        const v = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // (1) Thrown into an Error message
+        expect(
+          source,
+          `${fn}: external error text "${varName}" must not be thrown in an Error`,
+        ).not.toMatch(new RegExp(`throw\\s+new\\s+Error\\s*\\([^)]*\\b${v}\\b`));
+        // (2) Serialized into a JSON body
+        expect(
+          source,
+          `${fn}: external error text "${varName}" must not be JSON.stringify'd into a response`,
+        ).not.toMatch(new RegExp(`JSON\\.stringify\\s*\\([^)]*\\b${v}\\b`));
+        // (3) Returned directly as a Response body
+        expect(
+          source,
+          `${fn}: external error text "${varName}" must not be returned in a Response body`,
+        ).not.toMatch(new RegExp(`new\\s+Response\\s*\\(\\s*${v}\\b`));
       }
     },
   );

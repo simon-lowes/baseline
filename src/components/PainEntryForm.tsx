@@ -65,7 +65,11 @@ export function PainEntryForm({ tracker, editEntry, onSubmit, onCancel }: Readon
 
   const { saveDraft, clearDraft, getInitialData, hadDraft } = useFormDraft<EntryDraft>(
     draftKey || 'baseline-draft-entry-temp',
-    defaultDraft
+    defaultDraft,
+    // When editing an existing entry, disable autosave/visibility/pagehide
+    // persistence so the edited entry's values do not overwrite the new-entry
+    // draft stored under the same key.
+    { enabled: !isEditing }
   )
 
   // Get initial form values (from draft if exists, otherwise from editEntry or defaults)

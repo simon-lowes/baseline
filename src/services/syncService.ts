@@ -67,20 +67,30 @@ export async function syncPendingEntries(
   const results: SyncResult[] = []
 
   for (const queuedEntry of pendingEntries) {
-    // Mark as syncing
-    onStatusUpdate(queuedEntry.entry.id, 'syncing')
+    // Number of previously-failed attempts for this entry. The backoff delay is
+    // derived from this BEFORE we mark the entry as 'syncing' (which increments
+    // the live attempt counter), so the delay reflects the real prior-attempt
+    // count rather than a value that is one cycle behind.
+    const priorAttempts = queuedEntry.attempts
 
-    // Add delay based on retry attempts (exponential backoff)
-    if (queuedEntry.attempts > 0) {
-      const delay = getBackoffDelay(queuedEntry.attempts)
+    // Add delay based on previous retry attempts (exponential backoff).
+    if (priorAttempts > 0) {
+      const delay = getBackoffDelay(priorAttempts)
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
+
+    // Mark as syncing (this increments the attempt counter in the live queue,
+    // accounting for the attempt we are about to make).
+    onStatusUpdate(queuedEntry.entry.id, 'syncing')
 
     // Attempt sync
     const result = await syncEntry(queuedEntry.entry)
     results.push(result)
 
     if (result.success) {
+      // On success the entry is marked synced and later removed from the queue,
+      // so its attempt budget is effectively reset (a transient failure no longer
+      // permanently counts against a later successful entry).
       onStatusUpdate(queuedEntry.entry.id, 'synced')
     } else {
       onStatusUpdate(queuedEntry.entry.id, 'failed', result.error)

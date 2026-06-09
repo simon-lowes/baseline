@@ -94,7 +94,10 @@ describe("forbidden DOM patterns", () => {
   const patterns: [string, RegExp][] = [
     ["document.write", buildPattern(["document\\.write", "\\s*\\("])],
     ["document.writeln", buildPattern(["document\\.writeln", "\\s*\\("])],
-    ["dynamic code execution", buildPattern(["[^.]", "ev", "al", "\\s*\\("])],
+    // Negative lookbehind (does NOT consume a preceding char) so a line-leading
+    // dynamic-code call is still detected, while method-style `.x(` and longer
+    // identifiers are correctly excluded.
+    ["dynamic code execution", buildPattern(["(?<![.\\w])", "ev", "al", "\\s*\\("])],
     ["dynamic code via constructor", buildPattern(["new\\s+Func", "tion\\s*\\("])],
     ["setTimeout with string", buildPattern(["setTimeout\\s*\\(\\s*[\"'`]"])],
     ["setInterval with string", buildPattern(["setInterval\\s*\\(\\s*[\"'`]"])],

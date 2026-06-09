@@ -15,6 +15,7 @@ import {
   formatDateShort,
   formatTime24,
 } from '@/lib/date-utils'
+import { escapeCSV } from '@/lib/export/csv-export'
 
 // ============================================================================
 // Types
@@ -818,13 +819,13 @@ export function exportToCSV(entries: PainEntry[]): string {
   const headers = ['Date', 'Time', 'Intensity', 'Locations', 'Triggers', 'Hashtags', 'Notes']
   const rows = entries.map(entry => {
     return [
-      formatDateShort(entry.timestamp),
-      formatTime24(entry.timestamp),
-      entry.intensity.toString(),
-      (entry.locations ?? []).join('; '),
-      (entry.triggers ?? []).join('; '),
-      (entry.hashtags ?? []).join('; '),
-      `"${(entry.notes ?? '').replace(/"/g, '""')}"`,
+      escapeCSV(formatDateShort(entry.timestamp)),
+      escapeCSV(formatTime24(entry.timestamp)),
+      escapeCSV(entry.intensity),
+      escapeCSV((entry.locations ?? []).join('; ')),
+      escapeCSV((entry.triggers ?? []).join('; ')),
+      escapeCSV((entry.hashtags ?? []).join('; ')),
+      escapeCSV(entry.notes),
     ].join(',')
   })
   

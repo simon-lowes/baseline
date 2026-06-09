@@ -20,6 +20,7 @@ import { useTheme } from 'next-themes'
 const THEME_CTA_SHOWN_KEY = 'baseline-theme-cta-shown'       // Boolean: has CTA been dismissed
 const THEME_CTA_COUNT_KEY = 'baseline-theme-cta-count'       // Number: times CTA has been shown
 const MODE_INDICATOR_SHOWN_KEY = 'baseline-mode-indicator-shown'  // Session: mode tooltip shown
+const THEME_MODE_KEY = 'baseline-theme-mode'                 // 'light' | 'dark' | 'system' (set by ThemeSwitcher)
 
 // Configuration
 const MAX_CTA_SHOWS = 6        // Maximum times to show theme CTA
@@ -78,8 +79,20 @@ export function useThemeOnboarding(): ThemeOnboarding {
   const modeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ctaDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Extract mode from theme (e.g., 'zinc-dark' -> 'dark')
-  const currentMode = theme?.split('-')[1] || 'light'
+  // Determine the active mode. The 'system' choice is tracked separately by
+  // ThemeSwitcher in the THEME_MODE_KEY localStorage key (next-themes' `theme`
+  // is always a concrete '<color>-<light|dark>' string and never 'system'), so
+  // parsing `theme` alone could never detect system mode. Prefer the stored
+  // mode and fall back to parsing the theme string.
+  const storedMode = (() => {
+    try {
+      const m = localStorage.getItem(THEME_MODE_KEY)
+      return m === 'system' || m === 'dark' || m === 'light' ? m : null
+    } catch {
+      return null
+    }
+  })()
+  const currentMode = storedMode ?? (theme?.split('-')[1] || 'light')
   const currentModeLabel = getModeLabel(currentMode, resolvedTheme)
   const modeIndicatorTooltip = getModeTooltip(currentMode)
 
@@ -118,12 +131,13 @@ export function useThemeOnboarding(): ThemeOnboarding {
         }
       }
 
-      // Increment show count
-      const newCount = localCount + 1
-      localStorage.setItem(THEME_CTA_COUNT_KEY, newCount.toString())
-
-      // Show CTA after delay (gives page time to load)
+      // Show CTA after delay (gives page time to load). Increment the show
+      // count INSIDE the callback, at the moment the CTA is actually shown, so a
+      // quick navigation that unmounts before the timeout fires does not burn a
+      // show from the MAX_CTA_SHOWS budget without ever displaying the CTA.
       ctaDelayRef.current = setTimeout(() => {
+        const newCount = localCount + 1
+        localStorage.setItem(THEME_CTA_COUNT_KEY, newCount.toString())
         setShowThemeCTA(true)
       }, 1500)
 
