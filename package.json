@@ -82,7 +82,7 @@
         "octokit": "^5.0.5",
         "react": "19.2.6",
         "react-day-picker": "^10.0.1",
-        "react-dom": "19.2.6",
+        "react-dom": "19.2.7",
         "react-error-boundary": "^6.1.2",
         "react-hook-form": "^7.77.0",
         "react-resizable-panels": "^4.11.2",
@@ -125,7 +125,7 @@
     },
     "overrides": {
         "react": "19.2.6",
-        "react-dom": "19.2.6",
+        "react-dom": "19.2.7",
         "serialize-javascript": ">=7.0.3"
     }
 }
