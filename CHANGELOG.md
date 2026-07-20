@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- **Patch `@babel/core` advisory** — `npm audit fix` resolves GHSA-4x5r-pxfx-6jf8 (arbitrary file read via sourceMappingURL comment); npm audit now reports 0 vulnerabilities
+
 - **CRITICAL: Incomplete logout cleanup** — `signOut()` and `deleteAccount()` now clear all localStorage, unregister service workers, and delete Cache Storage (`supabase-api-cache`, `image-cache`) to prevent health data leakage on shared devices
 - **Sanitize `previousSuggestions` in AI prompt** — field labels from prior suggestions are now passed through `sanitizeForPrompt()` before interpolation into the Gemini prompt in `generate-tracker-fields`
 - **Generic error responses** — `generate-tracker-fields` catch block no longer returns raw `error.message` to client; returns fixed "Failed to generate tracker fields" message
