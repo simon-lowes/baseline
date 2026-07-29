@@ -124,6 +124,8 @@
         "workbox-window": "^7.4.0"
     },
     "overrides": {
+        "brace-expansion@1": "2.1.3",
+        "brace-expansion@2": "2.1.3",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "serialize-javascript": ">=7.0.3"
