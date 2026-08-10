@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- **Patch transitive `dompurify`, `nanoid`, `brace-expansion` advisories** — added `npm overrides` for `dompurify` (jspdf, <=3.4.12 XSS), `nanoid` (postcss, <3.3.17 infinite loop on size=0), and `brace-expansion` across all three major-version branches pulled in via minimatch (<2.1.4 and <5.0.9, ReDoS); `npm audit` now reports 0 vulnerabilities
 - **Patch `@babel/core` advisory** — `npm audit fix` resolves GHSA-4x5r-pxfx-6jf8 (arbitrary file read via sourceMappingURL comment); npm audit now reports 0 vulnerabilities
 
 - **CRITICAL: Incomplete logout cleanup** — `signOut()` and `deleteAccount()` now clear all localStorage, unregister service workers, and delete Cache Storage (`supabase-api-cache`, `image-cache`) to prevent health data leakage on shared devices
