@@ -11,6 +11,21 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+      # typescript-eslint packages ship in lockstep with exact peer ranges.
+      # Bumping one alone (e.g. eslint-plugin 8.67.0 against parser 8.66.0)
+      # fails npm ci with ERESOLVE — this is what broke #739. Grouping them
+      # produces one PR per release instead of three conflicting ones.
+      typescript-eslint:
+        patterns:
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+      # framer-motion and motion-dom are both direct deps and must move
+      # together — merging either alone leaves a broken intermediate state
+      # (see #737, which superseded the split PRs #730/#731).
+      motion:
+        patterns:
+          - "framer-motion"
+          - "motion-dom"
     cooldown:
       default-days: 5
       semver-major-days: 7
