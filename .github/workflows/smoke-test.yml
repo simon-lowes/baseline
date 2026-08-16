@@ -3,6 +3,11 @@ name: Smoke Test
 on:
   pull_request:
     branches: [main]
+  # Also run on main itself. Without this, the suite only ever ran on PR
+  # branches — and auto-merged Dependabot commits pushed with GITHUB_TOKEN
+  # don't trigger PR workflows on the result, so main was never exercised.
+  push:
+    branches: [main]
 
 permissions:
   contents: read

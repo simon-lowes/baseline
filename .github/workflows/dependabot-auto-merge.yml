@@ -72,6 +72,11 @@ jobs:
 
   auto-merge:
     runs-on: ubuntu-latest
+    # Deliberately not gated on claude-review, which fails on every PR due to
+    # an upstream bug (anthropics/claude-code-action#1568, no ETA). The real
+    # safety gate is branch protection: `gh pr merge --auto` only merges once
+    # the required check (smoke) passes. Re-gate on claude-review if/when the
+    # upstream bug is fixed.
     if: github.actor == 'dependabot[bot]'
     steps:
       - name: Fetch Dependabot metadata
@@ -83,7 +88,7 @@ jobs:
       - name: Auto-merge patch and minor updates
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |
-          gh pr review --approve "$PR_URL" --body "CI and Claude review passed. Auto-merging (non-major update)."
+          gh pr review --approve "$PR_URL" --body "Auto-merging non-major update once the required CI check (smoke) passes. Claude review is not gated on while upstream claude-code-action#1568 is unfixed."
           gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
