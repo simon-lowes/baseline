@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Remove Claude GitHub Actions from CI** — deleted `claude.yml`, the stale duplicate `claude-chores.yml`, and the `claude-review` job in `dependabot-auto-merge.yml`; they had failed on every PR since July (expired OAuth token) and nothing gated on them. Auto-merge relies on branch protection (CodeQL + smoke) alone
+
 ### Security
 
 - **Patch transitive `dompurify`, `nanoid`, `brace-expansion` advisories** — added `npm overrides` for `dompurify` (jspdf, <=3.4.12 XSS), `nanoid` (postcss, <3.3.17 infinite loop on size=0), and `brace-expansion` across all three major-version branches pulled in via minimatch (<2.1.4 and <5.0.9, ReDoS); `npm audit` now reports 0 vulnerabilities
