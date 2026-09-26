@@ -81,7 +81,7 @@ npm run preview      # Preview production build locally
 - No force pushes or branch deletion allowed
 - No required PR reviews (solo project - automated checks are the safety net)
 
-**Dependabot auto-merge**: Enabled. PRs auto-merge after CodeQL and Smoke Test pass.
+**Dependabot auto-merge**: Enabled. Non-major PRs auto-merge after CodeQL and Smoke Test pass. There is no AI review step (see "Claude GitHub Actions" below).
 
 **Security rationale**: CodeQL scans every PR for vulnerabilities before merge. Human review not required for solo dev, but automated security scanning is enforced. If collaborators are added, revisit and enable required reviews.
 
@@ -127,4 +127,8 @@ When testing this project, read `testing-standards.md` from the memory directory
 7. When adding a new edge function, update the `EDGE_FUNCTIONS` list in `supabase/functions/__tests__/edge-function-security.test.ts`
 8. When adding raw HTML injection patterns or innerHTML, update the allowlist in `src/lib/__tests__/xss-safety.test.ts`
 9. When modifying Gemini image generation (model, prompts, API URL), update both `_shared/gemini-image.ts` and the `gemini-model-strings.test.ts` static analysis test
+
+## Claude GitHub Actions (removed September 2026)
+
+This repo previously ran `anthropics/claude-code-action` in CI: a `claude-review` job inside the Dependabot auto-merge workflow, a stale duplicate of that workflow (`claude-chores.yml`), and an `@claude` mention workflow (`claude.yml`). All of it was removed because the jobs had failed on every PR since July 2026 (expired `CLAUDE_CODE_OAUTH_TOKEN`, plus upstream bugs) and nothing depended on them. Merges are gated by branch protection and the required status checks, not by an AI review. The `CLAUDE_CODE_OAUTH_TOKEN` repository secret can be deleted. To bring it back, see https://code.claude.com/docs/en/github-actions.
 
