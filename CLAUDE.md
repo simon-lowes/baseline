@@ -39,6 +39,7 @@ npm run preview      # Preview production build locally
 ## Database
 - Supabase with Row Level Security (RLS)
 - Migrations in `supabase/migrations/`
+- **Every new table in `public` needs explicit grants in the migration that creates it.** Since 30 Oct 2026 Supabase no longer auto-grants Data API access to new public tables, so without them supabase-js returns "permission denied". Grant `authenticated` the operations the app performs, `service_role` full access, and `anon` only where an RLS policy lets unauthenticated users in. `20261020120000_grant_data_api_access.sql` backfills the existing tables; `migration-grants.test.ts` enforces the rule.
 - Schema docs in `SUPABASE_SCHEMA.sql`
 
 ## Design System
@@ -94,6 +95,7 @@ Automated security tests enforce invariants via static analysis (no mocking, no 
 - **`src/lib/__tests__/security-headers.test.ts`** — CSP meta tag properties, security headers (HSTS, X-Frame-Options, Permissions-Policy), no dev artefacts
 - **`src/lib/__tests__/xss-safety.test.ts`** — Raw HTML injection allowlist (chart.tsx only), innerHTML allowlist (Dashboard.tsx only), 8 forbidden DOM patterns
 - **`supabase/functions/__tests__/edge-function-security.test.ts`** — Auth enforcement on all 9 edge functions, CORS allowlist, error sanitisation, prompt sanitizer imports, SECURITY DEFINER + search_path. **Explicit function list — adding a new edge function requires updating `EDGE_FUNCTIONS` array in this test.**
+- **`supabase/functions/__tests__/migration-grants.test.ts`** — every public table created or renamed by a migration has GRANTs to `authenticated` and `service_role` (Data API access is no longer automatic for new tables)
 - **`src/adapters/__tests__/auth-security.test.ts`** — `e2e=true`/`dev=true` gated by `import.meta.env.DEV`, no JWT in localStorage
 
 ### E2E Tests (Playwright)
@@ -124,9 +126,10 @@ When testing this project, read `testing-standards.md` from the memory directory
 4. Keep the calming, accessible UX
 5. **Update CHANGELOG.md** before every commit (add to Unreleased section)
 6. Run `npm run lint` and `npm run test` before committing
-7. When adding a new edge function, update the `EDGE_FUNCTIONS` list in `supabase/functions/__tests__/edge-function-security.test.ts`
-8. When adding raw HTML injection patterns or innerHTML, update the allowlist in `src/lib/__tests__/xss-safety.test.ts`
-9. When modifying Gemini image generation (model, prompts, API URL), update both `_shared/gemini-image.ts` and the `gemini-model-strings.test.ts` static analysis test
+7. When adding a new table, grant Data API access in the same migration (see Database above)
+8. When adding a new edge function, update the `EDGE_FUNCTIONS` list in `supabase/functions/__tests__/edge-function-security.test.ts`
+9. When adding raw HTML injection patterns or innerHTML, update the allowlist in `src/lib/__tests__/xss-safety.test.ts`
+10. When modifying Gemini image generation (model, prompts, API URL), update both `_shared/gemini-image.ts` and the `gemini-model-strings.test.ts` static analysis test
 
 ## Claude GitHub Actions (removed September 2026)
 
