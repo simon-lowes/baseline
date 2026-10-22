@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dokploy build fixed** — new `nixpacks.toml` pins Node 22.23.3 (was Nixpacks' bundled 22.11.0). Vite 8's rolldown native binding needs Node >=22.12, so npm skipped it and every deploy since the Vite 8 upgrade failed with "Cannot find native binding". `engines.node` now `>=22.12.0`
+
 ### Changed
 
 - **Remove Claude GitHub Actions from CI** — deleted `claude.yml`, the stale duplicate `claude-chores.yml`, and the `claude-review` job in `dependabot-auto-merge.yml`; they had failed on every PR since July (expired OAuth token) and nothing gated on them. Auto-merge relies on branch protection (CodeQL + smoke) alone
