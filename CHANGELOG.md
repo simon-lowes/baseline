@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- **Patch vite dev-server advisories** — lockfile refresh moves `vite` 8.0.16 → 8.3.4 (within `^8.0.16`, no manifest change), clearing GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm and GHSA-698v-4r3x-3vcv. Resolved with a 7-day release-age cutoff (`--before`) because of ongoing npm worm activity; `npm audit` reports 0 vulnerabilities
 - **Explicit Data API grants for every public table** — Supabase stops auto-granting Data API access to new `public` tables on 30 Oct 2026. New migration `20261020120000_grant_data_api_access.sql` grants `profiles`, `trackers`, `tracker_entries`, `dictionary_cache` and `ambiguous_terms` to `authenticated` and `service_role` (and `anon` read on `dictionary_cache`, matching its RLS policy). No-op in production; makes a schema rebuilt from migrations reachable. New static test `migration-grants.test.ts` fails if a migration creates a table without grants
 - **Patch transitive `dompurify`, `nanoid`, `brace-expansion` advisories** — added `npm overrides` for `dompurify` (jspdf, <=3.4.12 XSS), `nanoid` (postcss, <3.3.17 infinite loop on size=0), and `brace-expansion` across all three major-version branches pulled in via minimatch (<2.1.4 and <5.0.9, ReDoS); `npm audit` now reports 0 vulnerabilities
 - **Patch `@babel/core` advisory** — `npm audit fix` resolves GHSA-4x5r-pxfx-6jf8 (arbitrary file read via sourceMappingURL comment); npm audit now reports 0 vulnerabilities
