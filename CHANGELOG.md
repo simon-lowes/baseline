@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- **Resolve npm audit advisories (2026-10-26)** — lockfile-only `npm audit fix`: `fast-uri` 3.1.8 → 3.1.9 (GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h, GHSA-wjr9-j795-jxcr, GHSA-333x-w4r6-6crp) and `serialize-javascript` 7.0.5 → 7.1.4 (GHSA-m5mm-p8h7-m29v); `npm audit` reports 0 vulnerabilities
 - **CI actions updated and tracked** — `actions/checkout` v4 → v7, `actions/setup-node` v4 → v7, `dependabot/fetch-metadata` v2 → v3 and `github/codeql-action` v3 → v4 in the remaining workflows; Dependabot now also watches the `github-actions` ecosystem (7-day cooldown) so they stay current
 - **Dependabot cooldown raised to 7 days** — `default-days`, `semver-minor-days` and `semver-patch-days` go from 5/5/3 to 7 (major was already 7), so version updates wait a week after publish. Response to the ongoing npm worm campaign (Shai-Hulud/ChainDrop variants), where malicious releases are typically pulled within hours. Security updates are unaffected by cooldown
 - **Patch vite dev-server advisories** — lockfile refresh moves `vite` 8.0.16 → 8.3.4 (within `^8.0.16`, no manifest change), clearing GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm and GHSA-698v-4r3x-3vcv. Resolved with a 7-day release-age cutoff (`--before`) because of ongoing npm worm activity; `npm audit` reports 0 vulnerabilities
