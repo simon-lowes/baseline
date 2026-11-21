@@ -6,6 +6,7 @@
  */
 
 import { sanitizeForPrompt } from './prompt-sanitizer.ts';
+import { iconFailsQa } from './jev.ts';
 
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
@@ -132,6 +133,7 @@ export async function generateImageWithRetry(
   const prompts = buildPrompts(sanitized.value);
   let lastError = '';
   let wasContentBlock = false;
+  let fallbackImage: { imageData: { data: string; mimeType: string }; strategy: GeminiImageResult['strategy'] } | null = null;
 
   for (const { strategy, prompt } of prompts) {
     try {
@@ -177,12 +179,25 @@ export async function generateImageWithRetry(
         continue;
       }
 
+      // Optional Jev QA: reject icons with text or people and try the next prompt.
+      if (await iconFailsQa(imageData)) {
+        lastError = 'Icon failed QA (text or people)';
+        console.warn(`[gemini-image] ${strategy}: rejected by icon QA`);
+        if (!fallbackImage) fallbackImage = { imageData, strategy };
+        continue;
+      }
+
       console.log(`[gemini-image] Success with strategy: ${strategy}`);
       return { success: true, imageData, strategy };
     } catch (err) {
       lastError = err instanceof Error ? err.message : 'Unknown error';
       console.error(`[gemini-image] ${strategy} exception:`, err);
     }
+  }
+
+  // QA rejected every attempt: keep today's behaviour and return the first image.
+  if (fallbackImage) {
+    return { success: true, imageData: fallbackImage.imageData, strategy: fallbackImage.strategy };
   }
 
   return {
