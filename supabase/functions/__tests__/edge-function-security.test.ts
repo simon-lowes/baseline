@@ -23,6 +23,7 @@ const EDGE_FUNCTIONS = [
   'generate-tracker-config',
   'generate-tracker-fields',
   'generate-tracker-image',
+  'suggest-note-chips',
   'validate-tracker-fields',
 ] as const;
 
@@ -33,6 +34,7 @@ const AI_FUNCTIONS = [
   'generate-tracker-fields',
   'generate-tracker-image',
   'backfill-tracker-images',
+  'suggest-note-chips',
 ] as const;
 
 /** Read the index.ts for a given function name. */
